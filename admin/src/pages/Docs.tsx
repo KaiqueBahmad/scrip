@@ -43,8 +43,8 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-6">
-      <Panel className="min-w-0">
+    <section id={id} className="min-w-0 scroll-mt-6">
+      <Panel>
         <PanelHeader title={title} hint={hint} />
         <div className="grid min-w-0 gap-3 p-4">{children}</div>
       </Panel>
@@ -263,7 +263,7 @@ http_response_code(200);`,
         description="Como ligar seu backend e seu checkout ao PseudoPay. Os exemplos abaixo já vêm com a URL desta instância e, se você tiver um token, com as credenciais reais."
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_180px] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
         <div className="grid min-w-0 gap-4">
           {/* ------------------------------------------------ visão geral */}
           <Section

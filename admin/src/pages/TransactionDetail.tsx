@@ -170,8 +170,13 @@ export function TransactionDetail() {
         <LifecycleTrace events={events} />
       </Panel>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="grid gap-4">
+      {/*
+        min-w-0 on the container and both columns: a grid item defaults to min-width:auto,
+        so the wide descendants here (deliveries table, metadata JSON, the BR Code) would
+        stretch the 1fr track past the viewport instead of scrolling inside themselves.
+      */}
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-4">
           <Panel>
             <PanelHeader title="Dados da cobrança" />
             <Detail label="comerciante">
@@ -302,7 +307,7 @@ export function TransactionDetail() {
           </Panel>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           <Panel>
             <PanelHeader title="QR code" hint="Payload no formato BR Code." />
             <div className="p-4">

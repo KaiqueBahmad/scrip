@@ -45,7 +45,9 @@ export function Copyable({
         className,
       )}
     >
-      <span className="tnum truncate text-xs">{shown}</span>
+      {/* min-w-0 is required for `truncate` to engage: as a flex item this span would
+          otherwise refuse to shrink below its text and overflow the row instead. */}
+      <span className="tnum min-w-0 truncate text-xs">{shown}</span>
       {copied ? (
         <Check aria-hidden className="size-3 shrink-0 text-settle" />
       ) : (

@@ -123,7 +123,10 @@ export function Settings() {
             const isBoolean = typeof values[key] === 'boolean';
 
             return (
-              <div key={key} className="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_200px] sm:items-start">
+              <div
+                key={key}
+                className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-start"
+              >
                 <div>
                   <label htmlFor={`setting-${key}`} className="text-[13px] font-medium">
                     {LABELS[key] ?? key}

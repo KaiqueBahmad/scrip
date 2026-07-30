@@ -52,12 +52,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 // ----------------------------------------------------------------------- Panel
 
-/** The one surface container. No shadow — a single hairline does the separating. */
+/**
+ * The one surface container. No shadow — a single hairline does the separating.
+ *
+ * min-w-0 is part of the base: a Panel is almost always a grid/flex item, and with the
+ * default min-width:auto any wide child (a table, a JSON dump, a long id) would stretch its
+ * track past the viewport instead of scrolling inside the Panel.
+ */
 export function Panel({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <section
       className={cn(
-        'rounded-[var(--radius-panel)] border bg-[var(--surface-raised)]',
+        'min-w-0 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)]',
         className,
       )}
     >

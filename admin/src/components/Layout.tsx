@@ -40,7 +40,9 @@ export function Layout() {
   const { user, signOut } = useSession();
 
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[188px_1fr]">
+    // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr), e esse mínimo `auto` deixa a
+    // trilha de conteúdo crescer com o filho mais largo, empurrando a página inteira.
+    <div className="min-h-dvh md:grid md:grid-cols-[188px_minmax(0,1fr)]">
       <nav className="flex flex-col gap-1 bg-ink px-3 py-4 text-white/90 md:sticky md:top-0 md:h-dvh">
         <div className="px-1.5 pb-4">
           <span className="font-mono text-[13px] font-semibold tracking-[0.16em] text-white">

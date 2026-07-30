@@ -97,8 +97,8 @@ export function Kyc() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="grid gap-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-4">
           <Panel>
             <PanelHeader
               title="Fila de análise"
