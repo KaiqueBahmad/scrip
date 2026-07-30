@@ -1,1 +1,10 @@
 specs.md
+node_modules/
+dist/
+data/
+*.tsbuildinfo
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store

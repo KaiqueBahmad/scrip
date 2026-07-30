@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+/**
+ * Blueprint palette. PseudoPay is a test bench, not a bank: the chrome is engineering
+ * navy, the content is cool paper, and the six data colors exist because the charge state
+ * machine has six states — color carries information here, it is not decoration.
+ */
+@theme {
+  --color-ink: #0e1626;
+  --color-ink-2: #18233a;
+  --color-ink-3: #26334f;
+  --color-paper: #f6f7f9;
+  --color-paper-2: #ffffff;
+  --color-rule: #d3d8e0;
+  --color-rule-2: #e7eaef;
+  --color-muted: #63708a;
+
+  --color-trace: #2f6bff;
+  --color-trace-soft: #e8effe;
+  --color-settle: #00a37a;
+  --color-settle-soft: #e0f5ef;
+  --color-halt: #c2415a;
+  --color-halt-soft: #fbe9ec;
+  --color-flag: #e4a11b;
+  --color-flag-soft: #fdf3e0;
+
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --radius-panel: 3px;
+}
+
+:root {
+  --surface: var(--color-paper);
+  --surface-raised: var(--color-paper-2);
+  --hairline: var(--color-rule);
+  --hairline-soft: var(--color-rule-2);
+  --text: var(--color-ink);
+  --text-muted: var(--color-muted);
+
+  color-scheme: light dark;
+}
+
+/* The rail is ink in both themes; only the content ground flips. */
+:root[data-theme='dark'],
+html.dark {
+  --surface: #0b1220;
+  --surface-raised: #111a2c;
+  --hairline: #263349;
+  --hairline-soft: #1a2438;
+  --text: #e6eaf2;
+  --text-muted: #8b99b4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface: #0b1220;
+    --surface-raised: #111a2c;
+    --hairline: #263349;
+    --hairline-soft: #1a2438;
+    --text: #e6eaf2;
+    --text-muted: #8b99b4;
+  }
+}
+
+* {
+  border-color: var(--hairline);
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Identifiers, amounts and payloads are always mono and always tabular. */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Small caps eyebrow used for section labels and table heads. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-trace);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-trace);
+  color: #fff;
+}
+
+/* Thin scrollbars keep dense tables from feeling heavier than they are. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline) transparent;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.live-dot {
+  animation: live-pulse 4s ease-in-out infinite;
+}
+
+@keyframes trace-draw {
+  from { stroke-dashoffset: var(--trace-length); }
+  to { stroke-dashoffset: 0; }
+}
+
+.trace-line {
+  stroke-dasharray: var(--trace-length);
+  animation: trace-draw 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

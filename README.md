@@ -40,12 +40,19 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 ## Instalação e uso
 
 ```bash
-npx pseudopay init      # cria pastas, config e banco inicial
-npx pseudopay start     # sobe API (Fastify) + painel admin
-npx pseudopay reset     # limpa o banco, mantém o schema
+npm install                 # dependências da API
+npm --prefix admin install  # dependências do painel
+
+npm run build               # compila API + painel
+npm start                   # sobe API (Fastify) + painel admin
+npm run dev                 # API com reload (painel: npm --prefix admin run dev)
+npm run reset               # limpa o banco, mantém o schema
+npm test                    # suíte de testes
 ```
 
-Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`).
+> A CLI `npx pseudopay <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`.
+
+Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`).
 
 ## Como usar
 
@@ -53,9 +60,13 @@ Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em
 
 Abra `http://localhost:4242/admin`. Não há tela de login tradicional — você verá a lista de usuários cadastrados e escolhe qual usar para a sessão.
 
+Se o banco estiver vazio, a própria tela de seleção cria o primeiro usuário — o CRUD de usuários é público (ver [Segurança](#segurança)), justamente porque o Basic Auth precisa de um usuário já existente para resolver.
+
 ### 2. Crie um usuário e um merchant
 
-Na tela **Usuários**, crie um novo usuário escolhendo suas `permissions` e, opcionalmente, vinculando a um `merchant_id`. Na tela **Merchants**, crie a conta de teste que vai representar seu sistema.
+Na tela **Usuários**, crie um novo usuário escolhendo suas `permissions` e, opcionalmente, vinculando a um `merchant_id`. Na tela **Comerciantes**, crie a conta de teste que vai representar seu sistema.
+
+As permissões disponíveis são `charges:read`, `charges:write`, `refunds:write`, `simulate:write`, `merchants:read`, `merchants:write`, `kyc:read`, `kyc:write`, `webhooks:read`, `webhooks:write` — ou `*` para todas. Um token nunca recebe permissão que o usuário dele não tenha.
 
 ### 3. Gere um token de integração
 
@@ -107,6 +118,31 @@ Eventos disparados: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired
 
 Payload assinado via HMAC-SHA256 no header `X-PseudoPay-Signature`, usando o `webhook_secret` do merchant. Retry automático (até 3 tentativas) se o endpoint não responder `2xx`.
 
+O corpo enviado tem sempre esta forma:
+
+```json
+{
+  "id": "whd_...",
+  "event": "pix.charge.paid",
+  "created_at": "2026-07-29T23:59:00.000Z",
+  "data": { "charge": { "...": "..." } }
+}
+```
+
+O header segue o formato `t=<unix>,v1=<hmac>`, onde o HMAC-SHA256 é calculado sobre a string `<t>.<corpo bruto>`. Incluir o timestamp na assinatura é o que permite testar proteção contra replay:
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verificar(corpoBruto, header, segredo) {
+  const { t, v1 } = Object.fromEntries(header.split(',').map((p) => p.split('=', 2)));
+  const esperado = createHmac('sha256', segredo).update(`${t}.${corpoBruto}`).digest('hex');
+  return v1.length === esperado.length && timingSafeEqual(Buffer.from(v1), Buffer.from(esperado));
+}
+```
+
+Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-PseudoPay-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/integration/webhooks/deliveries/{id}/retry`.
+
 ## Segurança
 
 Este projeto **não tem controle de acesso real** por design:
@@ -133,6 +169,50 @@ Isso é intencional — o PseudoPay é feito para rodar local ou em rede interna
 }
 ```
 
+Outras chaves com valor padrão, todas sobrescrevíveis do mesmo jeito:
+
+| Chave | Padrão | O que faz |
+|---|---|---|
+| `host` | `127.0.0.1` | Interface do listener. É um ambiente de dev — não abra por padrão. |
+| `databasePath` | `data/pseudopay.sqlite` | Arquivo SQLite. `:memory:` funciona (os testes usam). |
+| `pixMinConfirmationDelayMs` | `500` | Atraso usado pelo CPF que confirma sempre. |
+| `webhookRetryBackoffMs` | `2000` | Base do intervalo entre tentativas; cresce a cada tentativa. |
+| `webhookTimeoutMs` | `5000` | Timeout de cada requisição de webhook. |
+| `requireApprovedKycForCharges` | `false` | Se `true`, merchant sem KYC aprovado não cria cobrança. |
+| `pixKey` / `pixReceiverName` / `pixReceiverCity` | `pseudopay@localhost` / `PSEUDOPAY` / `SAO PAULO` | Dados do recebedor embutidos no BR Code. |
+
+O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima funcione numa instalação nova — merchants nascem com `kyc_status: "pending"`. Ligue `requireApprovedKycForCharges` quando quiser testar o caminho de bloqueio (`403 kyc_required`).
+
+Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`, também pode ser editado na tela **Configurações** e vale na hora, sem reiniciar.
+
+## Referência da API
+
+**Integração** (`Authorization: Bearer <jwt>`):
+
+| Método e rota | Permissão |
+|---|---|
+| `POST /v1/integration/pix/charges` (aceita `Idempotency-Key`) | `charges:write` |
+| `GET /v1/integration/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) | `charges:read` |
+| `GET /v1/integration/pix/charges/{id}` · `/events` · `/refunds` | `charges:read` |
+| `POST /v1/integration/pix/charges/{id}/simulate` — `{"result":"paid"\|"expired"}` | `simulate:write` |
+| `POST /v1/integration/pix/charges/{id}/cancel` | `charges:write` |
+| `POST /v1/integration/pix/charges/{id}/refunds` — `amount` opcional | `refunds:write` |
+| `GET`/`PATCH /v1/integration/merchants/me` | `merchants:read` / `merchants:write` |
+| `GET /v1/integration/webhooks/deliveries` | `webhooks:read` |
+| `POST /v1/integration/webhooks/deliveries/{id}/retry` | `webhooks:write` |
+| `GET`/`POST /v1/integration/kyc/documents` | `kyc:read` / `kyc:write` |
+
+**Aplicação** (`Authorization: Bearer <public_token>`, só leitura, escopo de uma cobrança):
+
+- `GET /v1/app/pix/charges/{id}`
+- `GET /v1/app/pix/charges/{id}/qrcode`
+
+O painel consome `/admin/api/*` com HTTP Basic. Erros de qualquer superfície vêm no mesmo envelope:
+
+```json
+{ "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
+```
+
 ## Limitações conhecidas
 
 - Webhooks agendados via `setTimeout` são perdidos se o processo reiniciar (sem persistência de fila)
@@ -142,17 +222,41 @@ Isso é intencional — o PseudoPay é feito para rodar local ou em rede interna
 
 ## Roadmap
 
-1. Core: schema, máquina de estados PIX, QR code, rotas `/v1/app/*` e `/v1/integration/*`
-2. Usuários: CRUD público, login por seleção, Basic Auth
-3. Integration Tokens: geração/validação/revogação de JWT
-4. Webhooks: dispatcher, HMAC, retry
-5. KYC: upload (BLOB), aprovação manual, bloqueio de charges
-6. Admin UI: transações e merchants
-7. Admin UI: KYC e settings
-8. CLI e empacotamento
+1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/app/*` e `/v1/integration/*`
+2. ✅ Usuários: CRUD público, login por seleção, Basic Auth
+3. ✅ Integration Tokens: geração/validação/revogação de JWT
+4. ✅ Webhooks: dispatcher, HMAC, retry
+5. ✅ KYC: upload (BLOB), aprovação manual, bloqueio de charges
+6. ✅ Admin UI: transações e merchants
+7. ✅ Admin UI: KYC e settings
+8. ⬜ CLI e empacotamento — fora do escopo por ora; use os scripts npm
 
 Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
 
-## Especificação completa
+## Estrutura
 
-Ver [`pseudopay-spec.md`](./pseudopay-spec.md) para o detalhamento técnico completo (entidades, máquina de estados, contratos de API, estrutura de pastas).
+```
+src/
+  server.ts        buildServer(): instância Fastify + registro de plugins e rotas
+  config.ts        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
+  db/              schema.sql, openDb, reset
+  lib/             pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
+  domain/          charges (máquina de estados), refunds, webhooks, kyc, tokens, users, merchants
+  auth/            basic (painel), bearer (integração), publicToken (app), permissions
+  routes/          app.ts, integration.ts, admin.ts — superfícies separadas por arquivo
+admin/             painel em Vite + React, compila para dist/admin e é servido em /admin
+tests/             node:test com relógio virtual, sem sleep
+```
+
+Toda assincronia passa por `src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.
+
+## Máquina de estados
+
+```
+pending ──► paid ──► partially_refunded ──► refunded
+   │          └──────────────────────────► refunded
+   ├──► expired
+   └──► canceled
+```
+
+`expired`, `canceled` e `refunded` são terminais. Qualquer transição fora deste diagrama responde `409 invalid_state_transition`, e toda transição fica registrada em `charge_events` — que é o que o painel desenha na visão de ciclo de vida.

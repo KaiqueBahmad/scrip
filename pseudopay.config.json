@@ -1,0 +1,11 @@
+{
+  "port": 4242,
+  "approvalRate": 0.85,
+  "webhookDelayMs": 3000,
+  "pixConfirmationDelayMs": 4000,
+  "pixQrCodeExpirationMs": 900000,
+  "webhookMaxRetries": 3,
+  "jwtSigningSecret": "change-me",
+  "jwtDefaultExpiration": "24h",
+  "kycMaxFileSizeMb": 5
+}
