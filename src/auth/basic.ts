@@ -2,23 +2,30 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { unauthorized } from '../lib/errors.js';
 import type { Services } from '../services.js';
+import type { MerchantRow } from '../types.js';
 
 /**
- * Panel auth (specs.md:35): HTTP Basic where the username is a user id or email and the
- * password is always empty. There is no password check at all — the panel is a user
- * *selector*, not a login (specs.md:54). Anyone who can reach the port is an admin, which
- * is why specs.md:110-118 says never to expose an instance publicly.
+ * Panel auth: HTTP Basic where the username is a merchant id (or its document) and the
+ * password is always empty (specs.md:35).
+ *
+ * The merchant *is* the panel identity — there is no separate operator login, so a session
+ * only ever sees its own charges, tokens, webhooks and KYC. There is no password check at
+ * all: the panel is an account *selector*, not a login (specs.md:54), which is why
+ * specs.md:110-118 says never to expose an instance publicly.
  */
-export function requireAdminUser(services: Services) {
-  return async function adminAuthHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+export function requireMerchantSession(services: Services) {
+  return async function merchantAuthHook(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
     const header = request.headers.authorization;
     const match = header ? /^Basic\s+(.+)$/i.exec(header.trim()) : null;
 
     if (!match?.[1]) {
       reply.header('WWW-Authenticate', 'Basic realm="PseudoPay", charset="UTF-8"');
       throw unauthorized(
-        'admin_auth_required',
-        'Send HTTP Basic credentials: username is your user id or email, password is empty',
+        'merchant_auth_required',
+        'Send HTTP Basic credentials: username is your merchant id, password is empty',
       );
     }
 
@@ -30,28 +37,28 @@ export function requireAdminUser(services: Services) {
     }
 
     // The password half is intentionally ignored rather than required to be empty.
-    const identifier = decoded.split(':', 1)[0] ?? '';
+    const identifier = (decoded.split(':', 1)[0] ?? '').trim();
 
-    if (!identifier.trim()) {
-      throw unauthorized('invalid_credentials', 'Basic username (user id or email) is required');
+    if (!identifier) {
+      throw unauthorized('invalid_credentials', 'Basic username (merchant id) is required');
     }
 
-    const user = services.users.findByIdentifier(identifier);
+    const merchant = services.merchants.findByIdentifier(identifier);
 
-    if (!user) {
+    if (!merchant) {
       throw unauthorized(
-        'user_not_found',
-        `No panel user matches "${identifier}". Pick one from GET /admin/api/session/users`,
+        'merchant_not_found',
+        `No merchant matches "${identifier}". Pick one from GET /admin/api/session/merchants`,
       );
     }
 
-    request.adminUser = user;
+    request.merchant = merchant;
   };
 }
 
-/** Reads the user resolved by `requireAdminUser`. */
-export function adminUser(request: FastifyRequest) {
-  const user = request.adminUser;
-  if (!user) throw unauthorized('admin_auth_required', 'No panel user on this request');
-  return user;
+/** Reads the merchant resolved by `requireMerchantSession`. */
+export function sessionMerchant(request: FastifyRequest): MerchantRow {
+  const merchant = request.merchant;
+  if (!merchant) throw unauthorized('merchant_auth_required', 'No merchant on this request');
+  return merchant;
 }

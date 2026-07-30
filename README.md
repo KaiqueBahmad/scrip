@@ -30,8 +30,8 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 | Banco | SQLite (better-sqlite3) |
 | Admin UI | Vite + React + TypeScript + react-router-dom |
 | Estilo | Tailwind + shadcn/ui |
-| Auth do painel | HTTP Basic (usuário + senha vazia) |
-| Auth da API de Integração | JWT gerado pelo próprio usuário no painel |
+| Auth do painel | HTTP Basic (merchant id + senha vazia) |
+| Auth da API de Integração | JWT emitido pelo próprio merchant no painel |
 | Assincronia | `setTimeout` in-process (sem Redis/BullMQ) |
 | Upload de KYC | BLOB no SQLite |
 
@@ -56,19 +56,21 @@ Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em
 
 ### 1. Acesse o painel
 
-Abra `http://localhost:4242/admin`. Não há tela de login tradicional — você verá a lista de usuários cadastrados e escolhe qual usar para a sessão.
+Abra `http://localhost:4242/admin`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
 
-Se o banco estiver vazio, a própria tela de seleção cria o primeiro usuário — o CRUD de usuários é público (ver [Segurança](#segurança)), justamente porque o Basic Auth precisa de um usuário já existente para resolver.
+Se o banco estiver vazio, a própria tela de seleção cria a primeira loja. A criação é pública (ver [Segurança](#segurança)) justamente porque o Basic Auth resolve um merchant que já existe — sem isso não haveria como entrar num banco novo.
 
-### 2. Crie um usuário e um merchant
+Cada sessão vê **apenas a própria loja**: suas cobranças, tokens, webhooks, documentos e saldo. Não existe um perfil de operador que enxergue várias lojas.
 
-Na tela **Usuários**, crie um novo usuário escolhendo suas `permissions` e, opcionalmente, vinculando a um `merchant_id`. Na tela **Comerciantes**, crie a conta de teste que vai representar seu sistema.
+### 2. Confira a loja
 
-As permissões disponíveis são `charges:read`, `charges:write`, `refunds:write`, `simulate:write`, `merchants:read`, `merchants:write`, `kyc:read`, `kyc:write`, `webhooks:read`, `webhooks:write` — ou `*` para todas. Um token nunca recebe permissão que o usuário dele não tenha.
+Na tela **Minha loja** ficam o saldo, o `merchant_id` (que é o usuário do Basic Auth), a `webhook_url`, o `webhook_secret` e o KYC. Como não há revisor externo, aprovar ou recusar o KYC ali é um **controle de simulação da própria loja** — a mesma ideia de forçar um pagamento. A decisão dispara os webhooks `kyc.approved` / `kyc.rejected` de verdade.
 
 ### 3. Gere um token de integração
 
-Na tela **Meus tokens**, gere um JWT escopado pro merchant e pelas permissões que você quiser expor. Esse token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
+Na tela **Tokens**, gere um JWT com as permissões que você quiser expor. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
+
+As permissões disponíveis são `charges:read`, `charges:write`, `refunds:write`, `simulate:write`, `merchants:read`, `merchants:write`, `kyc:read`, `kyc:write`, `webhooks:read`, `webhooks:write` — ou `*` para todas. A loja é dona do próprio escopo, então pode conceder qualquer uma delas.
 
 ### 4. Crie uma cobrança PIX
 
@@ -99,7 +101,22 @@ curl -X POST http://localhost:4242/v1/integration/pix/charges/ch_a1b2c3/simulate
   -d '{ "result": "paid" }'
 ```
 
-Isso dispara o webhook `pix.charge.paid` pro `webhook_url` configurado no merchant.
+Isso dispara o webhook `pix.charge.paid` pro `webhook_url` configurado no merchant, e o valor entra no saldo da loja.
+
+## Saldo
+
+Cada loja tem um saldo, visível em **Minha loja**, na lista de seleção e em `GET /admin/api/balance`:
+
+| Campo | O que é |
+|---|---|
+| `available` | Saldo líquido: tudo que liquidou, menos o que foi devolvido |
+| `gross_received` | Soma de tudo que já liquidou, antes das devoluções |
+| `refunded` | Soma de todas as devoluções |
+| `settled_charges` | Quantas cobranças entraram no `gross_received` |
+
+O saldo é **derivado das cobranças** (`SUM(amount - refunded_amount)` sobre as que estão `paid`, `partially_refunded` ou `refunded`), não uma coluna guardada. Assim ele nunca dessincroniza do que aconteceu de fato. Cobrança pendente, expirada ou cancelada não entra; uma totalmente devolvida contribui zero, mas segue somando no `gross_received`.
+
+Não há saque: o saldo é um número observável, não uma conta com movimentação própria.
 
 ## CPFs de teste (comportamento determinístico)
 
@@ -200,7 +217,7 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 - `GET /v1/app/pix/charges/{id}`
 - `GET /v1/app/pix/charges/{id}/qrcode`
 
-O painel consome `/admin/api/*` com HTTP Basic. Erros de qualquer superfície vêm no mesmo envelope:
+O painel consome `/admin/api/*` com HTTP Basic, onde o usuário é o `merchant_id` (ou o documento da loja) e a senha é vazia. Tudo ali é escopado na loja da sessão — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Erros de qualquer superfície vêm no mesmo envelope:
 
 ```json
 { "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
@@ -216,11 +233,11 @@ O painel consome `/admin/api/*` com HTTP Basic. Erros de qualquer superfície v�
 ## Roadmap
 
 1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/app/*` e `/v1/integration/*`
-2. ✅ Usuários: CRUD público, login por seleção, Basic Auth
+2. ✅ Identidade do painel: login por seleção de loja, Basic Auth
 3. ✅ Integration Tokens: geração/validação/revogação de JWT
 4. ✅ Webhooks: dispatcher, HMAC, retry
 5. ✅ KYC: upload (BLOB), aprovação manual, bloqueio de charges
-6. ✅ Admin UI: transações e merchants
+6. ✅ Admin UI: transações e saldo da loja
 7. ✅ Admin UI: KYC e settings
 8. ⬜ CLI e empacotamento — fora do escopo por ora; use os scripts npm
 
@@ -234,8 +251,8 @@ src/
   config.ts        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
   db/              schema.sql, openDb, reset
   lib/             pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
-  domain/          charges (máquina de estados), refunds, webhooks, kyc, tokens, users, merchants
-  auth/            basic (painel), bearer (integração), publicToken (app), permissions
+  domain/          charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
+  auth/            basic (sessão da loja), bearer (integração), publicToken (app), permissions
   routes/          app.ts, integration.ts, admin.ts — superfícies separadas por arquivo
 admin/             painel em Vite + React, compila para dist/admin e é servido em /admin
 tests/             node:test com relógio virtual, sem sleep

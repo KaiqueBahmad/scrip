@@ -1,5 +1,6 @@
 import { parseJsonColumn } from '../db/index.js';
 import { decodeExpiry } from '../lib/jwt.js';
+import type { MerchantBalance } from './merchants.js';
 import type {
   ChargeEventRow,
   ChargeRow,
@@ -83,8 +84,12 @@ export function serializeChargeEvent(row: ChargeEventRow) {
   };
 }
 
-/** `includeSecret` is only ever true on the admin surface. */
-export function serializeMerchant(row: MerchantRow, includeSecret = false) {
+/** `includeSecret` is only ever true for the merchant's own session or its own API calls. */
+export function serializeMerchant(
+  row: MerchantRow,
+  includeSecret = false,
+  balance?: MerchantBalance,
+) {
   return {
     id: row.id,
     object: 'merchant' as const,
@@ -95,6 +100,7 @@ export function serializeMerchant(row: MerchantRow, includeSecret = false) {
     kyc_status: row.kyc_status,
     kyc_reason: row.kyc_reason,
     kyc_reviewed_at: row.kyc_reviewed_at,
+    ...(balance ? { balance } : {}),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

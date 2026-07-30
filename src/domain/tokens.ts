@@ -1,14 +1,14 @@
-import { normalizePermissions } from '../auth/permissions.js';
+import { WILDCARD, normalizePermissions } from '../auth/permissions.js';
 import type { ConfigStore } from '../config.js';
-import { nowIso, parseJsonColumn, type Db } from '../db/index.js';
-import { badRequest, forbidden, notFound } from '../lib/errors.js';
+import { nowIso, type Db } from '../db/index.js';
+import { badRequest, notFound } from '../lib/errors.js';
 import { newId } from '../lib/ids.js';
 import { decodeExpiry, signIntegrationToken } from '../lib/jwt.js';
-import type { IntegrationTokenRow, UserRow } from '../types.js';
+import type { IntegrationTokenRow } from '../types.js';
 
 export interface IssueTokenInput {
-  user: UserRow;
-  merchantId?: string | null;
+  /** The merchant whose session is issuing this token; it is always the token's scope. */
+  merchantId: string;
   name?: string | null;
   permissions?: unknown;
   /** Overrides jwtDefaultExpiration. Pass "" (or "never") for a token with no exp. */
@@ -21,8 +21,9 @@ export interface TokenServiceDeps {
 }
 
 /**
- * Integration tokens (specs.md:60-62). Scoped to a merchant and a permission subset; the
- * JWT itself is stored so the panel can show it again at any time.
+ * Integration tokens (specs.md:60-62). Only a merchant session can mint one, and it is
+ * always scoped to that merchant; the JWT itself is stored so the panel can show it again at
+ * any time.
  */
 export class TokenService {
   #db: Db;
@@ -34,13 +35,10 @@ export class TokenService {
   }
 
   issue(input: IssueTokenInput): IntegrationTokenRow {
-    const merchantId = input.merchantId ?? input.user.merchant_id;
+    const merchantId = input.merchantId;
 
     if (!merchantId) {
-      throw badRequest(
-        'merchant_required',
-        'A token must be scoped to a merchant: pass merchant_id, or link the user to one',
-      );
+      throw badRequest('merchant_required', 'A token must be scoped to a merchant');
     }
 
     const merchantExists = this.#db
@@ -49,20 +47,9 @@ export class TokenService {
 
     if (!merchantExists) throw badRequest('merchant_not_found', `No merchant ${merchantId}`);
 
-    const userPermissions = parseJsonColumn<string[]>(input.user.permissions, []);
-    const requested = normalizePermissions(input.permissions ?? userPermissions);
-
-    // A token may narrow the user's permissions, never widen them.
-    if (!userPermissions.includes('*')) {
-      const escalated = requested.filter((p) => !userPermissions.includes(p));
-      if (escalated.length > 0) {
-        throw forbidden(
-          'permission_escalation',
-          `User ${input.user.id} cannot grant permissions it does not hold: ${escalated.join(', ')}`,
-          { escalated, user_permissions: userPermissions },
-        );
-      }
-    }
+    // The merchant owns its own scope, so it may grant any valid permission. There is no
+    // narrower identity above it to escalate against.
+    const requested = normalizePermissions(input.permissions ?? [WILDCARD]);
 
     const configuredExpiry = this.#config.get('jwtDefaultExpiration');
     const requestedExpiry = input.expiresIn === undefined ? configuredExpiry : input.expiresIn;
@@ -77,7 +64,9 @@ export class TokenService {
         secret: this.#config.get('jwtSigningSecret'),
         tokenId: id,
         merchantId,
-        userId: input.user.id,
+        // The merchant is the issuer now; the claim keeps the merchant id for compatibility
+        // with tokens minted before panel sessions became merchant-based.
+        userId: merchantId,
         permissions: requested,
         expiresIn,
       });
@@ -92,7 +81,7 @@ export class TokenService {
 
     const row: IntegrationTokenRow = {
       id,
-      user_id: input.user.id,
+      user_id: null,
       merchant_id: merchantId,
       name: input.name?.trim() || null,
       permissions: JSON.stringify(requested),
@@ -126,12 +115,12 @@ export class TokenService {
       .get(tokenId);
   }
 
-  listForUser(userId: string): IntegrationTokenRow[] {
+  listForMerchant(merchantId: string): IntegrationTokenRow[] {
     return this.#db
       .prepare<[string], IntegrationTokenRow>(
-        'SELECT * FROM integration_tokens WHERE user_id = ? ORDER BY created_at DESC',
+        'SELECT * FROM integration_tokens WHERE merchant_id = ? ORDER BY created_at DESC',
       )
-      .all(userId);
+      .all(merchantId);
   }
 
   listAll(): IntegrationTokenRow[] {

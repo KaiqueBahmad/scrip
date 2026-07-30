@@ -3,18 +3,16 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { useSession } from './lib/session';
 import { Docs } from './pages/Docs';
-import { Kyc } from './pages/Kyc';
-import { Merchants } from './pages/Merchants';
-import { SelectUser } from './pages/SelectUser';
+import { MyStore } from './pages/MyStore';
+import { SelectMerchant } from './pages/SelectMerchant';
 import { Settings } from './pages/Settings';
 import { Tokens } from './pages/Tokens';
 import { TransactionDetail } from './pages/TransactionDetail';
 import { Transactions } from './pages/Transactions';
-import { Users } from './pages/Users';
 import { Webhooks } from './pages/Webhooks';
 
 export function App() {
-  const { user, loading } = useSession();
+  const { merchant, loading } = useSession();
 
   if (loading) {
     return (
@@ -26,8 +24,8 @@ export function App() {
     );
   }
 
-  // No user selected yet: the panel is a user picker, not a login form (specs.md:54).
-  if (!user) return <SelectUser />;
+  // No store selected yet: the panel is a store picker, not a login form (specs.md:54).
+  if (!merchant) return <SelectMerchant />;
 
   return (
     <Routes>
@@ -35,10 +33,8 @@ export function App() {
         <Route path="/" element={<Navigate to="/transacoes" replace />} />
         <Route path="/transacoes" element={<Transactions />} />
         <Route path="/transacoes/:id" element={<TransactionDetail />} />
-        <Route path="/comerciantes" element={<Merchants />} />
-        <Route path="/usuarios" element={<Users />} />
+        <Route path="/minha-loja" element={<MyStore />} />
         <Route path="/tokens" element={<Tokens />} />
-        <Route path="/kyc" element={<Kyc />} />
         <Route path="/webhooks" element={<Webhooks />} />
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="/docs" element={<Docs />} />

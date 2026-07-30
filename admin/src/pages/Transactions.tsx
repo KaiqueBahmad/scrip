@@ -35,19 +35,12 @@ const CURL_EXAMPLE = `curl -X POST http://localhost:4242/v1/integration/pix/char
 
 export function Transactions() {
   const [status, setStatus] = useState('');
-  const [merchantId, setMerchantId] = useState('');
 
-  const merchants = useAsync(() => api.merchants(), []);
-
-  // Pending charges settle on a timer, so the list refreshes itself.
+  // Scoped to the session's store by the server; pending charges settle on a timer, so the
+  // list refreshes itself.
   const charges = useAsync(
-    () =>
-      api.charges({
-        ...(status ? { status } : {}),
-        ...(merchantId ? { merchant_id: merchantId } : {}),
-        limit: '100',
-      }),
-    [status, merchantId],
+    () => api.charges({ ...(status ? { status } : {}), limit: '100' }),
+    [status],
     { pollMs: 3000 },
   );
 
@@ -59,7 +52,7 @@ export function Transactions() {
       <PageHeader
         eyebrow="ciclo de vida pix"
         title="Transações"
-        description="Cobranças criadas pela API de integração. Pendentes confirmam ou expiram sozinhas conforme a configuração."
+        description="Cobranças desta loja, criadas pela API de integração. Pendentes confirmam ou expiram sozinhas conforme a configuração."
         actions={
           <span className="eyebrow">
             {charges.data?.total ?? 0} no total · {pending} pendentes
@@ -71,33 +64,18 @@ export function Transactions() {
         <PanelHeader
           title="Cobranças"
           actions={
-            <div className="flex items-center gap-2">
-              <Select
-                aria-label="Filtrar por comerciante"
-                className="h-7 text-xs"
-                value={merchantId}
-                onChange={(event) => setMerchantId(event.target.value)}
-              >
-                <option value="">Todos os comerciantes</option>
-                {(merchants.data?.data ?? []).map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                aria-label="Filtrar por status"
-                className="h-7 text-xs"
-                value={status}
-                onChange={(event) => setStatus(event.target.value as ChargeStatus | '')}
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <Select
+              aria-label="Filtrar por status"
+              className="h-7 text-xs"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as ChargeStatus | '')}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
           }
         />
 
@@ -112,7 +90,7 @@ export function Transactions() {
             <p className="mb-2">
               Crie a primeira pela API de integração com um token gerado em{' '}
               <Link to="/tokens" className="text-trace underline">
-                Meus tokens
+                Tokens
               </Link>
               :
             </p>

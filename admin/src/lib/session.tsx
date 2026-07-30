@@ -8,37 +8,39 @@ import {
   type ReactNode,
 } from 'react';
 
-import { api, setActingUser, type ApiUser } from './api';
+import { api, setActingMerchant, type ApiMerchant } from './api';
 
-const STORAGE_KEY = 'pseudopay.acting-user';
+const STORAGE_KEY = 'pseudopay.acting-merchant';
 
 interface SessionValue {
-  user: ApiUser | null;
-  users: ApiUser[];
+  merchant: ApiMerchant | null;
+  merchants: ApiMerchant[];
   loading: boolean;
   error: string | null;
-  /** Selecting a user *is* the login (specs.md:54). */
-  selectUser: (user: ApiUser) => void;
+  /** Selecting a store *is* the login (specs.md:54). */
+  selectMerchant: (merchant: ApiMerchant) => void;
   signOut: () => void;
-  refreshUsers: () => Promise<void>;
+  refreshMerchants: () => Promise<void>;
+  /** Re-reads the acting store, so a balance or KYC change shows up in the chrome. */
+  refreshSession: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<ApiUser[]>([]);
-  const [user, setUser] = useState<ApiUser | null>(null);
+  const [merchants, setMerchants] = useState<ApiMerchant[]>([]);
+  const [merchant, setMerchant] = useState<ApiMerchant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const response = await api.sessionUsers();
-      setUsers(response.data);
+      const response = await api.sessionMerchants();
+      setMerchants(response.data);
       setError(null);
       return response.data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar os usuários');
+      setError(err instanceof Error ? err.message : 'Não foi possível carregar as lojas');
       return [];
     }
   }, []);
@@ -47,13 +49,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const list = await load();
 
-      // Restore the previous selection, but only if that user still exists.
+      // Restore the previous selection, but only if that store still exists.
       const storedId = localStorage.getItem(STORAGE_KEY);
       const restored = storedId ? list.find((candidate) => candidate.id === storedId) : undefined;
 
       if (restored) {
-        setActingUser(restored.id);
-        setUser(restored);
+        setActingMerchant(restored.id);
+        setMerchant(restored);
       } else if (storedId) {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -64,25 +66,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SessionValue>(
     () => ({
-      user,
-      users,
+      merchant,
+      merchants,
       loading,
       error,
-      selectUser: (next) => {
+      selectMerchant: (next) => {
         localStorage.setItem(STORAGE_KEY, next.id);
-        setActingUser(next.id);
-        setUser(next);
+        setActingMerchant(next.id);
+        setMerchant(next);
       },
       signOut: () => {
         localStorage.removeItem(STORAGE_KEY);
-        setActingUser(null);
-        setUser(null);
+        setActingMerchant(null);
+        setMerchant(null);
       },
-      refreshUsers: async () => {
+      refreshMerchants: async () => {
         await load();
       },
+      refreshSession: async () => {
+        try {
+          const { merchant: fresh } = await api.me();
+          setMerchant(fresh);
+        } catch {
+          // A deleted store leaves the session dangling; drop it and go back to the picker.
+          localStorage.removeItem(STORAGE_KEY);
+          setActingMerchant(null);
+          setMerchant(null);
+        }
+      },
     }),
-    [user, users, loading, error, load],
+    [merchant, merchants, loading, error, load],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -94,9 +107,9 @@ export function useSession(): SessionValue {
   return context;
 }
 
-/** The acting user, once one is selected. */
-export function useActingUser(): ApiUser {
-  const { user } = useSession();
-  if (!user) throw new Error('No acting user selected');
-  return user;
+/** The acting store, once one is selected. */
+export function useMerchant(): ApiMerchant {
+  const { merchant } = useSession();
+  if (!merchant) throw new Error('No acting merchant selected');
+  return merchant;
 }

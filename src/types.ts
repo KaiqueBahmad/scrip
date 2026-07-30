@@ -37,7 +37,8 @@ export interface UserRow {
 
 export interface IntegrationTokenRow {
   id: string;
-  user_id: string;
+  /** Null for tokens minted by a merchant session; set only on pre-existing rows. */
+  user_id: string | null;
   merchant_id: string;
   name: string | null;
   permissions: string;

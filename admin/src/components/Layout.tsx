@@ -3,16 +3,14 @@ import {
   BookOpen,
   KeyRound,
   Settings2,
-  ShieldCheck,
   Store,
-  Users,
   Webhook,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { useSession } from '../lib/session';
-import { cn } from '../lib/utils';
+import { cn, formatBRL } from '../lib/utils';
 
 interface NavItem {
   to: string;
@@ -22,10 +20,8 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
-  { to: '/comerciantes', label: 'Comerciantes', icon: Store },
-  { to: '/usuarios', label: 'Usuários', icon: Users },
-  { to: '/tokens', label: 'Meus tokens', icon: KeyRound },
-  { to: '/kyc', label: 'KYC', icon: ShieldCheck },
+  { to: '/minha-loja', label: 'Minha loja', icon: Store },
+  { to: '/tokens', label: 'Tokens', icon: KeyRound },
   { to: '/webhooks', label: 'Webhooks', icon: Webhook },
   { to: '/configuracoes', label: 'Configurações', icon: Settings2 },
   { to: '/docs', label: 'Documentação', icon: BookOpen },
@@ -37,7 +33,7 @@ const NAV: NavItem[] = [
  * now" is the panel's central concept (specs.md:54).
  */
 export function Layout() {
-  const { user, signOut } = useSession();
+  const { merchant, signOut } = useSession();
 
   return (
     // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr), e esse mínimo `auto` deixa a
@@ -86,19 +82,21 @@ export function Layout() {
           ))}
         </ul>
 
-        {user ? (
+        {merchant ? (
           <div className="mt-4 border-t border-white/10 pt-3">
             <p className="font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
-              atuando como
+              loja
             </p>
-            <p className="truncate text-[13px] font-medium text-white">{user.name}</p>
-            <p className="truncate font-mono text-[10px] text-white/45">{user.email}</p>
+            <p className="truncate text-[13px] font-medium text-white">{merchant.name}</p>
+            <p className="tnum truncate text-[13px] text-settle">
+              {formatBRL(merchant.balance?.available ?? 0)}
+            </p>
             <button
               type="button"
               onClick={signOut}
               className="mt-2 font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase hover:text-white"
             >
-              trocar usuário
+              trocar de loja
             </button>
           </div>
         ) : null}

@@ -91,30 +91,30 @@ export async function createHarness(
   };
 }
 
-/** Creates a merchant + user + integration token and returns ready-to-use auth headers. */
+/**
+ * Creates a merchant and one of its integration tokens, returning ready-to-use headers.
+ * The merchant is the panel identity now, so `basic` authenticates as the merchant itself.
+ */
 export async function seedMerchantAndToken(
   harness: TestHarness,
-  options: { webhookUrl?: string | null; permissions?: string[] } = {},
+  options: {
+    webhookUrl?: string | null;
+    permissions?: string[];
+    name?: string;
+    document?: string | null;
+  } = {},
 ) {
   const { app } = harness;
 
   const merchant = app.services.merchants.create({
-    name: 'Loja de Teste',
-    document: '12345678000199',
+    name: options.name ?? 'Loja de Teste',
+    document: 'document' in options ? options.document : `1234567800${Math.floor(Math.random() * 10000)}`,
     // `??` would swallow an explicit null, which is exactly the "no webhook_url" case.
     webhookUrl: 'webhookUrl' in options ? options.webhookUrl : 'https://merchant.test/hooks',
     webhookSecret: 'whsec_fixed_for_tests',
   });
 
-  const user = app.services.users.create({
-    name: 'Tester',
-    email: `tester-${Math.random().toString(36).slice(2)}@example.com`,
-    permissions: options.permissions ?? ['*'],
-    merchantId: merchant.id,
-  });
-
   const token = app.services.tokens.issue({
-    user,
     merchantId: merchant.id,
     name: 'test',
     permissions: options.permissions ?? ['*'],
@@ -122,10 +122,9 @@ export async function seedMerchantAndToken(
 
   return {
     merchant,
-    user,
     token,
     bearer: { authorization: `Bearer ${token.token}` },
-    basic: { authorization: `Basic ${Buffer.from(`${user.id}:`).toString('base64')}` },
+    basic: { authorization: `Basic ${Buffer.from(`${merchant.id}:`).toString('base64')}` },
   };
 }
 

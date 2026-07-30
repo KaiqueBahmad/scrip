@@ -1,13 +1,11 @@
-/** Typed client for /admin/api. Basic auth credentials come from the selected user. */
+/** Typed client for /admin/api. Basic auth credentials come from the selected merchant. */
 
-export interface ApiUser {
-  id: string;
-  name: string;
-  email: string;
-  permissions: string[];
-  merchant_id: string | null;
-  created_at: string;
-  updated_at: string;
+export interface ApiBalance {
+  /** Liquid balance in centavos. */
+  available: number;
+  gross_received: number;
+  refunded: number;
+  settled_charges: number;
 }
 
 export interface ApiMerchant {
@@ -19,6 +17,8 @@ export interface ApiMerchant {
   kyc_status: 'pending' | 'approved' | 'rejected';
   kyc_reason: string | null;
   kyc_reviewed_at: string | null;
+  /** Present wherever the server had a merchant in hand to compute it. */
+  balance?: ApiBalance;
   created_at: string;
   updated_at: string;
 }
@@ -94,7 +94,7 @@ export interface ApiDelivery {
 
 export interface ApiToken {
   id: string;
-  user_id: string;
+  user_id: string | null;
   merchant_id: string;
   name: string | null;
   permissions: string[];
@@ -148,9 +148,9 @@ const BASE = '/admin/api';
 
 let authHeader: string | null = null;
 
-/** Basic auth with an empty password, per specs.md:35. */
-export function setActingUser(userIdOrEmail: string | null): void {
-  authHeader = userIdOrEmail ? `Basic ${btoa(`${userIdOrEmail}:`)}` : null;
+/** Basic auth with an empty password, per specs.md:35. The merchant is the identity. */
+export function setActingMerchant(merchantId: string | null): void {
+  authHeader = merchantId ? `Basic ${btoa(`${merchantId}:`)}` : null;
 }
 
 async function request<T>(
@@ -197,37 +197,26 @@ interface ListResponse<T> {
 }
 
 export const api = {
-  // session
-  sessionUsers: () => request<ListResponse<ApiUser>>('GET', '/session/users'),
+  // session — the merchant is the panel identity
+  sessionMerchants: () => request<ListResponse<ApiMerchant>>('GET', '/session/merchants'),
   permissions: () => request<ListResponse<string>>('GET', '/session/permissions'),
-  me: () => request<{ user: ApiUser; merchant: ApiMerchant | null }>('GET', '/session/me'),
+  me: () => request<{ merchant: ApiMerchant }>('GET', '/session/me'),
 
-  // users
-  users: () => request<ListResponse<ApiUser>>('GET', '/users'),
-  createUser: (body: {
-    name: string;
-    email: string;
-    permissions: string[];
-    merchant_id: string | null;
-  }) => request<ApiUser>('POST', '/users', { body }),
-  updateUser: (id: string, body: Partial<{ name: string; email: string; permissions: string[]; merchant_id: string | null }>) =>
-    request<ApiUser>('PATCH', `/users/${id}`, { body }),
-  deleteUser: (id: string) => request<void>('DELETE', `/users/${id}`),
-
-  // merchants
-  merchants: () => request<ListResponse<ApiMerchant>>('GET', '/merchants'),
+  // my store
+  myMerchant: () => request<ApiMerchant>('GET', '/merchants/me'),
+  balance: () => request<ApiBalance & { object: 'balance' }>('GET', '/balance'),
+  /** Unauthenticated, so the first store can be created on an empty database. */
   createMerchant: (body: { name: string; document: string | null; webhook_url: string | null }) =>
     request<ApiMerchant>('POST', '/merchants', { body }),
-  updateMerchant: (
-    id: string,
+  updateMyMerchant: (
     body: Partial<{
       name: string;
       document: string | null;
       webhook_url: string | null;
       rotate_webhook_secret: boolean;
     }>,
-  ) => request<ApiMerchant>('PATCH', `/merchants/${id}`, { body }),
-  deleteMerchant: (id: string) => request<void>('DELETE', `/merchants/${id}`),
+  ) => request<ApiMerchant>('PATCH', '/merchants/me', { body }),
+  deleteMyMerchant: () => request<void>('DELETE', '/merchants/me'),
 
   // charges
   charges: (query: Record<string, string> = {}) => {
@@ -241,10 +230,9 @@ export const api = {
   refundCharge: (id: string, body: { amount?: number | null; reason?: string | null }) =>
     request<ApiRefund>('POST', `/charges/${id}/refunds`, { body }),
 
-  // tokens
+  // tokens — always scoped to the session's merchant, so no merchant_id in the body
   tokens: () => request<ListResponse<ApiToken>>('GET', '/tokens'),
   createToken: (body: {
-    merchant_id: string | null;
     name: string | null;
     permissions: string[];
     expires_in?: string | null;
@@ -252,27 +240,28 @@ export const api = {
   revokeToken: (id: string) => request<ApiToken>('POST', `/tokens/${id}/revoke`),
   deleteToken: (id: string) => request<void>('DELETE', `/tokens/${id}`),
 
-  // kyc
-  kycDocuments: (merchantId?: string) =>
-    request<ListResponse<ApiKycDocument> & { document_types: string[] }>(
-      'GET',
-      `/kyc/documents${merchantId ? `?merchant_id=${merchantId}` : ''}`,
-    ),
-  kycPending: () => request<ListResponse<ApiMerchant>>('GET', '/kyc/pending'),
-  approveKyc: (merchantId: string, reason: string | null) =>
-    request<ApiMerchant>('POST', `/merchants/${merchantId}/kyc/approve`, { body: { reason } }),
-  rejectKyc: (merchantId: string, reason: string | null) =>
-    request<ApiMerchant>('POST', `/merchants/${merchantId}/kyc/reject`, { body: { reason } }),
+  // kyc — own store only
+  kycDocuments: () =>
+    request<
+      ListResponse<ApiKycDocument> & {
+        document_types: string[];
+        kyc_status: ApiMerchant['kyc_status'];
+        kyc_reason: string | null;
+      }
+    >('GET', '/kyc/documents'),
+  /** Approving your own KYC is a simulation control, like forcing a payment. */
+  simulateKyc: (decision: 'approved' | 'rejected', reason: string | null) =>
+    request<ApiMerchant>('POST', '/kyc/simulate', { body: { decision, reason } }),
   deleteKycDocument: (id: string) => request<void>('DELETE', `/kyc/documents/${id}`),
   kycDocumentUrl: (id: string) => `${BASE}/kyc/documents/${id}/content`,
 
   /** Multipart upload, so the browser sets the boundary itself. */
-  uploadKycDocument: async (merchantId: string, file: File, type: string) => {
+  uploadKycDocument: async (file: File, type: string) => {
     const form = new FormData();
     form.append('type', type);
     form.append('file', file);
 
-    const response = await fetch(`${BASE}/merchants/${merchantId}/kyc/documents`, {
+    const response = await fetch(`${BASE}/kyc/documents`, {
       method: 'POST',
       headers: authHeader ? { authorization: authHeader } : {},
       body: form,

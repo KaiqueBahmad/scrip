@@ -34,11 +34,55 @@ function assertValidWebhookUrl(url: string | null | undefined): void {
   }
 }
 
+export interface MerchantBalance {
+  /** Liquid balance in centavos: everything settled, minus what was given back. */
+  available: number;
+  /** Sum of every charge that ever settled, before refunds. */
+  gross_received: number;
+  /** Sum of every refund issued. */
+  refunded: number;
+  /** How many charges contributed to `gross_received`. */
+  settled_charges: number;
+}
+
+/** Only these statuses ever moved money; a fully refunded charge contributes zero. */
+const SETTLED_STATUSES = ['paid', 'partially_refunded', 'refunded'] as const;
+
 export class MerchantService {
   #db: Db;
 
   constructor(db: Db) {
     this.#db = db;
+  }
+
+  /**
+   * Balance is derived from the charges rather than stored, so it can never drift out of
+   * sync with the ledger it describes — every refund and every settlement is already
+   * recorded on pix_charges.
+   */
+  balanceFor(merchantId: string): MerchantBalance {
+    const placeholders = SETTLED_STATUSES.map(() => '?').join(', ');
+
+    const row = this.#db
+      .prepare<
+        unknown[],
+        { available: number; gross: number; refunded: number; settled: number }
+      >(
+        `SELECT COALESCE(SUM(amount - refunded_amount), 0) AS available,
+                COALESCE(SUM(amount), 0)                   AS gross,
+                COALESCE(SUM(refunded_amount), 0)          AS refunded,
+                COUNT(*)                                   AS settled
+           FROM pix_charges
+          WHERE merchant_id = ? AND status IN (${placeholders})`,
+      )
+      .get(merchantId, ...SETTLED_STATUSES);
+
+    return {
+      available: row?.available ?? 0,
+      gross_received: row?.gross ?? 0,
+      refunded: row?.refunded ?? 0,
+      settled_charges: row?.settled ?? 0,
+    };
   }
 
   create(input: CreateMerchantInput): MerchantRow {
@@ -89,6 +133,18 @@ export class MerchantService {
     return this.#db
       .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
       .get(merchantId);
+  }
+
+  /** Basic auth accepts either the merchant id or its document as the username. */
+  findByIdentifier(identifier: string): MerchantRow | undefined {
+    const trimmed = identifier.trim();
+
+    return (
+      this.find(trimmed) ??
+      this.#db
+        .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE document = ?')
+        .get(trimmed)
+    );
   }
 
   list(): MerchantRow[] {

@@ -11,7 +11,6 @@ import {
   Modal,
   Panel,
   PanelHeader,
-  Select,
   Table,
   Td,
   Th,
@@ -22,13 +21,13 @@ import { useAsync } from '../lib/useAsync';
 import { cn, formatDateTime } from '../lib/utils';
 
 /**
- * "Meus tokens" (specs.md:60-62). The JWT stays visible forever instead of being shown
- * once — that is a deliberate convenience of this tool, not an oversight.
+ * Integration tokens (specs.md:60-62). Only this store can mint them, and each one is
+ * scoped to it. The JWT stays visible forever instead of being shown once — that is a
+ * deliberate convenience of this tool, not an oversight.
  */
 export function Tokens() {
-  const { user } = useSession();
+  const { merchant } = useSession();
   const tokens = useAsync(() => api.tokens(), []);
-  const merchants = useAsync(() => api.merchants(), []);
   const permissions = useAsync(() => api.permissions(), []);
 
   const [creating, setCreating] = useState(false);
@@ -50,8 +49,8 @@ export function Tokens() {
     <>
       <PageHeader
         eyebrow="api de integração"
-        title="Meus tokens"
-        description="JWTs escopados por comerciante e permissões. Use no header Authorization do seu backend."
+        title="Tokens"
+        description="Só esta loja pode emitir tokens, e todo token nasce escopado nela. Use no header Authorization do seu backend."
         actions={
           <Button variant="primary" onClick={() => setCreating(true)}>
             Gerar token
@@ -67,7 +66,7 @@ export function Tokens() {
 
       <Panel>
         <PanelHeader
-          title={`Tokens de ${user?.name ?? ''}`}
+          title={`Tokens de ${merchant?.name ?? ''}`}
           hint={`${rows.length} token(s) · visíveis a qualquer momento`}
         />
 
@@ -81,7 +80,6 @@ export function Tokens() {
             <thead>
               <tr>
                 <Th>Nome</Th>
-                <Th>Comerciante</Th>
                 <Th>Permissões</Th>
                 <Th>Token</Th>
                 <Th>Expira</Th>
@@ -99,9 +97,6 @@ export function Tokens() {
                     {token.revoked ? (
                       <span className="eyebrow ml-2 text-halt">revogado</span>
                     ) : null}
-                  </Td>
-                  <Td>
-                    <Copyable value={token.merchant_id} truncate={{ head: 10, tail: 4 }} />
                   </Td>
                   <Td className="font-mono text-[11px]">
                     {token.permissions.includes('*') ? 'todas (*)' : token.permissions.join(', ')}
@@ -142,11 +137,7 @@ export function Tokens() {
 
       <TokenForm
         open={creating}
-        allPermissions={(permissions.data?.data ?? []).filter((permission) =>
-          user?.permissions.includes('*') ? true : user?.permissions.includes(permission),
-        )}
-        merchants={merchants.data?.data ?? []}
-        defaultMerchantId={user?.merchant_id ?? ''}
+        allPermissions={permissions.data?.data ?? []}
         onClose={() => setCreating(false)}
         onSaved={async () => {
           setCreating(false);
@@ -160,20 +151,15 @@ export function Tokens() {
 function TokenForm({
   open,
   allPermissions,
-  merchants,
-  defaultMerchantId,
   onClose,
   onSaved,
 }: {
   open: boolean;
   allPermissions: string[];
-  merchants: { id: string; name: string }[];
-  defaultMerchantId: string;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const [name, setName] = useState('');
-  const [merchantId, setMerchantId] = useState(defaultMerchantId);
   const [selected, setSelected] = useState<string[]>(['*']);
   const [expiresIn, setExpiresIn] = useState('');
   const [saving, setSaving] = useState(false);
@@ -185,7 +171,6 @@ function TokenForm({
 
     try {
       await api.createToken({
-        merchant_id: merchantId || null,
         name: name.trim() || null,
         permissions: selected,
         ...(expiresIn.trim() ? { expires_in: expiresIn.trim() } : {}),
@@ -223,22 +208,7 @@ function TokenForm({
         />
       </Field>
 
-      <Field label="Comerciante" htmlFor="token-merchant">
-        <Select
-          id="token-merchant"
-          value={merchantId}
-          onChange={(event) => setMerchantId(event.target.value)}
-        >
-          <option value="">Usar o comerciante do usuário</option>
-          {merchants.map((merchant) => (
-            <option key={merchant.id} value={merchant.id}>
-              {merchant.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-
-      <Field label="Permissões" hint="Limitadas ao que o seu usuário já tem.">
+      <Field label="Permissões" hint="A loja é dona do próprio escopo, então pode conceder qualquer uma.">
         <div className="flex flex-wrap gap-1.5">
           {['*', ...allPermissions.filter((p) => p !== '*')].map((permission) => {
             const active = selected.includes(permission);

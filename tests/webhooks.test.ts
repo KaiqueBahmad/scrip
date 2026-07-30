@@ -177,9 +177,9 @@ describe('webhook delivery', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/admin/api/merchants/${merchant.id}/kyc/approve`,
+      url: '/admin/api/kyc/simulate',
       headers: basic,
-      payload: { reason: 'ok' },
+      payload: { decision: 'approved', reason: 'ok' },
     });
 
     // A second charge left to expire covers pix.charge.expired.

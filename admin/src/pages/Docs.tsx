@@ -46,7 +46,13 @@ function Section({
     <section id={id} className="min-w-0 scroll-mt-6">
       <Panel>
         <PanelHeader title={title} hint={hint} />
-        <div className="grid min-w-0 gap-3 p-4">{children}</div>
+        {/*
+          flex-col, not a bare `grid gap-3`: a single-column grid gets an implicit `auto`
+          track, which sizes to max-content — for a paragraph that is the whole sentence on
+          one line, and an auto track is not clamped to its container, so the panel would
+          overflow. Flex children stretch to the container instead.
+        */}
+        <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
       </Panel>
     </section>
   );
@@ -71,28 +77,18 @@ function Mono({ children }: { children: ReactNode }) {
  * hand-replacing placeholders.
  */
 export function Docs() {
-  const { user } = useSession();
-  const merchants = useAsync(() => api.merchants(), []);
+  // The session already fixes which store these docs are about, so the only choice left is
+  // which of its tokens to paste into the examples.
+  const { merchant } = useSession();
   const tokens = useAsync(() => api.tokens(), []);
 
-  const [merchantId, setMerchantId] = useState('');
   const [tokenId, setTokenId] = useState('');
   const [language, setLanguage] = useState<'node' | 'python' | 'php'>('node');
 
   const baseUrl = window.location.origin;
 
-  const allMerchants = merchants.data?.data ?? [];
   const usableTokens = (tokens.data?.data ?? []).filter((token) => !token.revoked);
-
-  const merchant =
-    allMerchants.find((candidate) => candidate.id === merchantId) ??
-    allMerchants.find((candidate) => candidate.id === user?.merchant_id) ??
-    allMerchants[0];
-
-  const token =
-    usableTokens.find((candidate) => candidate.id === tokenId) ??
-    usableTokens.find((candidate) => candidate.merchant_id === merchant?.id) ??
-    usableTokens[0];
+  const token = usableTokens.find((candidate) => candidate.id === tokenId) ?? usableTokens[0];
 
   // Real values when available, obvious placeholders when not — never a silent mix.
   const jwt = token?.token ?? '{seu_jwt}';
@@ -263,7 +259,7 @@ http_response_code(200);`,
         description="Como ligar seu backend e seu checkout ao PseudoPay. Os exemplos abaixo já vêm com a URL desta instância e, se você tiver um token, com as credenciais reais."
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
         <div className="grid min-w-0 gap-4">
           {/* ------------------------------------------------ visão geral */}
           <Section
@@ -290,7 +286,10 @@ http_response_code(200);`,
                   <Td className="font-mono text-xs">/v1/integration/*</Td>
                   <Td className="text-xs">Seu backend</Td>
                   <Td className="text-xs">
-                    JWT gerado em <Link to="/tokens" className="text-trace hover:underline">Meus tokens</Link>
+                    JWT emitido pela loja em{' '}
+                    <Link to="/tokens" className="text-trace hover:underline">
+                      Tokens
+                    </Link>
                   </Td>
                 </tr>
                 <tr>
@@ -324,50 +323,33 @@ http_response_code(200);`,
           <Section
             id="credenciais"
             title="Credenciais"
-            hint="Escolha aqui e todos os exemplos da página se ajustam."
+            hint="Os exemplos da página usam a loja da sessão e o token escolhido aqui."
           >
             {usableTokens.length === 0 ? (
               <Alert tone="flag">
                 Você ainda não tem token ativo, então os exemplos usam{' '}
                 <Mono>{'{seu_jwt}'}</Mono> como placeholder. Gere um em{' '}
                 <Link to="/tokens" className="underline">
-                  Meus tokens
+                  Tokens
                 </Link>{' '}
                 para os comandos ficarem prontos para copiar e colar.
               </Alert>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Comerciante" htmlFor="docs-merchant">
-                <Select
-                  id="docs-merchant"
-                  value={merchant?.id ?? ''}
-                  onChange={(event) => setMerchantId(event.target.value)}
-                >
-                  {allMerchants.length === 0 ? <option value="">Nenhum cadastrado</option> : null}
-                  {allMerchants.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Field label="Token de integração" htmlFor="docs-token">
-                <Select
-                  id="docs-token"
-                  value={token?.id ?? ''}
-                  onChange={(event) => setTokenId(event.target.value)}
-                >
-                  {usableTokens.length === 0 ? <option value="">Nenhum ativo</option> : null}
-                  {usableTokens.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.name ?? candidate.id}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
+            <Field label="Token de integração" htmlFor="docs-token">
+              <Select
+                id="docs-token"
+                value={token?.id ?? ''}
+                onChange={(event) => setTokenId(event.target.value)}
+              >
+                {usableTokens.length === 0 ? <option value="">Nenhum ativo</option> : null}
+                {usableTokens.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name ?? candidate.id}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
             {merchant ? (
               <div className="grid gap-2 border-t pt-3">
@@ -401,13 +383,7 @@ http_response_code(200);`,
                 </div>
               </div>
             ) : (
-              <Alert tone="flag">
-                Nenhum comerciante cadastrado. Crie um em{' '}
-                <Link to="/comerciantes" className="underline">
-                  Comerciantes
-                </Link>{' '}
-                antes de integrar.
-              </Alert>
+              <Alert tone="flag">Nenhuma loja na sessão.</Alert>
             )}
           </Section>
 

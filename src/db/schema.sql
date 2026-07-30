@@ -36,7 +36,9 @@ CREATE INDEX IF NOT EXISTS idx_users_merchant ON users (merchant_id);
 
 CREATE TABLE IF NOT EXISTS integration_tokens (
   id          TEXT PRIMARY KEY,
-  user_id     TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  -- Nullable: tokens are issued by a merchant session, which has no user behind it.
+  -- Kept so a token minted by an older build still points at whoever created it.
+  user_id     TEXT REFERENCES users (id) ON DELETE SET NULL,
   merchant_id TEXT NOT NULL REFERENCES merchants (id) ON DELETE CASCADE,
   name        TEXT,
   permissions TEXT NOT NULL DEFAULT '[]',

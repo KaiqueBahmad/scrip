@@ -81,19 +81,45 @@ describe('integration auth', () => {
     assert.deepEqual(list.json().data, []);
   });
 
-  it('refuses to issue a token with permissions the user lacks', async () => {
+  it('scopes an issued token to the session merchant, ignoring the body', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness, { permissions: ['charges:read'] });
+    const mine = await seedMerchantAndToken(harness);
+    const other = await seedMerchantAndToken(harness);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/admin/api/tokens',
+      headers: mine.basic,
+      // A merchant_id in the body must not be able to mint for somebody else.
+      payload: { name: 'ci', permissions: ['*'], merchant_id: other.merchant.id },
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.json().merchant_id, mine.merchant.id);
+    assert.equal(response.json().user_id, null, 'no user behind a merchant-issued token');
+
+    // And it really only reaches its own merchant's data.
+    const scoped = await harness.app.inject({
+      method: 'GET',
+      url: '/v1/integration/merchants/me',
+      headers: { authorization: `Bearer ${response.json().token}` },
+    });
+    assert.equal(scoped.json().id, mine.merchant.id);
+  });
+
+  it('lets a merchant grant any permission, since it owns its own scope', async () => {
+    harness = await createHarness();
+    const { basic } = await seedMerchantAndToken(harness);
 
     const response = await harness.app.inject({
       method: 'POST',
       url: '/admin/api/tokens',
       headers: basic,
-      payload: { permissions: ['charges:write'] },
+      payload: { permissions: ['charges:write', 'refunds:write'] },
     });
 
-    assert.equal(response.statusCode, 403);
-    assert.equal(response.json().error.code, 'permission_escalation');
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(response.json().permissions, ['charges:write', 'refunds:write']);
   });
 });
 
@@ -266,58 +292,80 @@ describe('idempotency', () => {
 });
 
 describe('admin surface', () => {
-  it('lists users without credentials so the panel can offer a choice', async () => {
+  it('lists merchants with balance and without credentials, for the picker', async () => {
     harness = await createHarness();
-    await seedMerchantAndToken(harness);
+    const { bearer } = await seedMerchantAndToken(harness);
+    const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
-    const response = await harness.app.inject({ method: 'GET', url: '/admin/api/session/users' });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
+      headers: bearer,
+      payload: { result: 'paid' },
+    });
+
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/session/merchants',
+    });
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.json().data.length, 1);
+    assert.equal(response.json().data[0].balance.available, 15000, 'picker shows the balance');
+    assert.equal(
+      response.json().data[0].webhook_secret,
+      undefined,
+      'the unauthenticated picker must not leak signing secrets',
+    );
   });
 
-  it('bootstraps the first user with no credentials', async () => {
+  it('bootstraps the first merchant with no credentials', async () => {
     harness = await createHarness();
 
     const created = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/users',
-      payload: { name: 'First', email: 'first@example.com', permissions: ['*'] },
+      url: '/admin/api/merchants',
+      payload: { name: 'Primeira Loja', document: '12345678000199' },
     });
 
-    assert.equal(created.statusCode, 201, 'user CRUD is public (specs.md:114)');
+    // Basic auth resolves an existing merchant, so creation has to be open or the panel
+    // could never be entered on an empty database.
+    assert.equal(created.statusCode, 201);
+    assert.equal(created.json().kyc_status, 'pending');
+    assert.equal(created.json().balance.available, 0);
   });
 
-  it('requires Basic auth elsewhere and accepts an empty password', async () => {
+  it('authenticates the merchant by id or document, with an empty password', async () => {
     harness = await createHarness();
-    const { user } = await seedMerchantAndToken(harness);
+    const { merchant } = await seedMerchantAndToken(harness, { document: '99887766000155' });
 
-    const anonymous = await harness.app.inject({ method: 'GET', url: '/admin/api/merchants' });
+    const anonymous = await harness.app.inject({ method: 'GET', url: '/admin/api/merchants/me' });
     assert.equal(anonymous.statusCode, 401);
     assert.match(String(anonymous.headers['www-authenticate']), /^Basic/);
 
     const byId = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants',
-      headers: { authorization: `Basic ${Buffer.from(`${user.id}:`).toString('base64')}` },
+      url: '/admin/api/merchants/me',
+      headers: { authorization: `Basic ${Buffer.from(`${merchant.id}:`).toString('base64')}` },
     });
     assert.equal(byId.statusCode, 200);
+    assert.equal(byId.json().id, merchant.id);
 
-    // The email works as the username too.
-    const byEmail = await harness.app.inject({
+    // The document works as the username too.
+    const byDocument = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants',
-      headers: { authorization: `Basic ${Buffer.from(`${user.email}:`).toString('base64')}` },
+      url: '/admin/api/merchants/me',
+      headers: { authorization: `Basic ${Buffer.from('99887766000155:').toString('base64')}` },
     });
-    assert.equal(byEmail.statusCode, 200);
+    assert.equal(byDocument.statusCode, 200);
 
     const unknown = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants',
-      headers: { authorization: `Basic ${Buffer.from('nobody@example.com:').toString('base64')}` },
+      url: '/admin/api/merchants/me',
+      headers: { authorization: `Basic ${Buffer.from('mch_nope:').toString('base64')}` },
     });
     assert.equal(unknown.statusCode, 401);
-    assert.equal(unknown.json().error.code, 'user_not_found');
+    assert.equal(unknown.json().error.code, 'merchant_not_found');
   });
 
   it('returns the charge with its events, refunds and deliveries', async () => {
@@ -453,7 +501,7 @@ describe('kyc', () => {
 
   it('approval flips the merchant and its pending documents', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, basic } = await seedMerchantAndToken(harness);
 
     const uploaded = await harness.app.inject({
       method: 'POST',
@@ -464,9 +512,9 @@ describe('kyc', () => {
 
     const approved = await harness.app.inject({
       method: 'POST',
-      url: `/admin/api/merchants/${merchant.id}/kyc/approve`,
+      url: '/admin/api/kyc/simulate',
       headers: basic,
-      payload: { reason: 'documentos conferem' },
+      payload: { decision: 'approved', reason: 'documentos conferem' },
     });
 
     assert.equal(approved.statusCode, 200);
@@ -515,5 +563,225 @@ describe('error envelope', () => {
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.json().status, 'ok');
+  });
+});
+
+describe('merchant balance', () => {
+  it('starts at zero and only counts settled charges', async () => {
+    harness = await createHarness();
+    const { bearer, basic } = await seedMerchantAndToken(harness);
+
+    const empty = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: basic,
+    });
+    assert.equal(empty.json().available, 0);
+    assert.equal(empty.json().settled_charges, 0);
+
+    // A pending charge must not move the balance.
+    const { body: pending } = await createCharge(harness, bearer, {
+      amount: 15000,
+      payer_document: '22222222222',
+    });
+
+    let balance = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: basic,
+    });
+    assert.equal(balance.json().available, 0, 'pending does not count');
+
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${pending.id}/simulate`,
+      headers: bearer,
+      payload: { result: 'paid' },
+    });
+
+    balance = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: basic,
+    });
+    assert.equal(balance.json().available, 15000);
+    assert.equal(balance.json().gross_received, 15000);
+    assert.equal(balance.json().refunded, 0);
+    assert.equal(balance.json().settled_charges, 1);
+  });
+
+  it('subtracts refunds, and an expired charge never contributes', async () => {
+    harness = await createHarness({ config: { pixQrCodeExpirationMs: 1000 } });
+    const { bearer, basic } = await seedMerchantAndToken(harness);
+
+    const { body: paid } = await createCharge(harness, bearer, {
+      amount: 20000,
+      payer_document: '22222222222',
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${paid.id}/simulate`,
+      headers: bearer,
+      payload: { result: 'paid' },
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${paid.id}/refunds`,
+      headers: bearer,
+      payload: { amount: 7500 },
+    });
+
+    // This one is left to expire, so it should be invisible to the balance.
+    await createCharge(harness, bearer, { amount: 99900, payer_document: '22222222222' });
+    await harness.scheduler.advance(5000);
+
+    const balance = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: basic,
+    });
+
+    assert.equal(balance.json().available, 12500, '20000 recebidos menos 7500 devolvidos');
+    assert.equal(balance.json().gross_received, 20000);
+    assert.equal(balance.json().refunded, 7500);
+    assert.equal(balance.json().settled_charges, 1, 'a expirada não entra');
+  });
+
+  it('reaches zero once everything is refunded', async () => {
+    harness = await createHarness();
+    const { bearer, basic } = await seedMerchantAndToken(harness);
+
+    const { body: charge } = await createCharge(harness, bearer, {
+      amount: 15000,
+      payer_document: '22222222222',
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
+      headers: bearer,
+      payload: { result: 'paid' },
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      headers: bearer,
+      payload: {},
+    });
+
+    const balance = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: basic,
+    });
+
+    assert.equal(harness.app.services.charges.get(charge.id).status, 'refunded');
+    assert.equal(balance.json().available, 0);
+    assert.equal(balance.json().gross_received, 15000, 'o bruto guarda o histórico');
+    assert.equal(balance.json().refunded, 15000);
+  });
+
+  it('keeps each store’s balance to itself', async () => {
+    harness = await createHarness();
+    const first = await seedMerchantAndToken(harness);
+    const second = await seedMerchantAndToken(harness);
+
+    const { body: charge } = await createCharge(harness, first.bearer, {
+      amount: 30000,
+      payer_document: '22222222222',
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
+      headers: first.bearer,
+      payload: { result: 'paid' },
+    });
+
+    const mine = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: first.basic,
+    });
+    const theirs = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/balance',
+      headers: second.basic,
+    });
+
+    assert.equal(mine.json().available, 30000);
+    assert.equal(theirs.json().available, 0);
+  });
+});
+
+describe('panel scoping', () => {
+  it('shows a store only its own charges, tokens, deliveries and documents', async () => {
+    harness = await createHarness();
+    const first = await seedMerchantAndToken(harness);
+    const second = await seedMerchantAndToken(harness);
+
+    const { body: charge } = await createCharge(harness, first.bearer, {
+      payer_document: '22222222222',
+    });
+    await harness.scheduler.advance(5000);
+
+    // Second store sees an empty panel.
+    for (const url of ['/admin/api/charges', '/admin/api/tokens', '/admin/api/webhooks/deliveries']) {
+      const response = await harness.app.inject({ method: 'GET', url, headers: second.basic });
+      assert.equal(response.statusCode, 200, url);
+      const data = response.json().data as unknown[];
+      const expected = url === '/admin/api/tokens' ? 1 : 0;
+      assert.equal(data.length, expected, `${url} deve conter só o que é da própria loja`);
+    }
+
+    // And cannot reach the first store's charge by id.
+    const foreign = await harness.app.inject({
+      method: 'GET',
+      url: `/admin/api/charges/${charge.id}`,
+      headers: second.basic,
+    });
+    assert.equal(foreign.statusCode, 404);
+    assert.equal(foreign.json().error.code, 'charge_not_found');
+  });
+
+  it('refuses to revoke or retry another store’s resources', async () => {
+    harness = await createHarness();
+    const first = await seedMerchantAndToken(harness);
+    const second = await seedMerchantAndToken(harness);
+
+    await createCharge(harness, first.bearer, { payer_document: '22222222222' });
+    await harness.scheduler.advance(5000);
+
+    const delivery = harness.app.services.webhooks.listForMerchant(first.merchant.id)[0]!;
+
+    const retry = await harness.app.inject({
+      method: 'POST',
+      url: `/admin/api/webhooks/deliveries/${delivery.id}/retry`,
+      headers: second.basic,
+    });
+    assert.equal(retry.statusCode, 404);
+
+    const revoke = await harness.app.inject({
+      method: 'POST',
+      url: `/admin/api/tokens/${first.token.id}/revoke`,
+      headers: second.basic,
+    });
+    assert.equal(revoke.statusCode, 404);
+    assert.equal(
+      harness.app.services.tokens.get(first.token.id).revoked_at,
+      null,
+      'o token da outra loja segue válido',
+    );
+  });
+
+  it('does not leak the signing secret through settings', async () => {
+    harness = await createHarness();
+    const { basic } = await seedMerchantAndToken(harness);
+
+    const response = await harness.app.inject({
+      method: 'GET',
+      url: '/admin/api/settings',
+      headers: basic,
+    });
+
+    assert.equal(response.json().values.jwtSigningSecret, '[redacted]');
   });
 });
