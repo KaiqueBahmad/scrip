@@ -107,7 +107,7 @@ export function SelectUser() {
                 id="new-user-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Kaique"
+                placeholder="Seu nome"
                 required
               />
             </Field>
@@ -118,7 +118,7 @@ export function SelectUser() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="kaique@example.com"
+                placeholder="dev@example.com"
                 required
               />
             </Field>
