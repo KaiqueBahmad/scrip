@@ -44,9 +44,9 @@ function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-6">
-      <Panel>
+      <Panel className="min-w-0">
         <PanelHeader title={title} hint={hint} />
-        <div className="grid gap-3 p-4">{children}</div>
+        <div className="grid min-w-0 gap-3 p-4">{children}</div>
       </Panel>
     </section>
   );
@@ -417,8 +417,8 @@ http_response_code(200);`,
             title="Fluxo completo"
             hint="A ordem importa: cada passo depende do anterior."
           >
-            <ol className="grid gap-5">
-              <li>
+            <ol className="grid min-w-0 gap-5">
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 1 — seu backend cria a cobrança</p>
                 <Prose>
                   Valores são sempre inteiros em centavos: <Mono>15000</Mono> é R$&nbsp;150,00.
@@ -427,7 +427,7 @@ http_response_code(200);`,
                 <CodeBlock className="mt-2" code={createCharge} label="POST /v1/integration/pix/charges" />
               </li>
 
-              <li>
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 2 — guarde o retorno</p>
                 <Prose>
                   Guarde o <Mono>id</Mono> no seu pedido e entregue o <Mono>qr_code</Mono> e o{' '}
@@ -438,7 +438,7 @@ http_response_code(200);`,
                 <CodeBlock className="mt-2" code={createResponse} label="201 Created" />
               </li>
 
-              <li>
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 3 — o checkout acompanha o status</p>
                 <Prose>
                   O frontend consulta a superfície de aplicação com o <Mono>public_token</Mono>.
@@ -448,7 +448,7 @@ http_response_code(200);`,
                 <CodeBlock className="mt-2" code={pollCharge} label="GET /v1/app/pix/charges/{id}" />
               </li>
 
-              <li>
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 4 — confirme (ou deixe confirmar sozinho)</p>
                 <Prose>
                   Em desenvolvimento a cobrança se resolve sozinha conforme o CPF do pagador e o{' '}
@@ -458,7 +458,7 @@ http_response_code(200);`,
                 <CodeBlock className="mt-2" code={simulate} label="POST .../simulate" />
               </li>
 
-              <li>
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 5 — trate o webhook</p>
                 <Prose>
                   Não confie só no retorno da chamada: a confirmação oficial chega pelo webhook
@@ -470,7 +470,7 @@ http_response_code(200);`,
                 </Prose>
               </li>
 
-              <li>
+              <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 6 — devoluções, quando precisar</p>
                 <CodeBlock className="mt-2" code={refund} label="POST .../refunds" />
               </li>

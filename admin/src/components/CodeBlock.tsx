@@ -19,7 +19,9 @@ export function CodeBlock({
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className={cn('group relative', className)}>
+    // max-w matches the prose measure; min-w-0 is what lets the <pre> below actually
+    // scroll instead of stretching its grid track.
+    <div className={cn('group relative max-w-3xl min-w-0', className)}>
       {label ? (
         <div className="flex items-center justify-between border border-b-0 bg-[var(--surface)] px-3 py-1.5">
           <span className="eyebrow">{label}</span>
