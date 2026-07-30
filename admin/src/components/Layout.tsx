@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BookOpen,
   KeyRound,
   Settings2,
   ShieldCheck,
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { to: '/kyc', label: 'KYC', icon: ShieldCheck },
   { to: '/webhooks', label: 'Webhooks', icon: Webhook },
   { to: '/configuracoes', label: 'Configurações', icon: Settings2 },
+  { to: '/docs', label: 'Documentação', icon: BookOpen },
 ];
 
 /**

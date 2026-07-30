@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from './components/Layout';
 import { useSession } from './lib/session';
+import { Docs } from './pages/Docs';
 import { Kyc } from './pages/Kyc';
 import { Merchants } from './pages/Merchants';
 import { SelectUser } from './pages/SelectUser';
@@ -40,6 +41,7 @@ export function App() {
         <Route path="/kyc" element={<Kyc />} />
         <Route path="/webhooks" element={<Webhooks />} />
         <Route path="/configuracoes" element={<Settings />} />
+        <Route path="/docs" element={<Docs />} />
         <Route path="*" element={<Navigate to="/transacoes" replace />} />
       </Route>
     </Routes>

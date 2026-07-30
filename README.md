@@ -175,6 +175,11 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 
 ## Referência da API
 
+> Com o servidor rodando, o painel tem um guia de integração completo em
+> [`/admin/docs`](http://localhost:4242/admin/docs): mesmos endpoints, mas com a URL da sua
+> instância e o seu token já preenchidos nos exemplos, além de código pronto de verificação
+> de assinatura de webhook em Node.js, Python e PHP.
+
 **Integração** (`Authorization: Bearer <jwt>`):
 
 | Método e rota | Permissão |
