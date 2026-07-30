@@ -106,13 +106,19 @@ export async function seedMerchantAndToken(
 ) {
   const { app } = harness;
 
-  const merchant = app.services.merchants.create({
+  const created = app.services.merchants.create({
     name: options.name ?? 'Loja de Teste',
     document: 'document' in options ? options.document : `1234567800${Math.floor(Math.random() * 10000)}`,
-    // `??` would swallow an explicit null, which is exactly the "no webhook_url" case.
-    webhookUrl: 'webhookUrl' in options ? options.webhookUrl : 'https://merchant.test/hooks',
     webhookSecret: 'whsec_fixed_for_tests',
   });
+
+  // Creation never sets a webhook, so tests that need one configure it the way the panel
+  // does. `??` would swallow an explicit null, which is exactly the "no webhook_url" case.
+  const webhookUrl = 'webhookUrl' in options ? options.webhookUrl : 'https://merchant.test/hooks';
+
+  const merchant = webhookUrl
+    ? app.services.merchants.update(created.id, { webhookUrl })
+    : created;
 
   const token = app.services.tokens.issue({
     merchantId: merchant.id,

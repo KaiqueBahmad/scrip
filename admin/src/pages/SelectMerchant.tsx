@@ -16,7 +16,6 @@ export function SelectMerchant() {
 
   const [name, setName] = useState('');
   const [document, setDocument] = useState('');
-  const [webhookUrl, setWebhookUrl] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -26,10 +25,12 @@ export function SelectMerchant() {
     setFormError(null);
 
     try {
+      // A webhook_url é configurada depois, em Minha loja — o cadastro só precisa
+      // identificar a loja.
       const merchant = await api.createMerchant({
         name: name.trim(),
         document: document.trim() || null,
-        webhook_url: webhookUrl.trim() || null,
+        webhook_url: null,
       });
 
       await refreshMerchants();
@@ -103,7 +104,10 @@ export function SelectMerchant() {
         </Panel>
 
         <Panel>
-          <PanelHeader title="Criar loja" hint="É a conta de teste que representa o seu sistema." />
+          <PanelHeader
+            title="Criar loja"
+            hint="É a conta de teste que representa o seu sistema. O webhook é configurado depois, em Minha loja."
+          />
           <form className="grid gap-3 p-4" onSubmit={create}>
             {formError ? <Alert>{formError}</Alert> : null}
 
@@ -123,19 +127,6 @@ export function SelectMerchant() {
                 value={document}
                 onChange={(event) => setDocument(event.target.value)}
                 placeholder="12345678000199"
-              />
-            </Field>
-
-            <Field
-              label="Webhook URL"
-              htmlFor="new-merchant-webhook"
-              hint="Pode ficar vazio agora e ser configurado depois em Minha loja."
-            >
-              <Input
-                id="new-merchant-webhook"
-                value={webhookUrl}
-                onChange={(event) => setWebhookUrl(event.target.value)}
-                placeholder="http://localhost:3000/webhooks/pseudopay"
               />
             </Field>
 

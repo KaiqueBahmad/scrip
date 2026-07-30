@@ -333,6 +333,35 @@ describe('admin surface', () => {
     assert.equal(created.statusCode, 201);
     assert.equal(created.json().kyc_status, 'pending');
     assert.equal(created.json().balance.available, 0);
+    assert.equal(created.json().webhook_url, null);
+  });
+
+  it('does not accept a webhook_url on creation', async () => {
+    harness = await createHarness();
+
+    const created = await harness.app.inject({
+      method: 'POST',
+      url: '/admin/api/merchants',
+      payload: { name: 'Loja', webhook_url: 'https://atacante.test/hooks' },
+    });
+
+    // Creation only establishes identity; the webhook is wired afterwards, from a session.
+    assert.equal(created.statusCode, 201);
+    assert.equal(created.json().webhook_url, null, 'webhook_url no corpo é ignorado');
+
+    const basic = {
+      authorization: `Basic ${Buffer.from(`${created.json().id}:`).toString('base64')}`,
+    };
+
+    const configured = await harness.app.inject({
+      method: 'PATCH',
+      url: '/admin/api/merchants/me',
+      headers: basic,
+      payload: { webhook_url: 'https://merchant.test/hooks' },
+    });
+
+    assert.equal(configured.statusCode, 200);
+    assert.equal(configured.json().webhook_url, 'https://merchant.test/hooks');
   });
 
   it('authenticates the merchant by id or document, with an empty password', async () => {

@@ -57,13 +57,13 @@ export function adminRoutes(services: Services): FastifyPluginAsync {
       const body = (request.body ?? {}) as {
         name?: string;
         document?: string | null;
-        webhook_url?: string | null;
       };
 
+      // No webhook_url here: a new store has no session yet, and wiring the webhook is a
+      // separate step through PATCH /merchants/me once you are signed in.
       const merchant = services.merchants.create({
         name: body.name as string,
         document: body.document ?? null,
-        webhookUrl: body.webhook_url ?? null,
       });
 
       return reply

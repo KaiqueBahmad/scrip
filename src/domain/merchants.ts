@@ -3,10 +3,13 @@ import { badRequest, notFound } from '../lib/errors.js';
 import { newId, newWebhookSecret } from '../lib/ids.js';
 import type { MerchantRow } from '../types.js';
 
+/**
+ * A store is created with just its identity. The webhook is set afterwards through
+ * `update`, so signing up and wiring up stay separate steps.
+ */
 export interface CreateMerchantInput {
   name: string;
   document?: string | null;
-  webhookUrl?: string | null;
   /** Supply to pin a known secret in tests; otherwise one is generated. */
   webhookSecret?: string;
 }
@@ -89,14 +92,13 @@ export class MerchantService {
     const name = input.name?.trim();
     if (!name) throw badRequest('invalid_name', 'name is required');
 
-    assertValidWebhookUrl(input.webhookUrl);
-
     const at = nowIso();
     const row: MerchantRow = {
       id: newId('merchant'),
       name,
       document: input.document ?? null,
-      webhook_url: input.webhookUrl ?? null,
+      // Always null on creation — configured later via update.
+      webhook_url: null,
       webhook_secret: input.webhookSecret ?? newWebhookSecret(),
       // New merchants start unverified; whether that blocks charges is a config decision
       // (requireApprovedKycForCharges), off by default.
