@@ -118,15 +118,6 @@ body {
   scrollbar-color: var(--hairline) transparent;
 }
 
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
-
-.live-dot {
-  animation: live-pulse 4s ease-in-out infinite;
-}
-
 @keyframes trace-draw {
   from { stroke-dashoffset: var(--trace-length); }
   to { stroke-dashoffset: 0; }

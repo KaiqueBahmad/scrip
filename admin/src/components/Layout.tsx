@@ -101,14 +101,6 @@ export function Layout() {
       </nav>
 
       <div className="flex min-w-0 flex-col">
-        {/* Permanent reminder that none of this is real (specs.md:5). */}
-        <div className="flex items-center gap-2 border-b bg-flag-soft px-4 py-1.5 text-[#8a5d00]">
-          <span aria-hidden className="live-dot size-1.5 rounded-full bg-flag" />
-          <p className="font-mono text-[10px] tracking-[0.1em] uppercase">
-            simulação · nenhum pagamento é real
-          </p>
-        </div>
-
         <main className="min-w-0 flex-1 p-4 md:p-6">
           <Outlet />
         </main>
