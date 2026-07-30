@@ -787,11 +787,6 @@ http_response_code(200);`,
             </Prose>
           </Section>
 
-          <Alert tone="halt">
-            O PseudoPay não tem controle de acesso real e não fala com o Banco Central. Ele é para
-            desenvolvimento e teste — não exponha uma instância publicamente nem use os dados dela
-            como se fossem de pagamento real.
-          </Alert>
         </div>
 
         {/* Índice fixo: a página é longa e a leitura raramente é linear. */}
