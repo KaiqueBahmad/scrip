@@ -42,17 +42,14 @@ function QrPreview({ payload }: { payload: string }) {
     };
   }, [payload]);
 
+  // Displayed at 160px but generated at 320 so it stays sharp on hidpi screens.
+  const frame = 'mx-auto aspect-square w-full max-w-[160px] rounded-[var(--radius-panel)] border';
+
   if (!dataUrl) {
-    return <div className="aspect-square w-full rounded-[var(--radius-panel)] border bg-[var(--surface)]" />;
+    return <div className={`${frame} bg-[var(--surface)]`} />;
   }
 
-  return (
-    <img
-      src={dataUrl}
-      alt="QR code da cobrança"
-      className="w-full rounded-[var(--radius-panel)] border bg-white"
-    />
-  );
+  return <img src={dataUrl} alt="QR code da cobrança" className={`${frame} bg-white`} />;
 }
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
