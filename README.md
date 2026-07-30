@@ -2,8 +2,6 @@
 
 Um gateway de pagamento **PIX** simulado, self-hosted, para desenvolvimento e testes de integração — no mesmo espírito de ferramentas como MinIO (S3) ou LocalStack (AWS), mas para o ciclo de vida de um gateway de pagamento.
 
-> ⚠️ **Não é um produto de produção.** Não processa pagamentos reais, não se conecta ao Banco Central/SPI, e não deve ser exposto fora de `localhost`/rede interna de dev. Ver [Segurança](#segurança) abaixo.
-
 ---
 
 ## O que é
@@ -142,16 +140,6 @@ function verificar(corpoBruto, header, segredo) {
 ```
 
 Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-PseudoPay-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/integration/webhooks/deliveries/{id}/retry`.
-
-## Segurança
-
-Este projeto **não tem controle de acesso real** por design:
-
-- Qualquer sessão do painel pode criar um usuário com quaisquer permissões (CRUD público)
-- A "senha" da autenticação Basic é sempre vazia
-- Tokens JWT ficam visíveis em texto no painel, sem expirar por padrão a menos que configurado
-
-Isso é intencional — o PseudoPay é feito para rodar local ou em rede interna isolada, priorizando conveniência de desenvolvimento sobre segurança. **Nunca exponha uma instância publicamente sem um proxy/firewall restringindo o acesso.**
 
 ## Configuração
 
