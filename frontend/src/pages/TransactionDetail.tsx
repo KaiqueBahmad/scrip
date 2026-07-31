@@ -196,9 +196,6 @@ export function TransactionDetail() {
             <Detail label="e2e id">
               {charge.e2e_id ? <Copyable value={charge.e2e_id} label="e2e id" /> : '—'}
             </Detail>
-            <Detail label="public token">
-              <Copyable value={charge.public_token} truncate={{ head: 12, tail: 6 }} label="public token" />
-            </Detail>
             <Detail label="criada em">{formatDateTime(charge.created_at)}</Detail>
             <Detail label="expira em">
               {formatDateTime(charge.qr_code_expires_at)}

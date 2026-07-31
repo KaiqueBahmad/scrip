@@ -6,7 +6,6 @@ import { openDb, type Db } from './db/index.js';
 import { AppError } from './lib/errors.js';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler.js';
 import { adminRoutes } from './routes/admin.js';
-import { appRoutes } from './routes/app.js';
 import { integrationRoutes } from './routes/integration.js';
 import { adminUiRoutes, readAdminShell } from './routes/static.js';
 import { buildServices, type Services } from './services.js';
@@ -103,7 +102,6 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Pse
 
   app.get('/', async (_request, reply) => reply.redirect('/admin'));
 
-  await app.register(appRoutes(services), { prefix: '/v1/app' });
   await app.register(integrationRoutes(services), { prefix: '/v1/integration' });
   await app.register(adminRoutes(services), { prefix: '/admin/api' });
   await app.register(adminUiRoutes);

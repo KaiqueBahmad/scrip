@@ -32,14 +32,6 @@ export function newId(kind: EntityKind): string {
   return `${ID_PREFIXES[kind]}_${randomId(16)}`;
 }
 
-/**
- * Token handed to the payer-facing frontend. Longer than an entity id because it is
- * the only credential guarding /v1/app access to a charge.
- */
-export function newPublicToken(): string {
-  return `pub_${randomId(32)}`;
-}
-
 /** Per-merchant webhook signing secret (specs.md:108). */
 export function newWebhookSecret(): string {
   return `whsec_${randomId(32)}`;

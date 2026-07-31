@@ -1,7 +1,7 @@
 import type { ConfigStore } from '../config.js';
 import { nowIso, type Db } from '../db/index.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
-import { newId, newPublicToken } from '../lib/ids.js';
+import { newId } from '../lib/ids.js';
 import type { Logger } from '../lib/logger.js';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix.js';
 import type { Scheduler } from '../lib/scheduler.js';
@@ -143,7 +143,6 @@ export class ChargeService {
       qr_code: qrCode,
       qr_code_txid: txid,
       qr_code_expires_at: expiresAt,
-      public_token: newPublicToken(),
       e2e_id: null,
       refunded_amount: 0,
       paid_at: null,
@@ -158,11 +157,11 @@ export class ChargeService {
         .prepare(
           `INSERT INTO pix_charges
              (id, merchant_id, amount, status, payer_document, payer_name, description,
-              metadata, qr_code, qr_code_txid, qr_code_expires_at, public_token, e2e_id,
+              metadata, qr_code, qr_code_txid, qr_code_expires_at, e2e_id,
               refunded_amount, paid_at, expired_at, canceled_at, created_at, updated_at)
            VALUES (@id, @merchant_id, @amount, @status, @payer_document, @payer_name,
                    @description, @metadata, @qr_code, @qr_code_txid, @qr_code_expires_at,
-                   @public_token, @e2e_id, @refunded_amount, @paid_at, @expired_at,
+                   @e2e_id, @refunded_amount, @paid_at, @expired_at,
                    @canceled_at, @created_at, @updated_at)`,
         )
         .run(row);
@@ -199,13 +198,6 @@ export class ChargeService {
     }
 
     return row;
-  }
-
-  /** Resolves the payer-facing credential from specs.md:77-82. */
-  getByPublicToken(publicToken: string): ChargeRow | undefined {
-    return this.#db
-      .prepare<[string], ChargeRow>('SELECT * FROM pix_charges WHERE public_token = ?')
-      .get(publicToken);
   }
 
   list(filters: ListChargesFilters = {}): ChargeRow[] {

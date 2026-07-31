@@ -44,7 +44,6 @@ export interface ApiCharge {
   qr_code: string;
   qr_code_txid: string;
   qr_code_expires_at: string;
-  public_token: string;
   e2e_id: string | null;
   paid_at: string | null;
   expired_at: string | null;

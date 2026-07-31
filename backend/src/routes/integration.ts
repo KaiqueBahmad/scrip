@@ -22,8 +22,8 @@ interface ChargeParams {
 }
 
 /**
- * Merchant-facing API (specs.md:22). Kept in its own file from /v1/app even where the
- * underlying service call is identical, because specs.md:21 asks for the two surfaces to be
+ * Integration API (specs.md:22), called by the merchant's own backend with a JWT. Kept in
+ * its own file from the panel API, because specs.md:21 asks for the surfaces to be
  * physically separated by route.
  */
 export function integrationRoutes(services: Services): FastifyPluginAsync {

@@ -71,7 +71,6 @@ describe('charge creation', () => {
     assert.equal(body.amount, 15000);
     assert.equal(body.amount_refunded, 0);
     assert.ok(isValidBrCode(body.qr_code));
-    assert.ok(body.public_token.startsWith('pub_'));
     assert.deepEqual(body.metadata, { order_id: 'abc-123' });
     assert.equal(body.e2e_id, null, 'no e2e id before settlement');
   });

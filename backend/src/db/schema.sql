@@ -54,8 +54,6 @@ CREATE TABLE IF NOT EXISTS pix_charges (
   qr_code            TEXT NOT NULL,
   qr_code_txid       TEXT NOT NULL,
   qr_code_expires_at TEXT NOT NULL,
-  -- Bearer credential for the payer-facing /v1/app surface (specs.md:77-82).
-  public_token       TEXT NOT NULL UNIQUE,
   e2e_id             TEXT,
   refunded_amount    INTEGER NOT NULL DEFAULT 0 CHECK (refunded_amount >= 0),
   paid_at            TEXT,
@@ -68,7 +66,6 @@ CREATE TABLE IF NOT EXISTS pix_charges (
 CREATE INDEX IF NOT EXISTS idx_charges_merchant_created
   ON pix_charges (merchant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_charges_status ON pix_charges (status);
-CREATE INDEX IF NOT EXISTS idx_charges_public_token ON pix_charges (public_token);
 
 CREATE TABLE IF NOT EXISTS pix_refunds (
   id          TEXT PRIMARY KEY,

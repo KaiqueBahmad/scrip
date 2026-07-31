@@ -48,7 +48,6 @@ export interface ChargeRow {
   qr_code: string;
   qr_code_txid: string;
   qr_code_expires_at: string;
-  public_token: string;
   e2e_id: string | null;
   refunded_amount: number;
   paid_at: string | null;

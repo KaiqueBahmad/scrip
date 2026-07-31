@@ -1,4 +1,4 @@
-import type { ChargeRow, MerchantRow } from '../types.js';
+import type { MerchantRow } from '../types.js';
 
 /** Resolved credential for a /v1/integration request. */
 export interface IntegrationAuth {
@@ -13,8 +13,6 @@ declare module 'fastify' {
     merchant?: MerchantRow;
     /** Set by the Bearer hook on /v1/integration routes. */
     integration?: IntegrationAuth;
-    /** Set by the public-token hook on /v1/app routes. */
-    publicCharge?: ChargeRow;
   }
 }
 

@@ -11,12 +11,7 @@ import type {
   WebhookDeliveryRow,
 } from '../types.js';
 
-/**
- * Row -> JSON. The payer-facing and merchant-facing surfaces get different shapes on
- * purpose: /v1/app is reached with a token that lives in a browser, so it never sees
- * merchant metadata or the merchant id.
- */
-
+/** Row -> JSON, shared by the panel and the integration surface. */
 export function serializeCharge(row: ChargeRow) {
   return {
     id: row.id,
@@ -32,30 +27,12 @@ export function serializeCharge(row: ChargeRow) {
     qr_code: row.qr_code,
     qr_code_txid: row.qr_code_txid,
     qr_code_expires_at: row.qr_code_expires_at,
-    public_token: row.public_token,
     e2e_id: row.e2e_id,
     paid_at: row.paid_at,
     expired_at: row.expired_at,
     canceled_at: row.canceled_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
-  };
-}
-
-/** Reduced shape for /v1/app — no metadata, no merchant id, no public_token echo. */
-export function serializePublicCharge(row: ChargeRow) {
-  return {
-    id: row.id,
-    object: 'pix_charge' as const,
-    status: row.status,
-    amount: row.amount,
-    description: row.description,
-    qr_code: row.qr_code,
-    qr_code_expires_at: row.qr_code_expires_at,
-    e2e_id: row.e2e_id,
-    paid_at: row.paid_at,
-    expired_at: row.expired_at,
-    created_at: row.created_at,
   };
 }
 

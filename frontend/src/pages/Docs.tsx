@@ -114,14 +114,13 @@ export function Docs() {
   "qr_code": "00020101021226410014br.gov.bcb.pix...6304ABCD",
   "qr_code_txid": "K3M9P2QRSTUVWXYZ1234ABCDE",
   "qr_code_expires_at": "2026-07-30T12:15:00.000Z",
-  "public_token": "pub_9f2k4m8xq1w7e3r5t6y8u0i2o4p6a8s0",
   "e2e_id": null,
   "paid_at": null,
   "created_at": "2026-07-30T12:00:00.000Z"
 }`;
 
-  const pollCharge = `curl ${baseUrl}/v1/app/pix/charges/ch_a1b2c3d4e5f6g7h8 \\
-  -H "Authorization: Bearer pub_9f2k4m8xq1w7e3r5t6y8u0i2o4p6a8s0"`;
+  const pollCharge = `curl ${baseUrl}/v1/integration/pix/charges/ch_a1b2c3d4e5f6g7h8 \\
+  -H "Authorization: Bearer ${jwt}"`;
 
   const simulate = `curl -X POST ${baseUrl}/v1/integration/pix/charges/ch_a1b2c3d4e5f6g7h8/simulate \\
   -H "Authorization: Bearer ${jwt}" \\
@@ -256,7 +255,7 @@ http_response_code(200);`,
       <PageHeader
         eyebrow="guia de integração"
         title="Documentação"
-        description="Como ligar seu backend e seu checkout ao PseudoPay. Os exemplos abaixo já vêm com a URL desta instância e, se você tiver um token, com as credenciais reais."
+        description="Como ligar seu backend ao PseudoPay. Os exemplos abaixo já vêm com a URL desta instância e, se você tiver um token, com as credenciais reais."
       />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
@@ -293,13 +292,6 @@ http_response_code(200);`,
                   </Td>
                 </tr>
                 <tr>
-                  <Td className="font-mono text-xs">/v1/app/*</Td>
-                  <Td className="text-xs">Checkout do pagador (navegador)</Td>
-                  <Td className="text-xs">
-                    <Mono>public_token</Mono> da cobrança
-                  </Td>
-                </tr>
-                <tr>
                   <Td className="font-mono text-xs">/admin/api/*</Td>
                   <Td className="text-xs">Este painel</Td>
                   <Td className="text-xs">HTTP Basic (senha vazia)</Td>
@@ -308,9 +300,9 @@ http_response_code(200);`,
             </Table>
 
             <Prose>
-              A superfície de aplicação é somente leitura e cada <Mono>public_token</Mono> dá
-              acesso a exatamente uma cobrança. Tudo que movimenta dinheiro — criar, cancelar,
-              devolver, simular — vive na superfície de integração.
+              Tudo que movimenta dinheiro — criar, cancelar, devolver, simular — vive na
+              superfície de integração, chamada pelo seu backend. O painel fala apenas com{' '}
+              <Mono>/admin/api/*</Mono>, sempre no escopo da loja da sessão.
             </Prose>
 
             <div>
@@ -406,22 +398,25 @@ http_response_code(200);`,
               <li className="min-w-0">
                 <p className="eyebrow mb-1">passo 2 — guarde o retorno</p>
                 <Prose>
-                  Guarde o <Mono>id</Mono> no seu pedido e entregue o <Mono>qr_code</Mono> e o{' '}
-                  <Mono>public_token</Mono> ao frontend. O <Mono>qr_code</Mono> é o payload
-                  “copia e cola”; o <Mono>public_token</Mono> é o que autoriza o navegador a
-                  acompanhar essa cobrança.
+                  Guarde o <Mono>id</Mono> no seu pedido e entregue o <Mono>qr_code</Mono> ao seu
+                  frontend — é o payload “copia e cola” que o pagador escaneia. O acompanhamento
+                  do status fica no seu backend, que é quem tem o token.
                 </Prose>
                 <CodeBlock className="mt-2" code={createResponse} label="201 Created" />
               </li>
 
               <li className="min-w-0">
-                <p className="eyebrow mb-1">passo 3 — o checkout acompanha o status</p>
+                <p className="eyebrow mb-1">passo 3 — acompanhe o status</p>
                 <Prose>
-                  O frontend consulta a superfície de aplicação com o <Mono>public_token</Mono>.
-                  Essa resposta não traz <Mono>metadata</Mono>, <Mono>merchant_id</Mono> nem o
-                  documento do pagador — é o mínimo para desenhar a tela de pagamento.
+                  Seu backend consulta a cobrança e repassa ao seu frontend só o que a tela de
+                  pagamento precisa. O <Mono>Authorization</Mono> nunca deve chegar ao navegador
+                  do pagador.
                 </Prose>
-                <CodeBlock className="mt-2" code={pollCharge} label="GET /v1/app/pix/charges/{id}" />
+                <CodeBlock
+                  className="mt-2"
+                  code={pollCharge}
+                  label="GET /v1/integration/pix/charges/{id}"
+                />
               </li>
 
               <li className="min-w-0">
@@ -490,25 +485,6 @@ http_response_code(200);`,
               </tbody>
             </Table>
 
-            <p className="eyebrow mt-2">aplicação — authorization: bearer &lt;public_token&gt;</p>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Rota</Th>
-                  <Th>O que faz</Th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <Td className="font-mono text-[11.5px]">GET /pix/charges/{'{id}'}</Td>
-                  <Td className="text-xs">Status da cobrança, em versão reduzida.</Td>
-                </tr>
-                <tr>
-                  <Td className="font-mono text-[11.5px]">GET /pix/charges/{'{id}'}/qrcode</Td>
-                  <Td className="text-xs">Só o payload do QR code e a validade.</Td>
-                </tr>
-              </tbody>
-            </Table>
           </Section>
 
           {/* --------------------------------------------------- webhooks */}
@@ -739,7 +715,6 @@ http_response_code(200);`,
                   ['401', 'invalid_token', 'JWT malformado ou assinado com outro segredo.'],
                   ['401', 'token_expired', 'O token venceu.'],
                   ['401', 'token_revoked', 'O token foi revogado no painel.'],
-                  ['401', 'invalid_public_token', 'public_token não corresponde a nenhuma cobrança.'],
                   ['403', 'insufficient_permission', 'O token não tem a permissão da rota.'],
                   ['403', 'kyc_required', 'KYC não aprovado e o bloqueio está ligado.'],
                   ['404', 'charge_not_found', 'Não existe, ou é de outro comerciante.'],

@@ -17,8 +17,8 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 
 - **Somente PIX** nesta versão. Cartão, boleto e outros métodos ficam fora do escopo (arquitetura já preparada para extensão futura).
 - **Duas superfícies de API**, fisicamente separadas por rota mesmo quando a lógica é a mesma:
-  - `/v1/app/*` — consumida pelo checkout/frontend do pagador
-  - `/v1/integration/*` — consumida pelo backend do merchant
+  - `/v1/integration/*` — consumida pelo backend do merchant, com JWT
+  - `/admin/api/*` — consumida pelo painel, com HTTP Basic
 - **Sem fila de verdade** — assincronia (confirmação de pagamento, expiração de QR code, retry de webhook) é simulada com `setTimeout` in-process.
 - **Sem storage externo** — documentos de KYC são salvos como BLOB direto no SQLite; nenhuma dependência de S3/disco externo.
 
@@ -88,11 +88,11 @@ curl -X POST http://localhost:4242/v1/integration/pix/charges \
   }'
 ```
 
-A resposta traz `qr_code`, `qr_code_expires_at` e um `public_token` — repasse esse `public_token` pro seu frontend, que consulta o status via API de Aplicação:
+A resposta traz `qr_code` e `qr_code_expires_at` — repasse o `qr_code` pro seu frontend renderizar. O acompanhamento do status fica no seu backend, que é quem tem o token:
 
 ```bash
-curl http://localhost:4242/v1/app/pix/charges/ch_a1b2c3 \
-  -H "Authorization: Bearer {public_token}"
+curl http://localhost:4242/v1/integration/pix/charges/ch_a1b2c3 \
+  -H "Authorization: Bearer {seu_jwt}"
 ```
 
 ### 5. Simule o pagamento (útil em testes/CI)
@@ -215,11 +215,6 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 | `POST /v1/integration/webhooks/deliveries/{id}/retry` | `webhooks:write` |
 | `GET`/`POST /v1/integration/kyc/documents` | `kyc:read` / `kyc:write` |
 
-**Aplicação** (`Authorization: Bearer <public_token>`, só leitura, escopo de uma cobrança):
-
-- `GET /v1/app/pix/charges/{id}`
-- `GET /v1/app/pix/charges/{id}/qrcode`
-
 O painel consome `/admin/api/*` com HTTP Basic, onde o usuário é o `merchant_id` (ou o documento da loja) e a senha é vazia. Tudo ali é escopado na loja da sessão — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Erros de qualquer superfície vêm no mesmo envelope:
 
 ```json
@@ -235,7 +230,7 @@ O painel consome `/admin/api/*` com HTTP Basic, onde o usuário é o `merchant_i
 
 ## Roadmap
 
-1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/app/*` e `/v1/integration/*`
+1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/integration/*` e `/admin/api/*`
 2. ✅ Identidade do painel: login por seleção de loja, Basic Auth
 3. ✅ Integration Tokens: geração/validação/revogação de JWT
 4. ✅ Webhooks: dispatcher, HMAC, retry
@@ -256,8 +251,8 @@ backend/
     db/            schema.sql, openDb, reset
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
-    auth/          basic (sessão da loja), bearer (integração), publicToken (app), permissions
-    routes/        app.ts, integration.ts, admin.ts — superfícies separadas por arquivo
+    auth/          basic (sessão da loja), bearer (integração), permissions
+    routes/        integration.ts, admin.ts — superfícies separadas por arquivo
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
 frontend/          painel em Vite + React, compila para backend/dist/admin e é servido em /admin
