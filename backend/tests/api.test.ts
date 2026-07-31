@@ -209,13 +209,13 @@ describe('idempotency', () => {
 describe('panel surface', () => {
   it('lists merchants with balance and without credentials, for the picker', async () => {
     harness = await createHarness();
-    const { bearer } = await seedMerchantAndToken(harness);
+    const { bearer, basic } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
-      headers: bearer,
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: basic,
       payload: { result: 'paid' },
     });
 
@@ -538,8 +538,8 @@ describe('merchant balance', () => {
 
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${pending.id}/simulate`,
-      headers: bearer,
+      url: `/v1/panel/charges/${pending.id}/simulate`,
+      headers: basic,
       payload: { result: 'paid' },
     });
 
@@ -564,8 +564,8 @@ describe('merchant balance', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${paid.id}/simulate`,
-      headers: bearer,
+      url: `/v1/panel/charges/${paid.id}/simulate`,
+      headers: basic,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -601,8 +601,8 @@ describe('merchant balance', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
-      headers: bearer,
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: basic,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -635,8 +635,8 @@ describe('merchant balance', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
-      headers: first.bearer,
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: first.basic,
       payload: { result: 'paid' },
     });
 

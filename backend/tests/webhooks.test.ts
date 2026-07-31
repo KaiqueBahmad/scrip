@@ -135,7 +135,7 @@ describe('webhook delivery', () => {
   it('re-sends a failed delivery on manual retry', async () => {
     let failing = true;
     harness = await createHarness({ respond: () => (failing ? 500 : 200) });
-    const { bearer, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
     await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.scheduler.advance(30_000);
@@ -145,8 +145,8 @@ describe('webhook delivery', () => {
     failing = false;
     const retried = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/webhooks/deliveries/${failed.id}/retry`,
-      headers: bearer,
+      url: `/v1/panel/webhooks/deliveries/${failed.id}/retry`,
+      headers: basic,
     });
 
     assert.equal(retried.statusCode, 200);
@@ -165,8 +165,8 @@ describe('webhook delivery', () => {
 
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/simulate`,
-      headers: bearer,
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: basic,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -202,25 +202,5 @@ describe('webhook delivery', () => {
     ]) {
       assert.ok(events.has(expected), `${expected} was dispatched`);
     }
-  });
-
-  it('rejects retrying another merchant’s delivery', async () => {
-    harness = await createHarness();
-    const first = await seedMerchantAndToken(harness);
-    const second = await seedMerchantAndToken(harness);
-
-    await createCharge(harness, first.bearer, { payer_document: '22222222222' });
-    await harness.scheduler.advance(30_000);
-
-    const delivery = harness.app.services.webhooks.listForMerchant(first.merchant.id)[0]!;
-
-    const response = await harness.app.inject({
-      method: 'POST',
-      url: `/v1/integration/webhooks/deliveries/${delivery.id}/retry`,
-      headers: second.bearer,
-    });
-
-    assert.equal(response.statusCode, 400);
-    assert.equal(response.json().error.code, 'delivery_not_found');
   });
 });

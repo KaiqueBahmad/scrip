@@ -7,12 +7,10 @@ import { KYC_DOCUMENT_TYPES } from '../domain/kyc.js';
 import {
   serializeCharge,
   serializeChargeEvent,
-  serializeDelivery,
   serializeKycDocument,
   serializeMerchant,
   serializeRefund,
 } from '../domain/serialize.js';
-import { badRequest } from '../lib/errors.js';
 import type { Services } from '../services.js';
 import type { ChargeStatus } from '../types.js';
 import { readUpload } from './upload.js';
@@ -131,24 +129,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
       };
     });
 
-    /** Forces an outcome instead of waiting on the simulation (specs.md:84-93). */
-    app.post<{ Params: ChargeParams }>('/pix/charges/:id/simulate', async (request) => {
-      const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'simulate:write');
-
-      const { result } = (request.body ?? {}) as { result?: string };
-
-      if (result !== 'paid' && result !== 'expired') {
-        throw badRequest('invalid_result', 'result must be "paid" or "expired"', {
-          received: result ?? null,
-        });
-      }
-
-      return serializeCharge(
-        services.charges.simulate(request.params.id, result, { merchantId: auth.merchantId }),
-      );
-    });
-
     app.post<{ Params: ChargeParams }>('/pix/charges/:id/cancel', async (request) => {
       const auth = integrationAuth(request);
       assertPermission(auth.permissions, 'charges:write');
@@ -218,45 +198,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
       });
 
       return serializeMerchant(merchant, true);
-    });
-
-    // -------------------------------------------------------------- webhooks
-
-    app.get('/webhooks/deliveries', async (request) => {
-      const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'webhooks:read');
-
-      const query = request.query as {
-        charge_id?: string;
-        event?: string;
-        status?: string;
-        limit?: string;
-      };
-
-      return {
-        object: 'list',
-        data: services.webhooks
-          .listForMerchant(auth.merchantId, {
-            ...(query.charge_id ? { chargeId: query.charge_id } : {}),
-            ...(query.event ? { event: query.event } : {}),
-            ...(query.status ? { status: query.status } : {}),
-            ...(query.limit ? { limit: Number(query.limit) } : {}),
-          })
-          .map(serializeDelivery),
-      };
-    });
-
-    app.post<{ Params: { id: string } }>('/webhooks/deliveries/:id/retry', async (request) => {
-      const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'webhooks:write');
-
-      // Fetched through the merchant-scoped getter so one merchant cannot retry another's.
-      const delivery = services.webhooks.get(request.params.id);
-      if (delivery.merchant_id !== auth.merchantId) {
-        throw badRequest('delivery_not_found', `No webhook delivery ${request.params.id}`);
-      }
-
-      return serializeDelivery(services.webhooks.retry(delivery.id));
     });
 
     // ------------------------------------------------------------------- kyc
