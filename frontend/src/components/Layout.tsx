@@ -1,6 +1,5 @@
 import {
   ArrowLeftRight,
-  BookOpen,
   KeyRound,
   Settings2,
   Store,
@@ -24,7 +23,6 @@ const NAV: NavItem[] = [
   { to: '/tokens', label: 'Tokens', icon: KeyRound },
   { to: '/webhooks', label: 'Webhooks', icon: Webhook },
   { to: '/configuracoes', label: 'Configurações', icon: Settings2 },
-  { to: '/docs', label: 'Documentação', icon: BookOpen },
 ];
 
 /**

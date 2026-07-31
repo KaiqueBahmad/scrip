@@ -108,7 +108,7 @@ Isso dispara o webhook `pix.charge.paid` pro `webhook_url` configurado no mercha
 
 ## Saldo
 
-Cada loja tem um saldo, visível em **Minha loja**, na lista de seleção e em `GET /v1/panel/balance`:
+Cada loja tem um saldo, visível em **Minha loja** e na lista de seleção:
 
 | Campo | O que é |
 |---|---|
@@ -195,11 +195,6 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 
 ## Referência da API
 
-> Com o servidor rodando, o painel tem um guia de integração completo em
-> [`/docs`](http://localhost:4242/docs): mesmos endpoints, mas com a URL da sua
-> instância e o seu token já preenchidos nos exemplos, além de código pronto de verificação
-> de assinatura de webhook em Node.js, Python e PHP.
-
 **Integração** (`Authorization: Bearer <jwt>`):
 
 | Método e rota | Permissão |
@@ -215,7 +210,7 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 | `POST /v1/integration/webhooks/deliveries/{id}/retry` | `webhooks:write` |
 | `GET`/`POST /v1/integration/kyc/documents` | `kyc:read` / `kyc:write` |
 
-O painel consome `/v1/panel/*` com HTTP Basic, onde o usuário é o `merchant_id` (ou o documento da loja) e a senha é vazia. Tudo ali é escopado na loja da sessão — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Erros de qualquer superfície vêm no mesmo envelope:
+Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
 
 ```json
 { "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
