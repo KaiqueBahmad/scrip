@@ -1,6 +1,6 @@
 /**
  * Every error surfaced by the API is an AppError, so both surfaces
- * (/v1/integration, /admin/api) serialize failures identically:
+ * (/v1/integration, /v1/panel) serialize failures identically:
  *
  *   { "error": { "code": "invalid_state_transition", "message": "...", "details": {...} } }
  */

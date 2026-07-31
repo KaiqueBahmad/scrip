@@ -18,8 +18,8 @@ try {
 
   app.log.info(
     {
-      api: `http://${config.host}:${config.port}`,
-      admin: `http://${config.host}:${config.port}/admin`,
+      panel: `http://${config.host}:${config.port}`,
+      api: `http://${config.host}:${config.port}/v1`,
       database: config.databasePath,
     },
     'pseudopay is up',

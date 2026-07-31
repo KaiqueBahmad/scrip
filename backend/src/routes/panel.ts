@@ -27,7 +27,7 @@ interface IdParams {
  * route below the auth hook is scoped to the merchant in the session — there is no operator
  * role that can see across merchants.
  */
-export function adminRoutes(services: Services): FastifyPluginAsync {
+export function panelRoutes(services: Services): FastifyPluginAsync {
   return async function register(app) {
     // ------------------------------------------------------ session (public)
 

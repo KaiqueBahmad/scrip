@@ -18,7 +18,7 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 - **Somente PIX** nesta versão. Cartão, boleto e outros métodos ficam fora do escopo (arquitetura já preparada para extensão futura).
 - **Duas superfícies de API**, fisicamente separadas por rota mesmo quando a lógica é a mesma:
   - `/v1/integration/*` — consumida pelo backend do merchant, com JWT
-  - `/admin/api/*` — consumida pelo painel, com HTTP Basic
+  - `/v1/panel/*` — consumida pelo painel, com HTTP Basic
 - **Sem fila de verdade** — assincronia (confirmação de pagamento, expiração de QR code, retry de webhook) é simulada com `setTimeout` in-process.
 - **Sem storage externo** — documentos de KYC são salvos como BLOB direto no SQLite; nenhuma dependência de S3/disco externo.
 
@@ -28,7 +28,7 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 |---|---|
 | Backend / API | Node.js + TypeScript + Fastify |
 | Banco | SQLite (better-sqlite3) |
-| Admin UI | Vite + React + TypeScript + react-router-dom |
+| Painel | Vite + React + TypeScript + react-router-dom |
 | Estilo | Tailwind + shadcn/ui |
 | Auth do painel | HTTP Basic (merchant id + senha vazia) |
 | Auth da API de Integração | JWT emitido pelo próprio merchant no painel |
@@ -45,7 +45,7 @@ npm --prefix frontend install  # dependências do painel
 
 cd backend
 npm run build               # compila API + painel
-npm start                   # sobe API (Fastify) + painel admin
+npm start                   # sobe API (Fastify) + painel
 npm run dev                 # API com reload (painel: npm --prefix ../frontend run dev)
 npm run reset               # limpa o banco, mantém o schema
 npm test                    # suíte de testes
@@ -59,7 +59,7 @@ Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em
 
 ### 1. Acesse o painel
 
-Abra `http://localhost:4242/admin`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
+Abra `http://localhost:4242`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
 
 Se o banco estiver vazio, a própria tela de seleção cria a primeira loja. A criação é pública (ver [Segurança](#segurança)) justamente porque o Basic Auth resolve um merchant que já existe — sem isso não haveria como entrar num banco novo.
 
@@ -108,7 +108,7 @@ Isso dispara o webhook `pix.charge.paid` pro `webhook_url` configurado no mercha
 
 ## Saldo
 
-Cada loja tem um saldo, visível em **Minha loja**, na lista de seleção e em `GET /admin/api/balance`:
+Cada loja tem um saldo, visível em **Minha loja**, na lista de seleção e em `GET /v1/panel/balance`:
 
 | Campo | O que é |
 |---|---|
@@ -196,7 +196,7 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 ## Referência da API
 
 > Com o servidor rodando, o painel tem um guia de integração completo em
-> [`/admin/docs`](http://localhost:4242/admin/docs): mesmos endpoints, mas com a URL da sua
+> [`/docs`](http://localhost:4242/docs): mesmos endpoints, mas com a URL da sua
 > instância e o seu token já preenchidos nos exemplos, além de código pronto de verificação
 > de assinatura de webhook em Node.js, Python e PHP.
 
@@ -215,7 +215,7 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 | `POST /v1/integration/webhooks/deliveries/{id}/retry` | `webhooks:write` |
 | `GET`/`POST /v1/integration/kyc/documents` | `kyc:read` / `kyc:write` |
 
-O painel consome `/admin/api/*` com HTTP Basic, onde o usuário é o `merchant_id` (ou o documento da loja) e a senha é vazia. Tudo ali é escopado na loja da sessão — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Erros de qualquer superfície vêm no mesmo envelope:
+O painel consome `/v1/panel/*` com HTTP Basic, onde o usuário é o `merchant_id` (ou o documento da loja) e a senha é vazia. Tudo ali é escopado na loja da sessão — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Erros de qualquer superfície vêm no mesmo envelope:
 
 ```json
 { "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
@@ -230,13 +230,13 @@ O painel consome `/admin/api/*` com HTTP Basic, onde o usuário é o `merchant_i
 
 ## Roadmap
 
-1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/integration/*` e `/admin/api/*`
+1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/integration/*` e `/v1/panel/*`
 2. ✅ Identidade do painel: login por seleção de loja, Basic Auth
 3. ✅ Integration Tokens: geração/validação/revogação de JWT
 4. ✅ Webhooks: dispatcher, HMAC, retry
 5. ✅ KYC: upload (BLOB), aprovação manual, bloqueio de charges
-6. ✅ Admin UI: transações e saldo da loja
-7. ✅ Admin UI: KYC e settings
+6. ✅ Painel: transações e saldo da loja
+7. ✅ Painel: KYC e settings
 8. ⬜ CLI e empacotamento — fora do escopo por ora; use os scripts npm
 
 Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
@@ -252,10 +252,10 @@ backend/
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
     auth/          basic (sessão da loja), bearer (integração), permissions
-    routes/        integration.ts, admin.ts — superfícies separadas por arquivo
+    routes/        integration.ts, panel.ts — superfícies separadas por arquivo
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
-frontend/          painel em Vite + React, compila para backend/dist/admin e é servido em /admin
+frontend/          painel em Vite + React, compila para backend/dist/panel e é servido na raiz
 ```
 
 Toda assincronia passa por `backend/src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.

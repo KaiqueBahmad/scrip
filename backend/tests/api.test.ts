@@ -88,7 +88,7 @@ describe('integration auth', () => {
 
     const response = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/tokens',
+      url: '/v1/panel/tokens',
       headers: mine.basic,
       // A merchant_id in the body must not be able to mint for somebody else.
       payload: { name: 'ci', permissions: ['*'], merchant_id: other.merchant.id },
@@ -112,7 +112,7 @@ describe('integration auth', () => {
 
     const response = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/tokens',
+      url: '/v1/panel/tokens',
       headers: basic,
       payload: { permissions: ['charges:write', 'refunds:write'] },
     });
@@ -206,7 +206,7 @@ describe('idempotency', () => {
   });
 });
 
-describe('admin surface', () => {
+describe('panel surface', () => {
   it('lists merchants with balance and without credentials, for the picker', async () => {
     harness = await createHarness();
     const { bearer } = await seedMerchantAndToken(harness);
@@ -221,7 +221,7 @@ describe('admin surface', () => {
 
     const response = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/session/merchants',
+      url: '/v1/panel/session/merchants',
     });
 
     assert.equal(response.statusCode, 200);
@@ -239,7 +239,7 @@ describe('admin surface', () => {
 
     const created = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/merchants',
+      url: '/v1/panel/merchants',
       payload: { name: 'Primeira Loja', document: '12345678000199' },
     });
 
@@ -256,7 +256,7 @@ describe('admin surface', () => {
 
     const created = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/merchants',
+      url: '/v1/panel/merchants',
       payload: { name: 'Loja', webhook_url: 'https://atacante.test/hooks' },
     });
 
@@ -270,7 +270,7 @@ describe('admin surface', () => {
 
     const configured = await harness.app.inject({
       method: 'PATCH',
-      url: '/admin/api/merchants/me',
+      url: '/v1/panel/merchants/me',
       headers: basic,
       payload: { webhook_url: 'https://merchant.test/hooks' },
     });
@@ -283,13 +283,13 @@ describe('admin surface', () => {
     harness = await createHarness();
     const { merchant } = await seedMerchantAndToken(harness, { document: '99887766000155' });
 
-    const anonymous = await harness.app.inject({ method: 'GET', url: '/admin/api/merchants/me' });
+    const anonymous = await harness.app.inject({ method: 'GET', url: '/v1/panel/merchants/me' });
     assert.equal(anonymous.statusCode, 401);
     assert.match(String(anonymous.headers['www-authenticate']), /^Basic/);
 
     const byId = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants/me',
+      url: '/v1/panel/merchants/me',
       headers: { authorization: `Basic ${Buffer.from(`${merchant.id}:`).toString('base64')}` },
     });
     assert.equal(byId.statusCode, 200);
@@ -298,14 +298,14 @@ describe('admin surface', () => {
     // The document works as the username too.
     const byDocument = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants/me',
+      url: '/v1/panel/merchants/me',
       headers: { authorization: `Basic ${Buffer.from('99887766000155:').toString('base64')}` },
     });
     assert.equal(byDocument.statusCode, 200);
 
     const unknown = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/merchants/me',
+      url: '/v1/panel/merchants/me',
       headers: { authorization: `Basic ${Buffer.from('mch_nope:').toString('base64')}` },
     });
     assert.equal(unknown.statusCode, 401);
@@ -321,7 +321,7 @@ describe('admin surface', () => {
 
     const response = await harness.app.inject({
       method: 'GET',
-      url: `/admin/api/charges/${charge.id}`,
+      url: `/v1/panel/charges/${charge.id}`,
       headers: basic,
     });
 
@@ -338,7 +338,7 @@ describe('admin surface', () => {
 
     const patched = await harness.app.inject({
       method: 'PATCH',
-      url: '/admin/api/settings',
+      url: '/v1/panel/settings',
       headers: basic,
       payload: { approvalRate: 0.5, requireApprovedKycForCharges: true },
     });
@@ -360,7 +360,7 @@ describe('admin surface', () => {
 
     const readOnly = await harness.app.inject({
       method: 'PATCH',
-      url: '/admin/api/settings',
+      url: '/v1/panel/settings',
       headers: basic,
       payload: { port: 9999 },
     });
@@ -369,7 +369,7 @@ describe('admin surface', () => {
 
     const outOfRange = await harness.app.inject({
       method: 'PATCH',
-      url: '/admin/api/settings',
+      url: '/v1/panel/settings',
       headers: basic,
       payload: { approvalRate: 5 },
     });
@@ -401,7 +401,7 @@ describe('kyc', () => {
 
     const fetched = await harness.app.inject({
       method: 'GET',
-      url: `/admin/api/kyc/documents/${uploaded.json().id}/content`,
+      url: `/v1/panel/kyc/documents/${uploaded.json().id}/content`,
       headers: basic,
     });
 
@@ -456,7 +456,7 @@ describe('kyc', () => {
 
     const approved = await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/kyc/simulate',
+      url: '/v1/panel/kyc/simulate',
       headers: basic,
       payload: { decision: 'approved', reason: 'documentos conferem' },
     });
@@ -517,7 +517,7 @@ describe('merchant balance', () => {
 
     const empty = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: basic,
     });
     assert.equal(empty.json().available, 0);
@@ -531,7 +531,7 @@ describe('merchant balance', () => {
 
     let balance = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: basic,
     });
     assert.equal(balance.json().available, 0, 'pending does not count');
@@ -545,7 +545,7 @@ describe('merchant balance', () => {
 
     balance = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: basic,
     });
     assert.equal(balance.json().available, 15000);
@@ -581,7 +581,7 @@ describe('merchant balance', () => {
 
     const balance = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: basic,
     });
 
@@ -614,7 +614,7 @@ describe('merchant balance', () => {
 
     const balance = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: basic,
     });
 
@@ -642,12 +642,12 @@ describe('merchant balance', () => {
 
     const mine = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: first.basic,
     });
     const theirs = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/balance',
+      url: '/v1/panel/balance',
       headers: second.basic,
     });
 
@@ -668,18 +668,18 @@ describe('panel scoping', () => {
     await harness.scheduler.advance(5000);
 
     // Second store sees an empty panel.
-    for (const url of ['/admin/api/charges', '/admin/api/tokens', '/admin/api/webhooks/deliveries']) {
+    for (const url of ['/v1/panel/charges', '/v1/panel/tokens', '/v1/panel/webhooks/deliveries']) {
       const response = await harness.app.inject({ method: 'GET', url, headers: second.basic });
       assert.equal(response.statusCode, 200, url);
       const data = response.json().data as unknown[];
-      const expected = url === '/admin/api/tokens' ? 1 : 0;
+      const expected = url === '/v1/panel/tokens' ? 1 : 0;
       assert.equal(data.length, expected, `${url} deve conter só o que é da própria loja`);
     }
 
     // And cannot reach the first store's charge by id.
     const foreign = await harness.app.inject({
       method: 'GET',
-      url: `/admin/api/charges/${charge.id}`,
+      url: `/v1/panel/charges/${charge.id}`,
       headers: second.basic,
     });
     assert.equal(foreign.statusCode, 404);
@@ -698,14 +698,14 @@ describe('panel scoping', () => {
 
     const retry = await harness.app.inject({
       method: 'POST',
-      url: `/admin/api/webhooks/deliveries/${delivery.id}/retry`,
+      url: `/v1/panel/webhooks/deliveries/${delivery.id}/retry`,
       headers: second.basic,
     });
     assert.equal(retry.statusCode, 404);
 
     const revoke = await harness.app.inject({
       method: 'POST',
-      url: `/admin/api/tokens/${first.token.id}/revoke`,
+      url: `/v1/panel/tokens/${first.token.id}/revoke`,
       headers: second.basic,
     });
     assert.equal(revoke.statusCode, 404);
@@ -722,7 +722,7 @@ describe('panel scoping', () => {
 
     const response = await harness.app.inject({
       method: 'GET',
-      url: '/admin/api/settings',
+      url: '/v1/panel/settings',
       headers: basic,
     });
 

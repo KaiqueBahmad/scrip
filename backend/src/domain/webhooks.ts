@@ -227,7 +227,7 @@ export class WebhookDispatcher {
       .all(...params);
   }
 
-  /** Admin surface: every merchant. */
+  /** Panel surface: every merchant. */
   listAll(filters: { event?: string; status?: string; limit?: number } = {}): WebhookDeliveryRow[] {
     const clauses: string[] = [];
     const params: unknown[] = [];

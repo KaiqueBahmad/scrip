@@ -5,9 +5,9 @@ import { ConfigStore, loadConfig, type PseudoPayConfig } from './config.js';
 import { openDb, type Db } from './db/index.js';
 import { AppError } from './lib/errors.js';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler.js';
-import { adminRoutes } from './routes/admin.js';
 import { integrationRoutes } from './routes/integration.js';
-import { adminUiRoutes, readAdminShell } from './routes/static.js';
+import { panelRoutes } from './routes/panel.js';
+import { panelUiRoutes, readPanelShell } from './routes/static.js';
 import { buildServices, type Services } from './services.js';
 
 export interface BuildServerOptions {
@@ -100,17 +100,20 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Pse
     time: new Date().toISOString(),
   }));
 
-  app.get('/', async (_request, reply) => reply.redirect('/admin'));
-
   await app.register(integrationRoutes(services), { prefix: '/v1/integration' });
-  await app.register(adminRoutes(services), { prefix: '/admin/api' });
-  await app.register(adminUiRoutes);
+  await app.register(panelRoutes(services), { prefix: '/v1/panel' });
+  await app.register(panelUiRoutes);
 
-  // Client-side panel routes fall back to the SPA shell; everything else is a JSON 404.
-  const adminShell = readAdminShell();
+  // The panel owns the root, so a client-side route like /transactions has to fall back to its
+  // SPA shell. Only browser navigations get that: an API client asking for an unknown path must
+  // see a JSON 404, not a 200 full of HTML it cannot parse.
+  const panelShell = readPanelShell();
   app.setNotFoundHandler(async (request, reply) => {
-    if (adminShell && request.method === 'GET' && request.url.startsWith('/admin')) {
-      return reply.type('text/html').send(adminShell);
+    const isApi = request.url.startsWith('/v1/');
+    const wantsHtml = request.headers.accept?.includes('text/html') ?? false;
+
+    if (panelShell && !isApi && wantsHtml && request.method === 'GET') {
+      return reply.type('text/html').send(panelShell);
     }
 
     return reply.status(404).send({

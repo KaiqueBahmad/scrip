@@ -1,4 +1,4 @@
-/** Typed client for /admin/api. Basic auth credentials come from the selected merchant. */
+/** Typed client for /v1/panel. Basic auth credentials come from the selected merchant. */
 
 export interface ApiBalance {
   /** Liquid balance in centavos. */
@@ -142,7 +142,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = '/admin/api';
+const BASE = '/v1/panel';
 
 let authHeader: string | null = null;
 

@@ -9,7 +9,7 @@ export interface IntegrationAuth {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** Set by the Basic auth hook on /admin/api routes — the panel identity. */
+    /** Set by the Basic auth hook on /v1/panel routes — the panel identity. */
     merchant?: MerchantRow;
     /** Set by the Bearer hook on /v1/integration routes. */
     integration?: IntegrationAuth;

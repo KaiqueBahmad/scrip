@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS pix_refunds (
 
 CREATE INDEX IF NOT EXISTS idx_refunds_charge ON pix_refunds (charge_id);
 
--- Append-only transition log. Drives the timeline in the admin UI and makes every
+-- Append-only transition log. Drives the timeline in the panel and makes every
 -- state change auditable.
 CREATE TABLE IF NOT EXISTS charge_events (
   id          TEXT PRIMARY KEY,

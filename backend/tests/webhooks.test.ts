@@ -177,7 +177,7 @@ describe('webhook delivery', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: '/admin/api/kyc/simulate',
+      url: '/v1/panel/kyc/simulate',
       headers: basic,
       payload: { decision: 'approved', reason: 'ok' },
     });

@@ -292,7 +292,7 @@ http_response_code(200);`,
                   </Td>
                 </tr>
                 <tr>
-                  <Td className="font-mono text-xs">/admin/api/*</Td>
+                  <Td className="font-mono text-xs">/v1/panel/*</Td>
                   <Td className="text-xs">Este painel</Td>
                   <Td className="text-xs">HTTP Basic (senha vazia)</Td>
                 </tr>
@@ -302,7 +302,7 @@ http_response_code(200);`,
             <Prose>
               Tudo que movimenta dinheiro — criar, cancelar, devolver, simular — vive na
               superfície de integração, chamada pelo seu backend. O painel fala apenas com{' '}
-              <Mono>/admin/api/*</Mono>, sempre no escopo da loja da sessão.
+              <Mono>/v1/panel/*</Mono>, sempre no escopo da loja da sessão.
             </Prose>
 
             <div>

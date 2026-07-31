@@ -48,7 +48,7 @@ export function requireMerchantSession(services: Services) {
     if (!merchant) {
       throw unauthorized(
         'merchant_not_found',
-        `No merchant matches "${identifier}". Pick one from GET /admin/api/session/merchants`,
+        `No merchant matches "${identifier}". Pick one from GET /v1/panel/session/merchants`,
       );
     }
 
