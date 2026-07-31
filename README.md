@@ -37,13 +37,16 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 
 ## Instalação e uso
 
-```bash
-npm install                 # dependências da API
-npm --prefix admin install  # dependências do painel
+O repositório tem dois projetos npm independentes: `backend/` (API Fastify) e `frontend/` (painel Vite + React).
 
+```bash
+npm --prefix backend install   # dependências da API
+npm --prefix frontend install  # dependências do painel
+
+cd backend
 npm run build               # compila API + painel
 npm start                   # sobe API (Fastify) + painel admin
-npm run dev                 # API com reload (painel: npm --prefix admin run dev)
+npm run dev                 # API com reload (painel: npm --prefix ../frontend run dev)
 npm run reset               # limpa o banco, mantém o schema
 npm test                    # suíte de testes
 ```
@@ -246,19 +249,21 @@ Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
 ## Estrutura
 
 ```
-src/
-  server.ts        buildServer(): instância Fastify + registro de plugins e rotas
-  config.ts        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
-  db/              schema.sql, openDb, reset
-  lib/             pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
-  domain/          charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
-  auth/            basic (sessão da loja), bearer (integração), publicToken (app), permissions
-  routes/          app.ts, integration.ts, admin.ts — superfícies separadas por arquivo
-admin/             painel em Vite + React, compila para dist/admin e é servido em /admin
-tests/             node:test com relógio virtual, sem sleep
+backend/
+  src/
+    server.ts      buildServer(): instância Fastify + registro de plugins e rotas
+    config.ts      pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
+    db/            schema.sql, openDb, reset
+    lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
+    domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
+    auth/          basic (sessão da loja), bearer (integração), publicToken (app), permissions
+    routes/        app.ts, integration.ts, admin.ts — superfícies separadas por arquivo
+  tests/           node:test com relógio virtual, sem sleep
+  data/            banco SQLite
+frontend/          painel em Vite + React, compila para backend/dist/admin e é servido em /admin
 ```
 
-Toda assincronia passa por `src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.
+Toda assincronia passa por `backend/src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.
 
 ## Máquina de estados
 

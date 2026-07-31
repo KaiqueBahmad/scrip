@@ -12,7 +12,7 @@
     "start": "node dist/main.js",
     "build": "npm run build:server && npm run build:admin",
     "build:server": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
-    "build:admin": "npm --prefix admin run build",
+    "build:admin": "npm --prefix ../frontend run build",
     "reset": "tsx src/db/reset.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test tests/*.test.ts"

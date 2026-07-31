@@ -24,7 +24,7 @@ const NOT_BUILT_PAGE = `<!doctype html><meta charset="utf-8"><title>PseudoPay</t
 <p>A API está rodando normalmente — só o painel ainda não foi compilado. Rode:</p>
 <pre style="background:#f4f4f5;padding:1rem;border-radius:.5rem">npm run build:admin</pre>
 <p>Ou, para desenvolver o painel com hot reload:</p>
-<pre style="background:#f4f4f5;padding:1rem;border-radius:.5rem">npm --prefix admin run dev</pre>
+<pre style="background:#f4f4f5;padding:1rem;border-radius:.5rem">npm --prefix ../frontend run dev</pre>
 </body>`;
 
 /**

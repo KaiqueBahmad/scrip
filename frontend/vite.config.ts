@@ -9,12 +9,12 @@ export default defineConfig({
   base: '/admin/',
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../dist/admin',
+    outDir: '../backend/dist/admin',
     emptyOutDir: true,
   },
   server: {
     port: 5273,
-    // `npm --prefix admin run dev` talks to the real API instead of a mock.
+    // `npm run dev` here talks to the real API instead of a mock.
     proxy: {
       '/admin/api': { target: API_TARGET, changeOrigin: true },
       '/v1': { target: API_TARGET, changeOrigin: true },
