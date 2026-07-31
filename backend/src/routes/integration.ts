@@ -185,14 +185,12 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
       const body = (request.body ?? {}) as {
         name?: string;
-        document?: string | null;
         webhook_url?: string | null;
         rotate_webhook_secret?: boolean;
       };
 
       const merchant = services.merchants.update(auth.merchantId, {
         ...(body.name === undefined ? {} : { name: body.name }),
-        ...(body.document === undefined ? {} : { document: body.document }),
         ...(body.webhook_url === undefined ? {} : { webhookUrl: body.webhook_url }),
         ...(body.rotate_webhook_secret ? { rotateWebhookSecret: true } : {}),
       });

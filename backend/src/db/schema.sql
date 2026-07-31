@@ -12,7 +12,6 @@
 CREATE TABLE IF NOT EXISTS merchants (
   id              TEXT PRIMARY KEY,
   name            TEXT NOT NULL,
-  document        TEXT,
   webhook_url     TEXT,
   webhook_secret  TEXT NOT NULL,
   kyc_status      TEXT NOT NULL DEFAULT 'pending'

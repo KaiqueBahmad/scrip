@@ -101,14 +101,12 @@ export async function seedMerchantAndToken(
     webhookUrl?: string | null;
     permissions?: string[];
     name?: string;
-    document?: string | null;
   } = {},
 ) {
   const { app } = harness;
 
   const created = app.services.merchants.create({
     name: options.name ?? 'Loja de Teste',
-    document: 'document' in options ? options.document : `1234567800${Math.floor(Math.random() * 10000)}`,
     webhookSecret: 'whsec_fixed_for_tests',
   });
 

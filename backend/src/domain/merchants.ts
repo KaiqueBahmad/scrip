@@ -9,14 +9,12 @@ import type { MerchantRow } from '../types.js';
  */
 export interface CreateMerchantInput {
   name: string;
-  document?: string | null;
   /** Supply to pin a known secret in tests; otherwise one is generated. */
   webhookSecret?: string;
 }
 
 export interface UpdateMerchantInput {
   name?: string;
-  document?: string | null;
   webhookUrl?: string | null;
   /** Rotates the HMAC secret used to sign this merchant's webhooks. */
   rotateWebhookSecret?: boolean;
@@ -96,7 +94,6 @@ export class MerchantService {
     const row: MerchantRow = {
       id: newId('merchant'),
       name,
-      document: input.document ?? null,
       // Always null on creation — configured later via update.
       webhook_url: null,
       webhook_secret: input.webhookSecret ?? newWebhookSecret(),
@@ -112,9 +109,9 @@ export class MerchantService {
     this.#db
       .prepare(
         `INSERT INTO merchants
-           (id, name, document, webhook_url, webhook_secret, kyc_status, kyc_reason,
+           (id, name, webhook_url, webhook_secret, kyc_status, kyc_reason,
             kyc_reviewed_at, created_at, updated_at)
-         VALUES (@id, @name, @document, @webhook_url, @webhook_secret, @kyc_status,
+         VALUES (@id, @name, @webhook_url, @webhook_secret, @kyc_status,
                  @kyc_reason, @kyc_reviewed_at, @created_at, @updated_at)`,
       )
       .run(row);
@@ -137,18 +134,6 @@ export class MerchantService {
       .get(merchantId);
   }
 
-  /** Basic auth accepts either the merchant id or its document as the username. */
-  findByIdentifier(identifier: string): MerchantRow | undefined {
-    const trimmed = identifier.trim();
-
-    return (
-      this.find(trimmed) ??
-      this.#db
-        .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE document = ?')
-        .get(trimmed)
-    );
-  }
-
   list(): MerchantRow[] {
     return this.#db
       .prepare<[], MerchantRow>('SELECT * FROM merchants ORDER BY created_at DESC')
@@ -165,7 +150,6 @@ export class MerchantService {
 
     const next = {
       name: input.name?.trim() ?? current.name,
-      document: input.document === undefined ? current.document : input.document,
       webhook_url: input.webhookUrl === undefined ? current.webhook_url : input.webhookUrl,
       webhook_secret: input.rotateWebhookSecret ? newWebhookSecret() : current.webhook_secret,
       updated_at: nowIso(),
@@ -174,7 +158,7 @@ export class MerchantService {
     this.#db
       .prepare(
         `UPDATE merchants
-            SET name = @name, document = @document, webhook_url = @webhook_url,
+            SET name = @name, webhook_url = @webhook_url,
                 webhook_secret = @webhook_secret, updated_at = @updated_at
           WHERE id = @id`,
       )

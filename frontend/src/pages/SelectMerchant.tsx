@@ -15,7 +15,6 @@ export function SelectMerchant() {
   const { merchants, selectMerchant, refreshMerchants, error } = useSession();
 
   const [name, setName] = useState('');
-  const [document, setDocument] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -27,11 +26,7 @@ export function SelectMerchant() {
     try {
       // A webhook_url é configurada depois, em Minha loja — o cadastro só precisa
       // identificar a loja.
-      const merchant = await api.createMerchant({
-        name: name.trim(),
-        document: document.trim() || null,
-        webhook_url: null,
-      });
+      const merchant = await api.createMerchant({ name: name.trim(), webhook_url: null });
 
       await refreshMerchants();
       selectMerchant(merchant);
@@ -118,15 +113,6 @@ export function SelectMerchant() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Loja de Teste"
                 required
-              />
-            </Field>
-
-            <Field label="CNPJ ou CPF" htmlFor="new-merchant-document">
-              <Input
-                id="new-merchant-document"
-                value={document}
-                onChange={(event) => setDocument(event.target.value)}
-                placeholder="12345678000199"
               />
             </Field>
 

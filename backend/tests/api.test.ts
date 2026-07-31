@@ -240,7 +240,7 @@ describe('panel surface', () => {
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/merchants',
-      payload: { name: 'Primeira Loja', document: '12345678000199' },
+      payload: { name: 'Primeira Loja' },
     });
 
     // Basic auth resolves an existing merchant, so creation has to be open or the panel
@@ -279,9 +279,9 @@ describe('panel surface', () => {
     assert.equal(configured.json().webhook_url, 'https://merchant.test/hooks');
   });
 
-  it('authenticates the merchant by id or document, with an empty password', async () => {
+  it('authenticates the merchant by id, with an empty password', async () => {
     harness = await createHarness();
-    const { merchant } = await seedMerchantAndToken(harness, { document: '99887766000155' });
+    const { merchant } = await seedMerchantAndToken(harness);
 
     const anonymous = await harness.app.inject({ method: 'GET', url: '/v1/panel/merchants/me' });
     assert.equal(anonymous.statusCode, 401);
@@ -294,14 +294,6 @@ describe('panel surface', () => {
     });
     assert.equal(byId.statusCode, 200);
     assert.equal(byId.json().id, merchant.id);
-
-    // The document works as the username too.
-    const byDocument = await harness.app.inject({
-      method: 'GET',
-      url: '/v1/panel/merchants/me',
-      headers: { authorization: `Basic ${Buffer.from('99887766000155:').toString('base64')}` },
-    });
-    assert.equal(byDocument.statusCode, 200);
 
     const unknown = await harness.app.inject({
       method: 'GET',

@@ -70,7 +70,6 @@ export function serializeMerchant(
     id: row.id,
     object: 'merchant' as const,
     name: row.name,
-    document: row.document,
     webhook_url: row.webhook_url,
     ...(includeSecret ? { webhook_secret: row.webhook_secret } : {}),
     kyc_status: row.kyc_status,

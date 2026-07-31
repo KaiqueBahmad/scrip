@@ -11,7 +11,6 @@ export interface ApiBalance {
 export interface ApiMerchant {
   id: string;
   name: string;
-  document: string | null;
   webhook_url: string | null;
   webhook_secret?: string;
   kyc_status: 'pending' | 'approved' | 'rejected';
@@ -204,12 +203,11 @@ export const api = {
   myMerchant: () => request<ApiMerchant>('GET', '/merchants/me'),
   balance: () => request<ApiBalance & { object: 'balance' }>('GET', '/balance'),
   /** Unauthenticated, so the first store can be created on an empty database. */
-  createMerchant: (body: { name: string; document: string | null; webhook_url: string | null }) =>
+  createMerchant: (body: { name: string; webhook_url: string | null }) =>
     request<ApiMerchant>('POST', '/merchants', { body }),
   updateMyMerchant: (
     body: Partial<{
       name: string;
-      document: string | null;
       webhook_url: string | null;
       rotate_webhook_secret: boolean;
     }>,

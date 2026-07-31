@@ -5,8 +5,8 @@ import type { Services } from '../services.js';
 import type { MerchantRow } from '../types.js';
 
 /**
- * Panel auth: HTTP Basic where the username is a merchant id (or its document) and the
- * password is always empty (specs.md:35).
+ * Panel auth: HTTP Basic where the username is a merchant id and the password is always
+ * empty (specs.md:35).
  *
  * The merchant *is* the panel identity — there is no separate operator login, so a session
  * only ever sees its own charges, tokens, webhooks and KYC. There is no password check at
@@ -43,7 +43,7 @@ export function requireMerchantSession(services: Services) {
       throw unauthorized('invalid_credentials', 'Basic username (merchant id) is required');
     }
 
-    const merchant = services.merchants.findByIdentifier(identifier);
+    const merchant = services.merchants.find(identifier);
 
     if (!merchant) {
       throw unauthorized(

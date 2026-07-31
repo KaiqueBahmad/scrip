@@ -18,7 +18,7 @@ import {
 import { api, ApiError } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useAsync } from '../lib/useAsync';
-import { formatBRL, formatDateTime, maskDocument } from '../lib/utils';
+import { formatBRL, formatDateTime } from '../lib/utils';
 
 function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -56,7 +56,6 @@ export function MyStore() {
   const documents = useAsync(() => api.kycDocuments(), [], { pollMs: 5000 });
 
   const [name, setName] = useState(merchant?.name ?? '');
-  const [document, setDocument] = useState(merchant?.document ?? '');
   const [webhookUrl, setWebhookUrl] = useState(merchant?.webhook_url ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -94,7 +93,6 @@ export function MyStore() {
     try {
       await api.updateMyMerchant({
         name: name.trim(),
-        document: document.trim() || null,
         webhook_url: webhookUrl.trim() || null,
       });
       await Promise.all([refreshSession(), refreshMerchants()]);
@@ -157,15 +155,6 @@ export function MyStore() {
                   id="store-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                />
-              </Field>
-
-              <Field label="CNPJ ou CPF" htmlFor="store-document">
-                <Input
-                  id="store-document"
-                  value={document}
-                  onChange={(event) => setDocument(event.target.value)}
-                  placeholder="12345678000199"
                 />
               </Field>
 
@@ -296,10 +285,6 @@ export function MyStore() {
               <div>
                 <p className="eyebrow mb-1">merchant id · usuário do painel</p>
                 <Copyable value={merchant.id} label="merchant id" />
-              </div>
-              <div>
-                <p className="eyebrow mb-1">documento</p>
-                <span className="tnum text-xs">{maskDocument(merchant.document)}</span>
               </div>
               <div>
                 <p className="eyebrow mb-1">webhook secret</p>

@@ -15,7 +15,6 @@ export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
 export interface MerchantRow {
   id: string;
   name: string;
-  document: string | null;
   webhook_url: string | null;
   webhook_secret: string;
   kyc_status: KycStatus;

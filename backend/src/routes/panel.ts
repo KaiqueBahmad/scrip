@@ -54,17 +54,11 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
      * one.
      */
     app.post('/merchants', async (request, reply) => {
-      const body = (request.body ?? {}) as {
-        name?: string;
-        document?: string | null;
-      };
+      const body = (request.body ?? {}) as { name?: string };
 
       // No webhook_url here: a new store has no session yet, and wiring the webhook is a
       // separate step through PATCH /merchants/me once you are signed in.
-      const merchant = services.merchants.create({
-        name: body.name as string,
-        document: body.document ?? null,
-      });
+      const merchant = services.merchants.create({ name: body.name as string });
 
       return reply
         .status(201)
@@ -95,14 +89,12 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
       guarded.patch('/merchants/me', async (request) => {
         const body = (request.body ?? {}) as {
           name?: string;
-          document?: string | null;
           webhook_url?: string | null;
           rotate_webhook_secret?: boolean;
         };
 
         const merchant = services.merchants.update(sessionMerchant(request).id, {
           ...(body.name === undefined ? {} : { name: body.name }),
-          ...(body.document === undefined ? {} : { document: body.document }),
           ...(body.webhook_url === undefined ? {} : { webhookUrl: body.webhook_url }),
           ...(body.rotate_webhook_secret ? { rotateWebhookSecret: true } : {}),
         });
