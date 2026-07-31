@@ -4,8 +4,6 @@ import type { ChargeRow, MerchantRow } from '../types.js';
 export interface IntegrationAuth {
   tokenId: string;
   merchantId: string;
-  /** Null for tokens minted by a merchant session, which is now the normal case. */
-  userId: string | null;
   permissions: string[];
 }
 

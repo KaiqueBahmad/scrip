@@ -20,7 +20,6 @@ export const ID_PREFIXES = {
   charge: 'ch',
   refund: 'rfd',
   merchant: 'mch',
-  user: 'usr',
   token: 'tok',
   kycDocument: 'kyc',
   webhookDelivery: 'whd',

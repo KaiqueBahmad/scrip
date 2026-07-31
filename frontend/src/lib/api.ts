@@ -94,7 +94,6 @@ export interface ApiDelivery {
 
 export interface ApiToken {
   id: string;
-  user_id: string | null;
   merchant_id: string;
   name: string | null;
   permissions: string[];

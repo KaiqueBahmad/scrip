@@ -25,20 +25,8 @@ export interface MerchantRow {
   updated_at: string;
 }
 
-export interface UserRow {
-  id: string;
-  name: string;
-  email: string;
-  permissions: string;
-  merchant_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface IntegrationTokenRow {
   id: string;
-  /** Null for tokens minted by a merchant session; set only on pre-existing rows. */
-  user_id: string | null;
   merchant_id: string;
   name: string | null;
   permissions: string;

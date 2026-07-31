@@ -64,9 +64,6 @@ export class TokenService {
         secret: this.#config.get('jwtSigningSecret'),
         tokenId: id,
         merchantId,
-        // The merchant is the issuer now; the claim keeps the merchant id for compatibility
-        // with tokens minted before panel sessions became merchant-based.
-        userId: merchantId,
         permissions: requested,
         expiresIn,
       });
@@ -81,7 +78,6 @@ export class TokenService {
 
     const row: IntegrationTokenRow = {
       id,
-      user_id: null,
       merchant_id: merchantId,
       name: input.name?.trim() || null,
       permissions: JSON.stringify(requested),
@@ -94,8 +90,8 @@ export class TokenService {
     this.#db
       .prepare(
         `INSERT INTO integration_tokens
-           (id, user_id, merchant_id, name, permissions, token, expires_at, revoked_at, created_at)
-         VALUES (@id, @user_id, @merchant_id, @name, @permissions, @token, @expires_at,
+           (id, merchant_id, name, permissions, token, expires_at, revoked_at, created_at)
+         VALUES (@id, @merchant_id, @name, @permissions, @token, @expires_at,
                  @revoked_at, @created_at)`,
       )
       .run(row);
@@ -121,14 +117,6 @@ export class TokenService {
         'SELECT * FROM integration_tokens WHERE merchant_id = ? ORDER BY created_at DESC',
       )
       .all(merchantId);
-  }
-
-  listAll(): IntegrationTokenRow[] {
-    return this.#db
-      .prepare<[], IntegrationTokenRow>(
-        'SELECT * FROM integration_tokens ORDER BY created_at DESC',
-      )
-      .all();
   }
 
   revoke(tokenId: string): IntegrationTokenRow {

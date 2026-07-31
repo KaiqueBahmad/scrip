@@ -1,8 +1,8 @@
 import { forbidden } from '../lib/errors.js';
 
 /**
- * Permission vocabulary shared by users and integration tokens. A token can never hold a
- * permission its issuing user lacks (see TokenService.issue).
+ * Permission vocabulary for integration tokens. A merchant session may grant any of these,
+ * since the merchant already owns everything the token can reach (see TokenService.issue).
  */
 export const PERMISSIONS = [
   'charges:read',

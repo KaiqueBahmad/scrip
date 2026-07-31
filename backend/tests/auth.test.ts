@@ -91,7 +91,6 @@ describe('integration tokens', () => {
       secret,
       tokenId: 'tok_1',
       merchantId: 'mch_1',
-      userId: 'usr_1',
       permissions: ['charges:read'],
       ...overrides,
     });
@@ -101,7 +100,6 @@ describe('integration tokens', () => {
 
     assert.equal(claims.sub, 'tok_1');
     assert.equal(claims.merchant_id, 'mch_1');
-    assert.equal(claims.user_id, 'usr_1');
     assert.deepEqual(claims.permissions, ['charges:read']);
   });
 
@@ -124,7 +122,6 @@ describe('integration tokens', () => {
       secret: 'other-secret',
       tokenId: 'tok_1',
       merchantId: 'mch_1',
-      userId: 'usr_1',
       permissions: [],
     });
 
@@ -146,7 +143,7 @@ describe('integration tokens', () => {
   it('rejects a tampered payload', () => {
     const [header, , signature] = sign().split('.');
     const forged = Buffer.from(
-      JSON.stringify({ sub: 'tok_1', merchant_id: 'mch_evil', user_id: 'usr_1', permissions: ['*'] }),
+      JSON.stringify({ sub: 'tok_1', merchant_id: 'mch_evil', permissions: ['*'] }),
     ).toString('base64url');
 
     assert.throws(() => verifyIntegrationToken(`${header}.${forged}.${signature}`, secret));

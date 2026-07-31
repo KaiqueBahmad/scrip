@@ -7,7 +7,7 @@ import type { Services } from '../services.js';
 import { extractBearer, type IntegrationAuth } from './context.js';
 
 /**
- * Integration auth (specs.md:36): a Bearer JWT the user minted in the panel.
+ * Integration auth (specs.md:36): a Bearer JWT minted by a merchant session in the panel.
  *
  * Signature and expiry are checked in the JWT itself; revocation and the merchant's
  * continued existence are checked against the database on every request, and the
@@ -43,7 +43,6 @@ export function requireIntegrationAuth(services: Services) {
     const auth: IntegrationAuth = {
       tokenId: row.id,
       merchantId: row.merchant_id,
-      userId: row.user_id,
       permissions: parseJsonColumn<string[]>(row.permissions, []),
     };
 

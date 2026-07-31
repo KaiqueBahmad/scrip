@@ -49,9 +49,9 @@ export function adminRoutes(services: Services): FastifyPluginAsync {
     }));
 
     /**
-     * Creating a store is unauthenticated for the same reason user creation used to be
-     * (specs.md:114): Basic auth resolves an existing merchant, so with an empty database
-     * there would be no way to create the first one.
+     * Creating a store is unauthenticated on purpose (specs.md:114): Basic auth resolves an
+     * existing merchant, so with an empty database there would be no way to create the first
+     * one.
      */
     app.post('/merchants', async (request, reply) => {
       const body = (request.body ?? {}) as {

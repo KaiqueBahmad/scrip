@@ -1,5 +1,8 @@
 -- PseudoPay schema. Idempotent: safe to run on every boot.
 --
+-- There is no migration layer: every statement is CREATE ... IF NOT EXISTS, so changing an
+-- existing column means recreating the database (`npm run reset`, or delete data/).
+--
 -- Conventions:
 --   * ids are prefixed strings ("ch_...", "mch_...") generated in src/lib/ids.ts
 --   * timestamps are ISO-8601 UTC strings, so the SQLite file stays human-readable
@@ -20,25 +23,10 @@ CREATE TABLE IF NOT EXISTS merchants (
   updated_at      TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS users (
-  id          TEXT PRIMARY KEY,
-  name        TEXT NOT NULL,
-  email       TEXT NOT NULL UNIQUE,
-  -- JSON array of permission strings. Any panel session may set any permissions
-  -- (specs.md:114) — this is intentional, there is no real access control.
-  permissions TEXT NOT NULL DEFAULT '[]',
-  merchant_id TEXT REFERENCES merchants (id) ON DELETE SET NULL,
-  created_at  TEXT NOT NULL,
-  updated_at  TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_merchant ON users (merchant_id);
-
 CREATE TABLE IF NOT EXISTS integration_tokens (
   id          TEXT PRIMARY KEY,
-  -- Nullable: tokens are issued by a merchant session, which has no user behind it.
-  -- Kept so a token minted by an older build still points at whoever created it.
-  user_id     TEXT REFERENCES users (id) ON DELETE SET NULL,
+  -- A token is always minted by, and scoped to, a merchant session. There is no
+  -- identity above the merchant.
   merchant_id TEXT NOT NULL REFERENCES merchants (id) ON DELETE CASCADE,
   name        TEXT,
   permissions TEXT NOT NULL DEFAULT '[]',
@@ -50,7 +38,6 @@ CREATE TABLE IF NOT EXISTS integration_tokens (
   created_at  TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_tokens_user ON integration_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_tokens_merchant ON integration_tokens (merchant_id);
 
 CREATE TABLE IF NOT EXISTS pix_charges (

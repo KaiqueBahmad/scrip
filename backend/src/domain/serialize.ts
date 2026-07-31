@@ -8,7 +8,6 @@ import type {
   KycDocumentRow,
   MerchantRow,
   RefundRow,
-  UserRow,
   WebhookDeliveryRow,
 } from '../types.js';
 
@@ -106,19 +105,6 @@ export function serializeMerchant(
   };
 }
 
-export function serializeUser(row: UserRow) {
-  return {
-    id: row.id,
-    object: 'user' as const,
-    name: row.name,
-    email: row.email,
-    permissions: parseJsonColumn<string[]>(row.permissions, []),
-    merchant_id: row.merchant_id,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
 /**
  * The JWT is always included: specs.md:62 requires it to stay visible in the panel
  * instead of being shown once and discarded.
@@ -127,7 +113,6 @@ export function serializeToken(row: IntegrationTokenRow) {
   return {
     id: row.id,
     object: 'integration_token' as const,
-    user_id: row.user_id,
     merchant_id: row.merchant_id,
     name: row.name,
     permissions: parseJsonColumn<string[]>(row.permissions, []),

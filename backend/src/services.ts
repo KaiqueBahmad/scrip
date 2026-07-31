@@ -6,7 +6,6 @@ import { KycService } from './domain/kyc.js';
 import { MerchantService } from './domain/merchants.js';
 import { RefundService } from './domain/refunds.js';
 import { TokenService } from './domain/tokens.js';
-import { UserService } from './domain/users.js';
 import { WebhookDispatcher } from './domain/webhooks.js';
 import type { Logger } from './lib/logger.js';
 import type { Scheduler } from './lib/scheduler.js';
@@ -17,7 +16,6 @@ export interface Services {
   scheduler: Scheduler;
   log: Logger;
   merchants: MerchantService;
-  users: UserService;
   tokens: TokenService;
   charges: ChargeService;
   refunds: RefundService;
@@ -95,7 +93,6 @@ export function buildServices(deps: BuildServicesDeps): Services {
     charges,
     refunds,
     merchants: new MerchantService(db),
-    users: new UserService(db),
     tokens: new TokenService({ db, config }),
     kyc: new KycService({ db, config, log, webhooks }),
     idempotency: new IdempotencyStore(db),

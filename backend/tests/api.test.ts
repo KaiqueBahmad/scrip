@@ -96,7 +96,6 @@ describe('integration auth', () => {
 
     assert.equal(response.statusCode, 201);
     assert.equal(response.json().merchant_id, mine.merchant.id);
-    assert.equal(response.json().user_id, null, 'no user behind a merchant-issued token');
 
     // And it really only reaches its own merchant's data.
     const scoped = await harness.app.inject({
