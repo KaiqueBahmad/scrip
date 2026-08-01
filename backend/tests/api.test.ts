@@ -377,8 +377,8 @@ describe('kyc', () => {
 
     const uploaded = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/kyc/documents',
-      headers: bearer,
+      url: '/v1/panel/kyc/documents',
+      headers: basic,
       payload: {
         type: 'identity',
         filename: 'rg.txt',
@@ -404,12 +404,12 @@ describe('kyc', () => {
 
   it('enforces kycMaxFileSizeMb', async () => {
     harness = await createHarness({ config: { kycMaxFileSizeMb: 0.001 } });
-    const { bearer } = await seedMerchantAndToken(harness);
+    const { basic } = await seedMerchantAndToken(harness);
 
     const response = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/kyc/documents',
-      headers: bearer,
+      url: '/v1/panel/kyc/documents',
+      headers: basic,
       payload: {
         type: 'identity',
         filename: 'big.bin',
@@ -423,12 +423,12 @@ describe('kyc', () => {
 
   it('rejects an empty or missing document', async () => {
     harness = await createHarness();
-    const { bearer } = await seedMerchantAndToken(harness);
+    const { basic } = await seedMerchantAndToken(harness);
 
     const missing = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/kyc/documents',
-      headers: bearer,
+      url: '/v1/panel/kyc/documents',
+      headers: basic,
       payload: { type: 'identity', filename: 'x.txt' },
     });
     assert.equal(missing.statusCode, 400);
@@ -441,8 +441,8 @@ describe('kyc', () => {
 
     const uploaded = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/kyc/documents',
-      headers: bearer,
+      url: '/v1/panel/kyc/documents',
+      headers: basic,
       payload: { type: 'identity', filename: 'rg.txt', content: Buffer.from('x').toString('base64') },
     });
 

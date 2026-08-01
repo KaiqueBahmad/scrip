@@ -3,17 +3,14 @@ import type { FastifyPluginAsync } from 'fastify';
 import { requireIntegrationAuth } from '../auth/bearer.js';
 import { integrationAuth } from '../auth/bearer.js';
 import { assertPermission } from '../auth/permissions.js';
-import { KYC_DOCUMENT_TYPES } from '../domain/kyc.js';
 import {
   serializeCharge,
   serializeChargeEvent,
-  serializeKycDocument,
   serializeMerchant,
   serializeRefund,
 } from '../domain/serialize.js';
 import type { Services } from '../services.js';
 import type { ChargeStatus } from '../types.js';
-import { readUpload } from './upload.js';
 
 interface ChargeParams {
   id: string;
@@ -196,40 +193,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
       });
 
       return serializeMerchant(merchant, true);
-    });
-
-    // ------------------------------------------------------------------- kyc
-
-    app.post('/kyc/documents', async (request, reply) => {
-      const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'kyc:write');
-
-      const upload = await readUpload(request);
-
-      const document = services.kyc.upload({
-        merchantId: auth.merchantId,
-        type: upload.type,
-        filename: upload.filename,
-        mimeType: upload.mimeType,
-        content: upload.content,
-      });
-
-      return reply.status(201).send(serializeKycDocument(document));
-    });
-
-    app.get('/kyc/documents', async (request) => {
-      const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'kyc:read');
-
-      const merchant = services.merchants.get(auth.merchantId);
-
-      return {
-        object: 'list',
-        kyc_status: merchant.kyc_status,
-        kyc_reason: merchant.kyc_reason,
-        document_types: KYC_DOCUMENT_TYPES,
-        data: services.kyc.listDocuments(auth.merchantId).map(serializeKycDocument),
-      };
     });
   };
 }

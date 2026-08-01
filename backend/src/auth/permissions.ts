@@ -10,8 +10,6 @@ export const PERMISSIONS = [
   'refunds:write',
   'merchants:read',
   'merchants:write',
-  'kyc:read',
-  'kyc:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
