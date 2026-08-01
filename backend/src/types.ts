@@ -28,7 +28,6 @@ export interface IntegrationTokenRow {
   id: string;
   merchant_id: string;
   name: string | null;
-  permissions: string;
   token: string;
   expires_at: string | null;
   revoked_at: string | null;

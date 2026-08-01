@@ -4,7 +4,6 @@ import type { MerchantRow } from '../types.js';
 export interface IntegrationAuth {
   tokenId: string;
   merchantId: string;
-  permissions: string[];
 }
 
 declare module 'fastify' {

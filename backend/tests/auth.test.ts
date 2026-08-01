@@ -4,11 +4,6 @@ import { describe, it } from 'node:test';
 import { computeSignature, parseSignatureHeader, signPayload, verifySignature } from '../src/lib/hmac.js';
 import { decodeExpiry, signIntegrationToken, verifyIntegrationToken } from '../src/lib/jwt.js';
 import { AppError } from '../src/lib/errors.js';
-import {
-  assertPermission,
-  hasPermission,
-  normalizePermissions,
-} from '../src/auth/permissions.js';
 
 describe('webhook signatures', () => {
   const secret = 'whsec_test';
@@ -91,7 +86,6 @@ describe('integration tokens', () => {
       secret,
       tokenId: 'tok_1',
       merchantId: 'mch_1',
-      permissions: ['charges:read'],
       ...overrides,
     });
 
@@ -100,7 +94,6 @@ describe('integration tokens', () => {
 
     assert.equal(claims.sub, 'tok_1');
     assert.equal(claims.merchant_id, 'mch_1');
-    assert.deepEqual(claims.permissions, ['charges:read']);
   });
 
   it('omits exp when no expiry is requested', () => {
@@ -122,7 +115,6 @@ describe('integration tokens', () => {
       secret: 'other-secret',
       tokenId: 'tok_1',
       merchantId: 'mch_1',
-      permissions: [],
     });
 
     assert.throws(
@@ -143,32 +135,10 @@ describe('integration tokens', () => {
   it('rejects a tampered payload', () => {
     const [header, , signature] = sign().split('.');
     const forged = Buffer.from(
-      JSON.stringify({ sub: 'tok_1', merchant_id: 'mch_evil', permissions: ['*'] }),
+      JSON.stringify({ sub: 'tok_1', merchant_id: 'mch_evil' }),
     ).toString('base64url');
 
     assert.throws(() => verifyIntegrationToken(`${header}.${forged}.${signature}`, secret));
   });
 });
 
-describe('permissions', () => {
-  it('treats the wildcard as everything', () => {
-    assert.ok(hasPermission(['*'], 'charges:write'));
-    assert.ok(hasPermission(['charges:write'], 'charges:write'));
-    assert.equal(hasPermission(['charges:read'], 'charges:write'), false);
-  });
-
-  it('throws a 403 with the required permission named', () => {
-    assert.throws(
-      () => assertPermission(['charges:read'], 'refunds:write'),
-      (err: unknown) =>
-        err instanceof AppError && err.statusCode === 403 && err.code === 'insufficient_permission',
-    );
-  });
-
-  it('de-duplicates and rejects unknown permissions', () => {
-    assert.deepEqual(normalizePermissions(['charges:read', 'charges:read']), ['charges:read']);
-    assert.deepEqual(normalizePermissions(undefined), []);
-    assert.throws(() => normalizePermissions(['charges:teleport']), /Unknown permissions/);
-    assert.throws(() => normalizePermissions('charges:read'), /must be an array/);
-  });
-});

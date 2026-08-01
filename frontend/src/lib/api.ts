@@ -94,7 +94,6 @@ export interface ApiToken {
   id: string;
   merchant_id: string;
   name: string | null;
-  permissions: string[];
   token: string;
   expires_at: string | null;
   revoked_at: string | null;
@@ -196,7 +195,6 @@ interface ListResponse<T> {
 export const api = {
   // session — the merchant is the panel identity
   sessionMerchants: () => request<ListResponse<ApiMerchant>>('GET', '/session/merchants'),
-  permissions: () => request<ListResponse<string>>('GET', '/session/permissions'),
   me: () => request<{ merchant: ApiMerchant }>('GET', '/session/me'),
 
   // my store
@@ -228,11 +226,8 @@ export const api = {
 
   // tokens — always scoped to the session's merchant, so no merchant_id in the body
   tokens: () => request<ListResponse<ApiToken>>('GET', '/tokens'),
-  createToken: (body: {
-    name: string | null;
-    permissions: string[];
-    expires_in?: string | null;
-  }) => request<ApiToken>('POST', '/tokens', { body }),
+  createToken: (body: { name: string | null; expires_in?: string | null }) =>
+    request<ApiToken>('POST', '/tokens', { body }),
   revokeToken: (id: string) => request<ApiToken>('POST', `/tokens/${id}/revoke`),
   deleteToken: (id: string) => request<void>('DELETE', `/tokens/${id}`),
 

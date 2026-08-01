@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { requireMerchantSession, sessionMerchant } from '../auth/basic.js';
-import { PERMISSIONS, WILDCARD } from '../auth/permissions.js';
 import { MUTABLE_CONFIG_KEYS } from '../config.js';
 import { KYC_DOCUMENT_TYPES } from '../domain/kyc.js';
 import {
@@ -41,11 +40,6 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
       data: services.merchants
         .list()
         .map((merchant) => serializeMerchant(merchant, false, services.merchants.balanceFor(merchant.id))),
-    }));
-
-    app.get('/session/permissions', async () => ({
-      object: 'list',
-      data: [WILDCARD, ...PERMISSIONS],
     }));
 
     /**
@@ -114,7 +108,10 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
 
       // ----------------------------------------------------------- tokens
 
-      /** Only a merchant session can mint an integration JWT, always scoped to itself. */
+      /**
+       * Only a merchant session can mint an integration JWT, always scoped to itself. The
+       * token then reaches every /v1/integration route within that scope.
+       */
       guarded.get('/tokens', async (request) => ({
         object: 'list',
         data: services.tokens.listForMerchant(sessionMerchant(request).id).map(serializeToken),
@@ -123,7 +120,6 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
       guarded.post('/tokens', async (request, reply) => {
         const body = (request.body ?? {}) as {
           name?: string | null;
-          permissions?: unknown;
           expires_in?: string | null;
         };
 
@@ -131,7 +127,6 @@ export function panelRoutes(services: Services): FastifyPluginAsync {
           // Taken from the session, never from the body: a store cannot mint for another.
           merchantId: sessionMerchant(request).id,
           name: body.name ?? null,
-          permissions: body.permissions,
           ...(body.expires_in === undefined ? {} : { expiresIn: body.expires_in }),
         });
 

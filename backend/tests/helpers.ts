@@ -99,7 +99,6 @@ export async function seedMerchantAndToken(
   harness: TestHarness,
   options: {
     webhookUrl?: string | null;
-    permissions?: string[];
     name?: string;
   } = {},
 ) {
@@ -121,7 +120,6 @@ export async function seedMerchantAndToken(
   const token = app.services.tokens.issue({
     merchantId: merchant.id,
     name: 'test',
-    permissions: options.permissions ?? ['*'],
   });
 
   return {

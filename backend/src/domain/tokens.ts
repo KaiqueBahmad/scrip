@@ -1,4 +1,3 @@
-import { WILDCARD, normalizePermissions } from '../auth/permissions.js';
 import type { ConfigStore } from '../config.js';
 import { nowIso, type Db } from '../db/index.js';
 import { badRequest, notFound } from '../lib/errors.js';
@@ -10,7 +9,6 @@ export interface IssueTokenInput {
   /** The merchant whose session is issuing this token; it is always the token's scope. */
   merchantId: string;
   name?: string | null;
-  permissions?: unknown;
   /** Overrides jwtDefaultExpiration. Pass "" (or "never") for a token with no exp. */
   expiresIn?: string | null;
 }
@@ -22,8 +20,8 @@ export interface TokenServiceDeps {
 
 /**
  * Integration tokens (specs.md:60-62). Only a merchant session can mint one, and it is
- * always scoped to that merchant; the JWT itself is stored so the panel can show it again at
- * any time.
+ * always scoped to that merchant — inside that scope it reaches every integration route.
+ * The JWT itself is stored so the panel can show it again at any time.
  */
 export class TokenService {
   #db: Db;
@@ -47,10 +45,6 @@ export class TokenService {
 
     if (!merchantExists) throw badRequest('merchant_not_found', `No merchant ${merchantId}`);
 
-    // The merchant owns its own scope, so it may grant any valid permission. There is no
-    // narrower identity above it to escalate against.
-    const requested = normalizePermissions(input.permissions ?? [WILDCARD]);
-
     const configuredExpiry = this.#config.get('jwtDefaultExpiration');
     const requestedExpiry = input.expiresIn === undefined ? configuredExpiry : input.expiresIn;
     const expiresIn =
@@ -64,7 +58,6 @@ export class TokenService {
         secret: this.#config.get('jwtSigningSecret'),
         tokenId: id,
         merchantId,
-        permissions: requested,
         expiresIn,
       });
     } catch (err) {
@@ -80,7 +73,6 @@ export class TokenService {
       id,
       merchant_id: merchantId,
       name: input.name?.trim() || null,
-      permissions: JSON.stringify(requested),
       token,
       expires_at: decodeExpiry(token),
       revoked_at: null,
@@ -90,8 +82,8 @@ export class TokenService {
     this.#db
       .prepare(
         `INSERT INTO integration_tokens
-           (id, merchant_id, name, permissions, token, expires_at, revoked_at, created_at)
-         VALUES (@id, @merchant_id, @name, @permissions, @token, @expires_at,
+           (id, merchant_id, name, token, expires_at, revoked_at, created_at)
+         VALUES (@id, @merchant_id, @name, @token, @expires_at,
                  @revoked_at, @created_at)`,
       )
       .run(row);

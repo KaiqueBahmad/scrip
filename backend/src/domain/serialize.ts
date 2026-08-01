@@ -91,7 +91,6 @@ export function serializeToken(row: IntegrationTokenRow) {
     object: 'integration_token' as const,
     merchant_id: row.merchant_id,
     name: row.name,
-    permissions: parseJsonColumn<string[]>(row.permissions, []),
     token: row.token,
     expires_at: row.expires_at ?? decodeExpiry(row.token),
     revoked_at: row.revoked_at,

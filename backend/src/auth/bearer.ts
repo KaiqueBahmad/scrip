@@ -1,6 +1,5 @@
 import type { FastifyRequest } from 'fastify';
 
-import { parseJsonColumn } from '../db/index.js';
 import { unauthorized } from '../lib/errors.js';
 import { verifyIntegrationToken } from '../lib/jwt.js';
 import type { Services } from '../services.js';
@@ -10,9 +9,9 @@ import { extractBearer, type IntegrationAuth } from './context.js';
  * Integration auth (specs.md:36): a Bearer JWT minted by a merchant session in the panel.
  *
  * Signature and expiry are checked in the JWT itself; revocation and the merchant's
- * continued existence are checked against the database on every request, and the
- * permission list is re-read from the row so revoking a permission takes effect
- * immediately instead of waiting for the token to expire.
+ * continued existence are checked against the database on every request, so revoking a
+ * token takes effect immediately instead of waiting for it to expire. A token that
+ * survives those checks reaches every integration route — there is no narrower scope.
  */
 export function requireIntegrationAuth(services: Services) {
   return async function integrationAuthHook(request: FastifyRequest): Promise<void> {
@@ -43,7 +42,6 @@ export function requireIntegrationAuth(services: Services) {
     const auth: IntegrationAuth = {
       tokenId: row.id,
       merchantId: row.merchant_id,
-      permissions: parseJsonColumn<string[]>(row.permissions, []),
     };
 
     request.integration = auth;

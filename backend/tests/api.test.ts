@@ -38,14 +38,12 @@ describe('integration auth', () => {
     assert.equal(revoked.json().error.code, 'token_revoked');
   });
 
-  it('enforces permissions per route', async () => {
+  it('reaches every integration route with a single valid token', async () => {
     harness = await createHarness();
-    const { bearer } = await seedMerchantAndToken(harness, { permissions: ['charges:read'] });
+    const { bearer } = await seedMerchantAndToken(harness);
 
     const write = await createCharge(harness, bearer);
-    assert.equal(write.status, 403);
-    assert.equal(write.body.error.code, 'insufficient_permission');
-    assert.equal(write.body.error.details.required, 'charges:write');
+    assert.equal(write.status, 201);
 
     const read = await harness.app.inject({
       method: 'GET',
@@ -53,6 +51,13 @@ describe('integration auth', () => {
       headers: bearer,
     });
     assert.equal(read.statusCode, 200);
+
+    const merchant = await harness.app.inject({
+      method: 'GET',
+      url: '/v1/integration/merchants/me',
+      headers: bearer,
+    });
+    assert.equal(merchant.statusCode, 200);
   });
 
   it('never lets one merchant read another merchant’s charge', async () => {
@@ -91,7 +96,7 @@ describe('integration auth', () => {
       url: '/v1/panel/tokens',
       headers: mine.basic,
       // A merchant_id in the body must not be able to mint for somebody else.
-      payload: { name: 'ci', permissions: ['*'], merchant_id: other.merchant.id },
+      payload: { name: 'ci', merchant_id: other.merchant.id },
     });
 
     assert.equal(response.statusCode, 201);
@@ -104,21 +109,6 @@ describe('integration auth', () => {
       headers: { authorization: `Bearer ${response.json().token}` },
     });
     assert.equal(scoped.json().id, mine.merchant.id);
-  });
-
-  it('lets a merchant grant any permission, since it owns its own scope', async () => {
-    harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
-
-    const response = await harness.app.inject({
-      method: 'POST',
-      url: '/v1/panel/tokens',
-      headers: basic,
-      payload: { permissions: ['charges:write', 'refunds:write'] },
-    });
-
-    assert.equal(response.statusCode, 201);
-    assert.deepEqual(response.json().permissions, ['charges:write', 'refunds:write']);
   });
 });
 

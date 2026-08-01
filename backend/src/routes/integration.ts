@@ -2,7 +2,6 @@ import type { FastifyPluginAsync } from 'fastify';
 
 import { requireIntegrationAuth } from '../auth/bearer.js';
 import { integrationAuth } from '../auth/bearer.js';
-import { assertPermission } from '../auth/permissions.js';
 import {
   serializeCharge,
   serializeChargeEvent,
@@ -29,7 +28,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.post('/pix/charges', async (request, reply) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:write');
 
       const body = (request.body ?? {}) as {
         amount?: number;
@@ -76,7 +74,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.get('/pix/charges', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:read');
 
       const query = request.query as {
         status?: ChargeStatus;
@@ -107,8 +104,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.get<{ Params: ChargeParams }>('/pix/charges/:id', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:read');
-
       return serializeCharge(
         services.charges.get(request.params.id, { merchantId: auth.merchantId }),
       );
@@ -116,7 +111,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.get<{ Params: ChargeParams }>('/pix/charges/:id/events', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:read');
 
       const charge = services.charges.get(request.params.id, { merchantId: auth.merchantId });
 
@@ -128,8 +122,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.post<{ Params: ChargeParams }>('/pix/charges/:id/cancel', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:write');
-
       return serializeCharge(
         services.charges.cancel(request.params.id, { merchantId: auth.merchantId }),
       );
@@ -139,7 +131,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.post<{ Params: ChargeParams }>('/pix/charges/:id/refunds', async (request, reply) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'refunds:write');
 
       const body = (request.body ?? {}) as { amount?: number | null; reason?: string | null };
 
@@ -155,8 +146,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.get<{ Params: ChargeParams }>('/pix/charges/:id/refunds', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'charges:read');
-
       return {
         object: 'list',
         data: services.refunds
@@ -169,7 +158,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.get('/merchants/me', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'merchants:read');
 
       // The secret is included here because the caller is the merchant's own backend and
       // needs it to verify webhook signatures.
@@ -178,7 +166,6 @@ export function integrationRoutes(services: Services): FastifyPluginAsync {
 
     app.patch('/merchants/me', async (request) => {
       const auth = integrationAuth(request);
-      assertPermission(auth.permissions, 'merchants:write');
 
       const body = (request.body ?? {}) as {
         name?: string;

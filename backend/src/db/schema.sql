@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS integration_tokens (
   -- identity above the merchant.
   merchant_id TEXT NOT NULL REFERENCES merchants (id) ON DELETE CASCADE,
   name        TEXT,
-  permissions TEXT NOT NULL DEFAULT '[]',
   -- Stored in plaintext on purpose: the panel must be able to show it again at any
   -- time (specs.md:62, specs.md:116).
   token       TEXT NOT NULL,

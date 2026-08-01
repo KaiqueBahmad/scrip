@@ -71,9 +71,7 @@ Na tela **Minha loja** ficam o saldo, o `merchant_id` (que é o usuário do Basi
 
 ### 3. Gere um token de integração
 
-Na tela **Tokens**, gere um JWT com as permissões que você quiser expor. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
-
-As permissões disponíveis são `charges:read`, `charges:write`, `refunds:write`, `simulate:write`, `merchants:read`, `merchants:write`, `kyc:read`, `kyc:write`, `webhooks:read`, `webhooks:write` — ou `*` para todas. A loja é dona do próprio escopo, então pode conceder qualquer uma delas.
+Na tela **Tokens**, gere um JWT. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. Não há permissões: dentro do escopo da loja, o token alcança todas as rotas de `/v1/integration`. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
 
 ### 4. Crie uma cobrança PIX
 
@@ -197,20 +195,16 @@ Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`,
 
 **Integração** (`Authorization: Bearer <jwt>`):
 
-| Método e rota | Permissão |
-|---|---|
-| `POST /v1/integration/pix/charges` (aceita `Idempotency-Key`) | `charges:write` |
-| `GET /v1/integration/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) | `charges:read` |
-| `GET /v1/integration/pix/charges/{id}` · `/events` · `/refunds` | `charges:read` |
-| `POST /v1/integration/pix/charges/{id}/simulate` — `{"result":"paid"\|"expired"}` | `simulate:write` |
-| `POST /v1/integration/pix/charges/{id}/cancel` | `charges:write` |
-| `POST /v1/integration/pix/charges/{id}/refunds` — `amount` opcional | `refunds:write` |
-| `GET`/`PATCH /v1/integration/merchants/me` | `merchants:read` / `merchants:write` |
-| `GET /v1/integration/webhooks/deliveries` | `webhooks:read` |
-| `POST /v1/integration/webhooks/deliveries/{id}/retry` | `webhooks:write` |
-| `GET`/`POST /v1/integration/kyc/documents` | `kyc:read` / `kyc:write` |
+| Método e rota |
+|---|
+| `POST /v1/integration/pix/charges` (aceita `Idempotency-Key`) |
+| `GET /v1/integration/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
+| `GET /v1/integration/pix/charges/{id}` · `/events` · `/refunds` |
+| `POST /v1/integration/pix/charges/{id}/cancel` |
+| `POST /v1/integration/pix/charges/{id}/refunds` — `amount` opcional |
+| `GET`/`PATCH /v1/integration/merchants/me` |
 
-Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
+Qualquer token válido e não revogado alcança todas as rotas acima — não há permissões por rota. Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
 
 ```json
 { "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
@@ -246,7 +240,7 @@ backend/
     db/            schema.sql, openDb, reset
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
-    auth/          basic (sessão da loja), bearer (integração), permissions
+    auth/          basic (sessão da loja), bearer (integração)
     routes/        integration.ts, panel.ts — superfícies separadas por arquivo
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
