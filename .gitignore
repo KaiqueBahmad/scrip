@@ -9,3 +9,5 @@ data/
 *.sqlite-wal
 .DS_Store
 backend/pseudopay.config.json
+.env
+!.env.example

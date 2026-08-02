@@ -141,7 +141,13 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = '/v1/panel';
+/**
+ * Empty by default: requests stay relative and the dev proxy (vite.config.ts) forwards
+ * them. Set VITE_API_BASE_URL when the API lives on another origin.
+ */
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+
+const BASE = `${API_ROOT}/v1/panel`;
 
 let authHeader: string | null = null;
 
@@ -198,7 +204,7 @@ async function integrationRequest<T>(
   const headers: Record<string, string> = { authorization: `Bearer ${token}` };
   if (body !== undefined) headers['content-type'] = 'application/json';
 
-  const response = await fetch(`/v1/integration${path}`, {
+  const response = await fetch(`${API_ROOT}/v1/integration${path}`, {
     method,
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
