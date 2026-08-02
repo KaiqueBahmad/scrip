@@ -1,5 +1,7 @@
 import {
   ArrowLeftRight,
+  ArrowUpRight,
+  BookOpen,
   KeyRound,
   Settings2,
   Store,
@@ -80,8 +82,27 @@ export function Layout() {
           ))}
         </ul>
 
+        <div className="mt-4 pt-3">
+          <NavLink
+            to="/documentacao"
+            className={cn(
+              'flex items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1.5 text-[13px]',
+              'transition-colors',
+              'text-white/60 hover:bg-white/6 hover:text-white/90',
+            )}
+          >
+            <span
+              aria-hidden
+              className="h-4 w-[2px] rounded-full bg-transparent"
+            />
+            <BookOpen className="size-3.5 shrink-0" />
+            <span className="flex-1">Documentação</span>
+            <ArrowUpRight className="size-3 shrink-0 opacity-60" aria-hidden />
+          </NavLink>
+        </div>
+
         {merchant ? (
-          <div className="mt-4 border-t border-white/10 pt-3">
+          <div className="mt-2 border-t border-white/10 pt-3">
             <p className="font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
               loja
             </p>

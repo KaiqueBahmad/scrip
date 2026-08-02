@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from './components/Layout';
 import { useSession } from './lib/session';
+import { Documentation } from './pages/Documentation';
 import { MyStore } from './pages/MyStore';
 import { SelectMerchant } from './pages/SelectMerchant';
 import { Settings } from './pages/Settings';
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/minha-loja" element={<MyStore />} />
         <Route path="/tokens" element={<Tokens />} />
         <Route path="/webhooks" element={<Webhooks />} />
+        <Route path="/documentacao" element={<Documentation />} />
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="*" element={<Navigate to="/transacoes" replace />} />
       </Route>
