@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
+import { merchants, pixCharges } from '../db/schema';
 import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
 import { serializeMerchant } from './serialize';
@@ -71,21 +73,22 @@ export class MerchantService {
    * recorded on pix_charges.
    */
   balanceFor(merchantId: string): MerchantBalance {
-    const placeholders = SETTLED_STATUSES.map(() => '?').join(', ');
-
     const row = this.db
-      .prepare<
-        unknown[],
-        { available: number; gross: number; refunded: number; settled: number }
-      >(
-        `SELECT COALESCE(SUM(amount - refunded_amount), 0) AS available,
-                COALESCE(SUM(amount), 0)                   AS gross,
-                COALESCE(SUM(refunded_amount), 0)          AS refunded,
-                COUNT(*)                                   AS settled
-           FROM pix_charges
-          WHERE merchant_id = ? AND status IN (${placeholders})`,
+      .select({
+        available: sql<number>`
+          COALESCE(SUM(${pixCharges.amount} - ${pixCharges.refunded_amount}), 0)`,
+        gross: sql<number>`COALESCE(SUM(${pixCharges.amount}), 0)`,
+        refunded: sql<number>`COALESCE(SUM(${pixCharges.refunded_amount}), 0)`,
+        settled: sql<number>`COUNT(*)`,
+      })
+      .from(pixCharges)
+      .where(
+        and(
+          eq(pixCharges.merchant_id, merchantId),
+          inArray(pixCharges.status, [...SETTLED_STATUSES]),
+        ),
       )
-      .get(merchantId, ...SETTLED_STATUSES);
+      .get();
 
     return {
       available: row?.available ?? 0,
@@ -115,38 +118,24 @@ export class MerchantService {
       updated_at: at,
     };
 
-    this.db
-      .prepare(
-        `INSERT INTO merchants
-           (id, name, webhook_url, webhook_secret, kyc_status, kyc_reason,
-            kyc_reviewed_at, created_at, updated_at)
-         VALUES (@id, @name, @webhook_url, @webhook_secret, @kyc_status,
-                 @kyc_reason, @kyc_reviewed_at, @created_at, @updated_at)`,
-      )
-      .run(row);
+    this.db.insert(merchants).values(row).run();
 
     return row;
   }
 
   get(merchantId: string): MerchantRow {
-    const row = this.db
-      .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
-      .get(merchantId);
+    const row = this.find(merchantId);
 
     if (!row) throw notFound('merchant_not_found', `No merchant ${merchantId}`);
     return row;
   }
 
   find(merchantId: string): MerchantRow | undefined {
-    return this.db
-      .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
-      .get(merchantId);
+    return this.db.select().from(merchants).where(eq(merchants.id, merchantId)).get();
   }
 
   list(): MerchantRow[] {
-    return this.db
-      .prepare<[], MerchantRow>('SELECT * FROM merchants ORDER BY created_at DESC')
-      .all();
+    return this.db.select().from(merchants).orderBy(desc(merchants.created_at)).all();
   }
 
   update(merchantId: string, input: UpdateMerchantInput): MerchantRow {
@@ -164,14 +153,7 @@ export class MerchantService {
       updated_at: nowIso(),
     };
 
-    this.db
-      .prepare(
-        `UPDATE merchants
-            SET name = @name, webhook_url = @webhook_url,
-                webhook_secret = @webhook_secret, updated_at = @updated_at
-          WHERE id = @id`,
-      )
-      .run({ ...next, id: merchantId });
+    this.db.update(merchants).set(next).where(eq(merchants.id, merchantId)).run();
 
     return this.get(merchantId);
   }
@@ -179,6 +161,6 @@ export class MerchantService {
   delete(merchantId: string): void {
     this.get(merchantId);
     // Charges, tokens, KYC docs and deliveries cascade (see schema.sql).
-    this.db.prepare('DELETE FROM merchants WHERE id = ?').run(merchantId);
+    this.db.delete(merchants).where(eq(merchants.id, merchantId)).run();
   }
 }

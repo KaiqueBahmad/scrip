@@ -129,7 +129,7 @@ export async function createHarness(
     calls,
     close: async () => {
       await app.close();
-      db.close();
+      db.$client.close();
     },
   };
 }

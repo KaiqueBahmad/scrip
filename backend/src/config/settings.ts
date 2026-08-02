@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { sql } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
+import { settings } from '../db/schema';
 import { badRequest } from '../lib/errors';
 import type { Logger } from '../lib/logger';
 import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config';
@@ -12,7 +14,7 @@ import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config
  * built, before anything can read from it.
  */
 export function applyStoredSettings(db: Db, config: ConfigStore, log: Logger): void {
-  const rows = db.prepare<[], { key: string; value: string }>('SELECT key, value FROM settings').all();
+  const rows = db.select({ key: settings.key, value: settings.value }).from(settings).all();
   if (rows.length === 0) return;
 
   const patch: Record<string, unknown> = {};
@@ -67,16 +69,18 @@ export class SettingsService {
     }
 
     const at = nowIso();
-    const upsert = this.db.prepare(
-      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-    );
 
-    this.db.transaction(() => {
+    this.db.transaction((tx) => {
       for (const key of Object.keys(patch)) {
-        upsert.run(key, JSON.stringify(next[key as keyof PseudoPayConfig]), at);
+        tx.insert(settings)
+          .values({ key, value: JSON.stringify(next[key as keyof PseudoPayConfig]), updated_at: at })
+          .onConflictDoUpdate({
+            target: settings.key,
+            set: { value: sql`excluded.value`, updated_at: sql`excluded.updated_at` },
+          })
+          .run();
       }
-    })();
+    });
 
     return this.read();
   }

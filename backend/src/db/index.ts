@@ -1,13 +1,26 @@
 import Database from 'better-sqlite3';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-export type Db = Database.Database;
+import * as schema from './schema';
 
-/** Reads schema.sql from beside this module — works from both src/ (tsx) and dist/. */
-function readSchema(): string {
-  return readFileSync(resolve(__dirname, 'schema.sql'), 'utf8');
-}
+/**
+ * Drizzle over better-sqlite3. `$client` is the raw connection, kept reachable for the two
+ * things Drizzle has no opinion about: pragmas and closing.
+ */
+export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
+
+/**
+ * A Drizzle transaction handle. Query builders that may run inside `db.transaction` take
+ * `DbOrTx` so the caller decides.
+ */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type DbOrTx = Db | Tx;
+
+/** Migrations sit beside this module, so the path resolves from both src/ and dist/. */
+const MIGRATIONS_FOLDER = resolve(__dirname, 'migrations');
 
 export function nowIso(at: number | Date = Date.now()): string {
   return new Date(at).toISOString();
@@ -27,41 +40,33 @@ export function openDb(options: OpenDbOptions): Db {
     mkdirSync(dirname(resolve(databasePath)), { recursive: true });
   }
 
-  const db = new Database(databasePath, options.verbose ? { verbose: options.verbose } : {});
+  const sqlite = new Database(databasePath, options.verbose ? { verbose: options.verbose } : {});
 
-  db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
+  sqlite.pragma('foreign_keys = ON');
+  sqlite.pragma('busy_timeout = 5000');
   if (!inMemory) {
     // WAL keeps the panel's reads from blocking on webhook/charge writes. SQLite is still
     // the wrong choice under real write concurrency (specs.md:139) — fine for a dev tool.
-    db.pragma('journal_mode = WAL');
-    db.pragma('synchronous = NORMAL');
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('synchronous = NORMAL');
   }
 
-  db.exec(readSchema());
+  const db = drizzle(sqlite, { schema });
+
+  // src/db/schema.ts is the only description of the schema; the DDL under migrations/ is
+  // generated from it by `npm run db:generate`. Applying it on every boot keeps the previous
+  // behaviour — the app still opens an existing database and brings it up to date by itself,
+  // with no separate migrate step to remember.
+  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
 
   return db;
 }
 
 /** Drops all rows but keeps the schema — the behaviour specs.md:45 describes for `reset`. */
 export function resetData(db: Db): void {
-  const tables = [
-    'idempotency_keys',
-    'webhook_deliveries',
-    'charge_events',
-    'pix_refunds',
-    'pix_charges',
-    'kyc_documents',
-    'integration_tokens',
-    'merchants',
-    'settings',
-  ];
-
-  db.transaction(() => {
-    db.pragma('foreign_keys = OFF');
-    for (const table of tables) db.prepare(`DELETE FROM ${table}`).run();
-    db.pragma('foreign_keys = ON');
-  })();
+  db.transaction((tx) => {
+    for (const table of schema.TABLES_CHILD_FIRST) tx.delete(table).run();
+  });
 }
 
 /** Parses a JSON text column, falling back rather than throwing on corrupt rows. */

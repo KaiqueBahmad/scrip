@@ -85,7 +85,7 @@ export class AppModule {
           useFactory: (scheduler: Scheduler) => ({
             onApplicationShutdown() {
               scheduler.clearAll();
-              if (ownsDb) db.close();
+              if (ownsDb) db.$client.close();
             },
           }),
         },

@@ -1,8 +1,10 @@
 import { Inject, Injectable, type OnApplicationBootstrap } from '@nestjs/common';
+import { and, asc, count, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
 
 import { DB, LOGGER, RANDOM, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
-import { nowIso, type Db } from '../db/index';
+import { nowIso, type Db, type DbOrTx } from '../db/index';
+import { chargeEvents, merchants, pixCharges } from '../db/schema';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
@@ -10,7 +12,7 @@ import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
 import { serializeCharge } from './serialize';
 import { planConfirmation } from './testDocuments';
-import type { ChargeEventRow, ChargeRow, ChargeStatus, MerchantRow, Scope } from './types';
+import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 /**
@@ -51,6 +53,22 @@ export interface ListChargesFilters {
   to?: string;
   limit?: number;
   offset?: number;
+}
+
+/**
+ * The WHERE shared by `list` and `count`. `and` drops the undefined branches, so an absent
+ * filter simply contributes nothing.
+ */
+function chargeFilters(
+  filters: ListChargesFilters,
+  options: { dateRange: boolean },
+): SQL | undefined {
+  return and(
+    filters.merchantId ? eq(pixCharges.merchant_id, filters.merchantId) : undefined,
+    filters.status ? eq(pixCharges.status, filters.status) : undefined,
+    options.dateRange && filters.from ? gte(pixCharges.created_at, filters.from) : undefined,
+    options.dateRange && filters.to ? lte(pixCharges.created_at, filters.to) : undefined,
+  );
 }
 
 interface ChargeTimers {
@@ -94,8 +112,10 @@ export class ChargeService implements OnApplicationBootstrap {
     }
 
     const merchant = this.db
-      .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
-      .get(input.merchantId);
+      .select()
+      .from(merchants)
+      .where(eq(merchants.id, input.merchantId))
+      .get();
 
     if (!merchant) {
       throw notFound('merchant_not_found', `No merchant ${input.merchantId}`);
@@ -145,22 +165,10 @@ export class ChargeService implements OnApplicationBootstrap {
       updated_at: createdAt,
     };
 
-    this.db.transaction(() => {
-      this.db
-        .prepare(
-          `INSERT INTO pix_charges
-             (id, merchant_id, amount, status, payer_document, payer_name, description,
-              metadata, qr_code, qr_code_txid, qr_code_expires_at, e2e_id,
-              refunded_amount, paid_at, expired_at, canceled_at, created_at, updated_at)
-           VALUES (@id, @merchant_id, @amount, @status, @payer_document, @payer_name,
-                   @description, @metadata, @qr_code, @qr_code_txid, @qr_code_expires_at,
-                   @e2e_id, @refunded_amount, @paid_at, @expired_at,
-                   @canceled_at, @created_at, @updated_at)`,
-        )
-        .run(row);
-
-      this.recordEvent(id, null, 'pending', 'charge_created', createdAt);
-    })();
+    this.db.transaction((tx) => {
+      tx.insert(pixCharges).values(row).run();
+      this.recordEvent(tx, id, null, 'pending', 'charge_created', createdAt);
+    });
 
     this.webhooks.enqueue({
       merchantId: merchant.id,
@@ -180,9 +188,7 @@ export class ChargeService implements OnApplicationBootstrap {
   }
 
   get(chargeId: string, scope: Scope = {}): ChargeRow {
-    const row = this.db
-      .prepare<[string], ChargeRow>('SELECT * FROM pix_charges WHERE id = ?')
-      .get(chargeId);
+    const row = this.db.select().from(pixCharges).where(eq(pixCharges.id, chargeId)).get();
 
     // A charge belonging to another merchant is reported as missing rather than forbidden,
     // so ids can't be probed across merchants.
@@ -194,67 +200,35 @@ export class ChargeService implements OnApplicationBootstrap {
   }
 
   list(filters: ListChargesFilters = {}): ChargeRow[] {
-    const clauses: string[] = [];
-    const params: unknown[] = [];
-
-    if (filters.merchantId) {
-      clauses.push('merchant_id = ?');
-      params.push(filters.merchantId);
-    }
-    if (filters.status) {
-      clauses.push('status = ?');
-      params.push(filters.status);
-    }
-    if (filters.from) {
-      clauses.push('created_at >= ?');
-      params.push(filters.from);
-    }
-    if (filters.to) {
-      clauses.push('created_at <= ?');
-      params.push(filters.to);
-    }
-
-    params.push(Math.min(filters.limit ?? 50, 200), filters.offset ?? 0);
-
     return this.db
-      .prepare<unknown[], ChargeRow>(
-        `SELECT * FROM pix_charges
-         ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
-          ORDER BY created_at DESC, id DESC
-          LIMIT ? OFFSET ?`,
-      )
-      .all(...params);
+      .select()
+      .from(pixCharges)
+      .where(chargeFilters(filters, { dateRange: true }))
+      .orderBy(desc(pixCharges.created_at), desc(pixCharges.id))
+      .limit(Math.min(filters.limit ?? 50, 200))
+      .offset(filters.offset ?? 0)
+      .all();
   }
 
+  // Note: the date range is not applied here, matching the SQL this replaced. A `total`
+  // taken with from/to set therefore counts more rows than `list` returns.
   count(filters: ListChargesFilters = {}): number {
-    const clauses: string[] = [];
-    const params: unknown[] = [];
-
-    if (filters.merchantId) {
-      clauses.push('merchant_id = ?');
-      params.push(filters.merchantId);
-    }
-    if (filters.status) {
-      clauses.push('status = ?');
-      params.push(filters.status);
-    }
-
     const row = this.db
-      .prepare<unknown[], { total: number }>(
-        `SELECT COUNT(*) AS total FROM pix_charges
-         ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}`,
-      )
-      .get(...params);
+      .select({ total: count() })
+      .from(pixCharges)
+      .where(chargeFilters(filters, { dateRange: false }))
+      .get();
 
     return row?.total ?? 0;
   }
 
   listEvents(chargeId: string): ChargeEventRow[] {
     return this.db
-      .prepare<[string], ChargeEventRow>(
-        'SELECT * FROM charge_events WHERE charge_id = ? ORDER BY created_at ASC, id ASC',
-      )
-      .all(chargeId);
+      .select()
+      .from(chargeEvents)
+      .where(eq(chargeEvents.charge_id, chargeId))
+      .orderBy(asc(chargeEvents.created_at), asc(chargeEvents.id))
+      .all();
   }
 
   /** Forces an outcome for tests and CI (specs.md:84-93). */
@@ -272,16 +246,14 @@ export class ChargeService implements OnApplicationBootstrap {
     const at = nowIso(this.scheduler.now());
     const e2eId = generateE2eId(new Date(this.scheduler.now()));
 
-    this.db.transaction(() => {
-      this.db
-        .prepare(
-          `UPDATE pix_charges SET status = 'paid', paid_at = ?, e2e_id = ?, updated_at = ?
-            WHERE id = ?`,
-        )
-        .run(at, e2eId, at, chargeId);
+    this.db.transaction((tx) => {
+      tx.update(pixCharges)
+        .set({ status: 'paid', paid_at: at, e2e_id: e2eId, updated_at: at })
+        .where(eq(pixCharges.id, chargeId))
+        .run();
 
-      this.recordEvent(chargeId, charge.status, 'paid', reason, at);
-    })();
+      this.recordEvent(tx, chargeId, charge.status, 'paid', reason, at);
+    });
 
     this.clearTimers(chargeId);
 
@@ -305,13 +277,14 @@ export class ChargeService implements OnApplicationBootstrap {
 
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction(() => {
-      this.db
-        .prepare(`UPDATE pix_charges SET status = 'expired', expired_at = ?, updated_at = ? WHERE id = ?`)
-        .run(at, at, chargeId);
+    this.db.transaction((tx) => {
+      tx.update(pixCharges)
+        .set({ status: 'expired', expired_at: at, updated_at: at })
+        .where(eq(pixCharges.id, chargeId))
+        .run();
 
-      this.recordEvent(chargeId, charge.status, 'expired', reason, at);
-    })();
+      this.recordEvent(tx, chargeId, charge.status, 'expired', reason, at);
+    });
 
     this.clearTimers(chargeId);
 
@@ -335,13 +308,14 @@ export class ChargeService implements OnApplicationBootstrap {
 
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction(() => {
-      this.db
-        .prepare(`UPDATE pix_charges SET status = 'canceled', canceled_at = ?, updated_at = ? WHERE id = ?`)
-        .run(at, at, chargeId);
+    this.db.transaction((tx) => {
+      tx.update(pixCharges)
+        .set({ status: 'canceled', canceled_at: at, updated_at: at })
+        .where(eq(pixCharges.id, chargeId))
+        .run();
 
-      this.recordEvent(chargeId, charge.status, 'canceled', 'canceled_by_merchant', at);
-    })();
+      this.recordEvent(tx, chargeId, charge.status, 'canceled', 'canceled_by_merchant', at);
+    });
 
     this.clearTimers(chargeId);
     this.log.info({ charge_id: chargeId }, 'pix charge canceled');
@@ -363,13 +337,14 @@ export class ChargeService implements OnApplicationBootstrap {
 
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction(() => {
-      this.db
-        .prepare('UPDATE pix_charges SET status = ?, refunded_amount = ?, updated_at = ? WHERE id = ?')
-        .run(nextStatus, refundedTotal, at, chargeId);
+    this.db.transaction((tx) => {
+      tx.update(pixCharges)
+        .set({ status: nextStatus, refunded_amount: refundedTotal, updated_at: at })
+        .where(eq(pixCharges.id, chargeId))
+        .run();
 
-      this.recordEvent(chargeId, charge.status, nextStatus, 'refund_applied', at);
-    })();
+      this.recordEvent(tx, chargeId, charge.status, nextStatus, 'refund_applied', at);
+    });
 
     return this.get(chargeId);
   }
@@ -381,7 +356,9 @@ export class ChargeService implements OnApplicationBootstrap {
    */
   restorePendingTimers(): number {
     const pending = this.db
-      .prepare<[], ChargeRow>(`SELECT * FROM pix_charges WHERE status = 'pending'`)
+      .select()
+      .from(pixCharges)
+      .where(eq(pixCharges.status, 'pending'))
       .all();
 
     for (const charge of pending) {
@@ -465,19 +442,25 @@ export class ChargeService implements OnApplicationBootstrap {
     );
   }
 
+  /** Always called from inside a transaction, alongside the status write it records. */
   private recordEvent(
+    tx: DbOrTx,
     chargeId: string,
     from: ChargeStatus | null,
     to: ChargeStatus,
     reason: string,
     at: string,
   ): void {
-    this.db
-      .prepare(
-        `INSERT INTO charge_events (id, charge_id, from_status, to_status, reason, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      )
-      .run(newId('chargeEvent'), chargeId, from, to, reason, at);
+    tx.insert(chargeEvents)
+      .values({
+        id: newId('chargeEvent'),
+        charge_id: chargeId,
+        from_status: from,
+        to_status: to,
+        reason,
+        created_at: at,
+      })
+      .run();
   }
 
   private setTimer(chargeId: string, kind: keyof ChargeTimers, handle: number): void {

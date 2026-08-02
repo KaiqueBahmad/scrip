@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
+import { settings } from '../src/db/schema';
 import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 
 let harness: TestHarness | null = null;
@@ -330,9 +331,7 @@ describe('panel surface', () => {
     assert.equal(patched.json().values.requireApprovedKycForCharges, true);
     assert.equal(harness.app.services.config.get('approvalRate'), 0.5);
 
-    const stored = harness.app.services.db
-      .prepare<[], { key: string; value: string }>('SELECT key, value FROM settings')
-      .all();
+    const stored = harness.app.services.db.select().from(settings).all();
     assert.equal(stored.length, 2, 'written to the settings table');
   });
 

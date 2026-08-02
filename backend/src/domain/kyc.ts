@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, desc, eq } from 'drizzle-orm';
 
 import { DB, LOGGER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
+import { kycDocumentColumns, kycDocuments, merchants } from '../db/schema';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
@@ -71,21 +73,19 @@ export class KycService {
     const id = newId('kycDocument');
 
     this.db
-      .prepare(
-        `INSERT INTO kyc_documents
-           (id, merchant_id, type, filename, mime_type, size, content, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-      )
-      .run(
+      .insert(kycDocuments)
+      .values({
         id,
-        input.merchantId,
+        merchant_id: input.merchantId,
         type,
         filename,
-        input.mimeType || 'application/octet-stream',
-        input.content.length,
-        input.content,
-        at,
-      );
+        mime_type: input.mimeType || 'application/octet-stream',
+        size: input.content.length,
+        content: input.content,
+        status: 'pending',
+        created_at: at,
+      })
+      .run();
 
     this.log.info(
       { merchant_id: input.merchantId, document_id: id, size: input.content.length },
@@ -98,11 +98,10 @@ export class KycService {
   /** Metadata only — the BLOB is fetched separately so listings stay cheap. */
   getDocument(documentId: string, scope: Scope = {}): KycDocumentRow {
     const row = this.db
-      .prepare<[string], KycDocumentRow>(
-        `SELECT id, merchant_id, type, filename, mime_type, size, status, created_at
-           FROM kyc_documents WHERE id = ?`,
-      )
-      .get(documentId);
+      .select(kycDocumentColumns)
+      .from(kycDocuments)
+      .where(eq(kycDocuments.id, documentId))
+      .get();
 
     if (!row || (scope.merchantId && row.merchant_id !== scope.merchantId)) {
       throw notFound('document_not_found', `No KYC document ${documentId}`);
@@ -115,8 +114,10 @@ export class KycService {
     const row = this.getDocument(documentId, scope);
 
     const blob = this.db
-      .prepare<[string], { content: Buffer }>('SELECT content FROM kyc_documents WHERE id = ?')
-      .get(documentId);
+      .select({ content: kycDocuments.content })
+      .from(kycDocuments)
+      .where(eq(kycDocuments.id, documentId))
+      .get();
 
     if (!blob) throw notFound('document_not_found', `No KYC document ${documentId}`);
 
@@ -124,26 +125,17 @@ export class KycService {
   }
 
   listDocuments(merchantId?: string): KycDocumentRow[] {
-    const columns = `id, merchant_id, type, filename, mime_type, size, status, created_at`;
-
-    if (merchantId) {
-      return this.db
-        .prepare<[string], KycDocumentRow>(
-          `SELECT ${columns} FROM kyc_documents WHERE merchant_id = ? ORDER BY created_at DESC`,
-        )
-        .all(merchantId);
-    }
-
     return this.db
-      .prepare<[], KycDocumentRow>(
-        `SELECT ${columns} FROM kyc_documents ORDER BY created_at DESC`,
-      )
+      .select(kycDocumentColumns)
+      .from(kycDocuments)
+      .where(merchantId ? eq(kycDocuments.merchant_id, merchantId) : undefined)
+      .orderBy(desc(kycDocuments.created_at))
       .all();
   }
 
   deleteDocument(documentId: string, scope: Scope = {}): void {
     this.getDocument(documentId, scope);
-    this.db.prepare('DELETE FROM kyc_documents WHERE id = ?').run(documentId);
+    this.db.delete(kycDocuments).where(eq(kycDocuments.id, documentId)).run();
   }
 
   approve(input: ReviewKycInput): MerchantRow {
@@ -159,20 +151,28 @@ export class KycService {
 
     const at = nowIso();
 
-    this.db.transaction(() => {
-      this.db
-        .prepare(
-          `UPDATE merchants
-              SET kyc_status = ?, kyc_reason = ?, kyc_reviewed_at = ?, updated_at = ?
-            WHERE id = ?`,
-        )
-        .run(status, input.reason ?? null, at, at, input.merchantId);
+    this.db.transaction((tx) => {
+      tx.update(merchants)
+        .set({
+          kyc_status: status,
+          kyc_reason: input.reason ?? null,
+          kyc_reviewed_at: at,
+          updated_at: at,
+        })
+        .where(eq(merchants.id, input.merchantId))
+        .run();
 
       // Documents follow the merchant-level decision, so the queue empties as it is worked.
-      this.db
-        .prepare(`UPDATE kyc_documents SET status = ? WHERE merchant_id = ? AND status = 'pending'`)
-        .run(status, input.merchantId);
-    })();
+      tx.update(kycDocuments)
+        .set({ status })
+        .where(
+          and(
+            eq(kycDocuments.merchant_id, input.merchantId),
+            eq(kycDocuments.status, 'pending'),
+          ),
+        )
+        .run();
+    });
 
     const merchant = this.requireMerchant(input.merchantId);
 
@@ -192,8 +192,10 @@ export class KycService {
 
   private requireMerchant(merchantId: string): MerchantRow {
     const merchant = this.db
-      .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
-      .get(merchantId);
+      .select()
+      .from(merchants)
+      .where(eq(merchants.id, merchantId))
+      .get();
 
     if (!merchant) throw notFound('merchant_not_found', `No merchant ${merchantId}`);
     return merchant;

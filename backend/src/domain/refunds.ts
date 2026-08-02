@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { asc, eq } from 'drizzle-orm';
 
 import { DB, LOGGER, SCHEDULER } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
+import { pixRefunds } from '../db/schema';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
@@ -74,12 +76,7 @@ export class RefundService {
       created_at: nowIso(this.scheduler.now()),
     };
 
-    this.db
-      .prepare(
-        `INSERT INTO pix_refunds (id, charge_id, merchant_id, amount, status, reason, e2e_id, created_at)
-         VALUES (@id, @charge_id, @merchant_id, @amount, @status, @reason, @e2e_id, @created_at)`,
-      )
-      .run(refund);
+    this.db.insert(pixRefunds).values(refund).run();
 
     const updatedCharge = this.charges.applyRefund(charge.id, amount);
 
@@ -103,16 +100,15 @@ export class RefundService {
     this.charges.get(chargeId, scope);
 
     return this.db
-      .prepare<[string], RefundRow>(
-        'SELECT * FROM pix_refunds WHERE charge_id = ? ORDER BY created_at ASC',
-      )
-      .all(chargeId);
+      .select()
+      .from(pixRefunds)
+      .where(eq(pixRefunds.charge_id, chargeId))
+      .orderBy(asc(pixRefunds.created_at))
+      .all();
   }
 
   get(refundId: string): RefundRow {
-    const row = this.db
-      .prepare<[string], RefundRow>('SELECT * FROM pix_refunds WHERE id = ?')
-      .get(refundId);
+    const row = this.db.select().from(pixRefunds).where(eq(pixRefunds.id, refundId)).get();
 
     if (!row) throw notFound('refund_not_found', `No refund ${refundId}`);
     return row;

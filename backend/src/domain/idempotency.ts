@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 
 import { DB } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
+import { idempotencyKeys } from '../db/schema';
 import { conflict } from '../lib/errors';
 
 export interface IdempotencyLookup {
@@ -33,12 +35,20 @@ export class IdempotencyStore {
 
   find(lookup: IdempotencyLookup): StoredResponse | undefined {
     const row = this.db
-      .prepare<[string, string, string], { request_hash: string; response_status: number; response_body: string }>(
-        `SELECT request_hash, response_status, response_body
-           FROM idempotency_keys
-          WHERE merchant_id = ? AND endpoint = ? AND key = ?`,
+      .select({
+        request_hash: idempotencyKeys.request_hash,
+        response_status: idempotencyKeys.response_status,
+        response_body: idempotencyKeys.response_body,
+      })
+      .from(idempotencyKeys)
+      .where(
+        and(
+          eq(idempotencyKeys.merchant_id, lookup.merchantId),
+          eq(idempotencyKeys.endpoint, lookup.endpoint),
+          eq(idempotencyKeys.key, lookup.key),
+        ),
       )
-      .get(lookup.merchantId, lookup.endpoint, lookup.key);
+      .get();
 
     if (!row) return undefined;
 
@@ -55,19 +65,25 @@ export class IdempotencyStore {
 
   store(lookup: IdempotencyLookup, response: StoredResponse): void {
     this.db
-      .prepare(
-        `INSERT OR REPLACE INTO idempotency_keys
-           (key, merchant_id, endpoint, request_hash, response_status, response_body, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        lookup.key,
-        lookup.merchantId,
-        lookup.endpoint,
-        hashRequest(lookup.requestBody),
-        response.status,
-        JSON.stringify(response.body),
-        nowIso(),
-      );
+      .insert(idempotencyKeys)
+      .values({
+        key: lookup.key,
+        merchant_id: lookup.merchantId,
+        endpoint: lookup.endpoint,
+        request_hash: hashRequest(lookup.requestBody),
+        response_status: response.status,
+        response_body: JSON.stringify(response.body),
+        created_at: nowIso(),
+      })
+      .onConflictDoUpdate({
+        target: [idempotencyKeys.merchant_id, idempotencyKeys.endpoint, idempotencyKeys.key],
+        set: {
+          request_hash: sql`excluded.request_hash`,
+          response_status: sql`excluded.response_status`,
+          response_body: sql`excluded.response_body`,
+          created_at: sql`excluded.created_at`,
+        },
+      })
+      .run();
   }
 }

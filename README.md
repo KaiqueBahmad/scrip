@@ -27,7 +27,7 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 | Camada | Tecnologia |
 |---|---|
 | Backend / API | Node.js + TypeScript + Fastify |
-| Banco | SQLite (better-sqlite3) |
+| Banco | SQLite (better-sqlite3) + Drizzle ORM |
 | Painel | Vite + React + TypeScript + react-router-dom |
 | Estilo | Tailwind + shadcn/ui |
 | Auth do painel | HTTP Basic (merchant id + senha vazia) |
@@ -48,10 +48,11 @@ npm run build               # compila API + painel
 npm start                   # sobe API (Fastify) + painel
 npm run dev                 # API com reload (painel: npm --prefix ../frontend run dev)
 npm run reset               # limpa o banco, mantém o schema
+npm run db:generate         # regenera as migrations depois de mudar src/db/schema.ts
 npm test                    # suíte de testes
 ```
 
-> A CLI `npx pseudopay <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`.
+> A CLI `npx pseudopay <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`: `openDb` aplica as migrations do Drizzle a cada boot.
 
 Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`).
 
@@ -242,7 +243,7 @@ backend/
     auth/          guards de Basic (sessão da loja) e Bearer (integração)
     common/        exception filter, tokens de injeção, leitura de upload, painel estático
     config/        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
-    db/            schema.sql, openDb, reset
+    db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
     dto/           corpos e query strings da API, um arquivo por recurso
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors

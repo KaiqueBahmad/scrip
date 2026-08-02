@@ -6,6 +6,6 @@ const config = loadConfig();
 const db = openDb({ databasePath: config.databasePath });
 
 resetData(db);
-db.close();
+db.$client.close();
 
 console.log(`[pseudopay] reset ${config.databasePath} (schema kept, data cleared)`);

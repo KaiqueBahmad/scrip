@@ -1,15 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { and, desc, eq } from 'drizzle-orm';
 
 import { DB, FETCH, LOGGER, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
+import { merchants, pixCharges, webhookDeliveries } from '../db/schema';
 import { notFound } from '../lib/errors';
 import { SIGNATURE_HEADER, signPayload } from '../lib/hmac';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import type { Scheduler } from '../lib/scheduler';
 import { isWebhookFailingDocument } from './testDocuments';
-import type { ChargeRow, Scope, WebhookDeliveryRow, WebhookEvent } from './types';
+import type { DeliveryStatus, Scope, WebhookDeliveryRow, WebhookEvent } from './types';
 
 const MAX_STORED_RESPONSE_CHARS = 2000;
 
@@ -41,10 +43,10 @@ export class WebhookDispatcher {
    */
   enqueue(input: EnqueueInput): WebhookDeliveryRow | null {
     const merchant = this.db
-      .prepare<[string], { webhook_url: string | null }>(
-        'SELECT webhook_url FROM merchants WHERE id = ?',
-      )
-      .get(input.merchantId);
+      .select({ webhook_url: merchants.webhook_url })
+      .from(merchants)
+      .where(eq(merchants.id, input.merchantId))
+      .get();
 
     if (!merchant?.webhook_url) {
       this.log.debug(
@@ -69,24 +71,22 @@ export class WebhookDispatcher {
     });
 
     this.db
-      .prepare(
-        `INSERT INTO webhook_deliveries
-           (id, merchant_id, charge_id, event, url, payload, attempt, max_attempts,
-            status, scheduled_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'pending', ?, ?, ?)`,
-      )
-      .run(
+      .insert(webhookDeliveries)
+      .values({
         id,
-        input.merchantId,
-        input.chargeId ?? null,
-        input.event,
-        merchant.webhook_url,
-        body,
-        config.webhookMaxRetries,
-        scheduledAt,
-        createdAt,
-        createdAt,
-      );
+        merchant_id: input.merchantId,
+        charge_id: input.chargeId ?? null,
+        event: input.event,
+        url: merchant.webhook_url,
+        payload: body,
+        attempt: 0,
+        max_attempts: config.webhookMaxRetries,
+        status: 'pending',
+        scheduled_at: scheduledAt,
+        created_at: createdAt,
+        updated_at: createdAt,
+      })
+      .run();
 
     this.scheduler.schedule(config.webhookDelayMs, () => this.attempt(id));
 
@@ -100,13 +100,19 @@ export class WebhookDispatcher {
     const at = nowIso(this.scheduler.now());
 
     this.db
-      .prepare(
-        `UPDATE webhook_deliveries
-            SET status = 'pending', attempt = 0, error = NULL, response_status = NULL,
-                response_body = NULL, delivered_at = NULL, scheduled_at = ?, updated_at = ?
-          WHERE id = ?`,
-      )
-      .run(at, at, deliveryId);
+      .update(webhookDeliveries)
+      .set({
+        status: 'pending',
+        attempt: 0,
+        error: null,
+        response_status: null,
+        response_body: null,
+        delivered_at: null,
+        scheduled_at: at,
+        updated_at: at,
+      })
+      .where(eq(webhookDeliveries.id, deliveryId))
+      .run();
 
     this.scheduler.schedule(0, () => this.attempt(deliveryId));
 
@@ -157,13 +163,19 @@ export class WebhookDispatcher {
       if (response.ok) {
         const at = nowIso(this.scheduler.now());
         this.db
-          .prepare(
-            `UPDATE webhook_deliveries
-                SET status = 'delivered', attempt = ?, signature = ?, response_status = ?,
-                    response_body = ?, error = NULL, delivered_at = ?, updated_at = ?
-              WHERE id = ?`,
-          )
-          .run(attempt, signature, response.status, responseBody, at, at, delivery.id);
+          .update(webhookDeliveries)
+          .set({
+            status: 'delivered',
+            attempt,
+            signature,
+            response_status: response.status,
+            response_body: responseBody,
+            error: null,
+            delivered_at: at,
+            updated_at: at,
+          })
+          .where(eq(webhookDeliveries.id, delivery.id))
+          .run();
 
         this.log.info(
           { delivery_id: delivery.id, event: delivery.event, attempt },
@@ -188,31 +200,22 @@ export class WebhookDispatcher {
     merchantId: string,
     filters: { chargeId?: string; event?: string; status?: string; limit?: number } = {},
   ): WebhookDeliveryRow[] {
-    const clauses = ['merchant_id = ?'];
-    const params: unknown[] = [merchantId];
-
-    if (filters.chargeId) {
-      clauses.push('charge_id = ?');
-      params.push(filters.chargeId);
-    }
-    if (filters.event) {
-      clauses.push('event = ?');
-      params.push(filters.event);
-    }
-    if (filters.status) {
-      clauses.push('status = ?');
-      params.push(filters.status);
-    }
-
-    params.push(Math.min(filters.limit ?? 50, 200));
-
     return this.db
-      .prepare<unknown[], WebhookDeliveryRow>(
-        `SELECT * FROM webhook_deliveries
-          WHERE ${clauses.join(' AND ')}
-          ORDER BY created_at DESC LIMIT ?`,
+      .select()
+      .from(webhookDeliveries)
+      .where(
+        and(
+          eq(webhookDeliveries.merchant_id, merchantId),
+          filters.chargeId ? eq(webhookDeliveries.charge_id, filters.chargeId) : undefined,
+          filters.event ? eq(webhookDeliveries.event, filters.event) : undefined,
+          filters.status
+            ? eq(webhookDeliveries.status, filters.status as DeliveryStatus)
+            : undefined,
+        ),
       )
-      .all(...params);
+      .orderBy(desc(webhookDeliveries.created_at))
+      .limit(Math.min(filters.limit ?? 50, 200))
+      .all();
   }
 
   get(deliveryId: string, scope: Scope = {}): WebhookDeliveryRow {
@@ -227,16 +230,19 @@ export class WebhookDispatcher {
 
   private findRow(deliveryId: string): WebhookDeliveryRow | undefined {
     return this.db
-      .prepare<[string], WebhookDeliveryRow>('SELECT * FROM webhook_deliveries WHERE id = ?')
-      .get(deliveryId);
+      .select()
+      .from(webhookDeliveries)
+      .where(eq(webhookDeliveries.id, deliveryId))
+      .get();
   }
 
   private merchantSecret(merchantId: string): string {
     const row = this.db
-      .prepare<[string], { webhook_secret: string }>(
-        'SELECT webhook_secret FROM merchants WHERE id = ?',
-      )
-      .get(merchantId);
+      .select({ webhook_secret: merchants.webhook_secret })
+      .from(merchants)
+      .where(eq(merchants.id, merchantId))
+      .get();
+
     return row?.webhook_secret ?? '';
   }
 
@@ -248,10 +254,10 @@ export class WebhookDispatcher {
     if (!delivery.charge_id) return false;
 
     const charge = this.db
-      .prepare<[string], Pick<ChargeRow, 'payer_document'>>(
-        'SELECT payer_document FROM pix_charges WHERE id = ?',
-      )
-      .get(delivery.charge_id);
+      .select({ payer_document: pixCharges.payer_document })
+      .from(pixCharges)
+      .where(eq(pixCharges.id, delivery.charge_id))
+      .get();
 
     return isWebhookFailingDocument(charge?.payer_document);
   }
@@ -271,23 +277,19 @@ export class WebhookDispatcher {
     const nextAttemptAt = exhausted ? null : nowIso(this.scheduler.now() + backoffMs);
 
     this.db
-      .prepare(
-        `UPDATE webhook_deliveries
-            SET status = ?, attempt = ?, signature = ?, response_status = ?, response_body = ?,
-                error = ?, scheduled_at = ?, updated_at = ?
-          WHERE id = ?`,
-      )
-      .run(
-        exhausted ? 'failed' : 'pending',
+      .update(webhookDeliveries)
+      .set({
+        status: exhausted ? 'failed' : 'pending',
         attempt,
         signature,
-        outcome.responseStatus ?? null,
-        outcome.responseBody ?? null,
-        outcome.error,
-        nextAttemptAt,
-        at,
-        delivery.id,
-      );
+        response_status: outcome.responseStatus ?? null,
+        response_body: outcome.responseBody ?? null,
+        error: outcome.error,
+        scheduled_at: nextAttemptAt,
+        updated_at: at,
+      })
+      .where(eq(webhookDeliveries.id, delivery.id))
+      .run();
 
     this.log.warn(
       {

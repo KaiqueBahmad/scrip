@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { desc, eq } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
+import { integrationTokens, merchants } from '../db/schema';
 import { badRequest, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import { decodeExpiry, signIntegrationToken } from '../lib/jwt';
@@ -36,8 +38,10 @@ export class TokenService {
     }
 
     const merchantExists = this.db
-      .prepare<[string], { id: string }>('SELECT id FROM merchants WHERE id = ?')
-      .get(merchantId);
+      .select({ id: merchants.id })
+      .from(merchants)
+      .where(eq(merchants.id, merchantId))
+      .get();
 
     if (!merchantExists) throw badRequest('merchant_not_found', `No merchant ${merchantId}`);
 
@@ -75,14 +79,7 @@ export class TokenService {
       created_at: nowIso(),
     };
 
-    this.db
-      .prepare(
-        `INSERT INTO integration_tokens
-           (id, merchant_id, name, token, expires_at, revoked_at, created_at)
-         VALUES (@id, @merchant_id, @name, @token, @expires_at,
-                 @revoked_at, @created_at)`,
-      )
-      .run(row);
+    this.db.insert(integrationTokens).values(row).run();
 
     return row;
   }
@@ -98,17 +95,16 @@ export class TokenService {
   }
 
   find(tokenId: string): IntegrationTokenRow | undefined {
-    return this.db
-      .prepare<[string], IntegrationTokenRow>('SELECT * FROM integration_tokens WHERE id = ?')
-      .get(tokenId);
+    return this.db.select().from(integrationTokens).where(eq(integrationTokens.id, tokenId)).get();
   }
 
   listForMerchant(merchantId: string): IntegrationTokenRow[] {
     return this.db
-      .prepare<[string], IntegrationTokenRow>(
-        'SELECT * FROM integration_tokens WHERE merchant_id = ? ORDER BY created_at DESC',
-      )
-      .all(merchantId);
+      .select()
+      .from(integrationTokens)
+      .where(eq(integrationTokens.merchant_id, merchantId))
+      .orderBy(desc(integrationTokens.created_at))
+      .all();
   }
 
   revoke(tokenId: string, scope: Scope = {}): IntegrationTokenRow {
@@ -116,14 +112,16 @@ export class TokenService {
     if (token.revoked_at) return token;
 
     this.db
-      .prepare('UPDATE integration_tokens SET revoked_at = ? WHERE id = ?')
-      .run(nowIso(), tokenId);
+      .update(integrationTokens)
+      .set({ revoked_at: nowIso() })
+      .where(eq(integrationTokens.id, tokenId))
+      .run();
 
     return this.get(tokenId);
   }
 
   delete(tokenId: string, scope: Scope = {}): void {
     this.get(tokenId, scope);
-    this.db.prepare('DELETE FROM integration_tokens WHERE id = ?').run(tokenId);
+    this.db.delete(integrationTokens).where(eq(integrationTokens.id, tokenId)).run();
   }
 }
