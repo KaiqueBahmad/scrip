@@ -8,3 +8,4 @@ data/
 *.sqlite-shm
 *.sqlite-wal
 .DS_Store
+backend/pseudopay.config.json
