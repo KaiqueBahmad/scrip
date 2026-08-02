@@ -79,27 +79,7 @@ export const CONFIG_DEFAULTS: PseudoPayConfig = {
   pixReceiverCity: 'SAO PAULO',
 };
 
-/** Keys the Settings screen may change at runtime; the rest need a restart. */
-export const MUTABLE_CONFIG_KEYS = [
-  'approvalRate',
-  'pixConfirmationDelayMs',
-  'pixMinConfirmationDelayMs',
-  'pixQrCodeExpirationMs',
-  'webhookDelayMs',
-  'webhookMaxRetries',
-  'webhookRetryBackoffMs',
-  'webhookTimeoutMs',
-  'jwtDefaultExpiration',
-  'kycMaxFileSizeMb',
-  'requireApprovedKycForCharges',
-  'pixKey',
-  'pixReceiverName',
-  'pixReceiverCity',
-] as const satisfies readonly (keyof PseudoPayConfig)[];
-
-export type MutableConfigKey = (typeof MUTABLE_CONFIG_KEYS)[number];
-
-const CONFIG_FILE = 'pseudopay.config.json';
+export const CONFIG_FILE = 'pseudopay.config.json';
 
 /** `approvalRate` -> `PSEUDOPAY_APPROVAL_RATE` */
 function envNameFor(key: string): string {
@@ -182,11 +162,12 @@ export function loadConfig(
 }
 
 /**
- * Holds the live config. The Settings screen mutates a subset of keys at runtime, so
- * everything that reads config goes through `current()` rather than capturing values.
+ * Holds the config resolved at boot. Nothing changes it while the process runs — the file
+ * is the only place a value is edited — but everything still reads through this so the
+ * whole app sees one instance.
  */
 export class ConfigStore {
-  #config: PseudoPayConfig;
+  readonly #config: PseudoPayConfig;
 
   constructor(config: PseudoPayConfig) {
     this.#config = config;
@@ -198,20 +179,5 @@ export class ConfigStore {
 
   get<K extends keyof PseudoPayConfig>(key: K): PseudoPayConfig[K] {
     return this.#config[key];
-  }
-
-  /** Applies mutable keys only; unknown or restart-only keys are rejected. */
-  apply(patch: Record<string, unknown>): PseudoPayConfig {
-    const next = { ...this.#config };
-
-    for (const [key, value] of Object.entries(patch)) {
-      if (!(MUTABLE_CONFIG_KEYS as readonly string[]).includes(key)) {
-        throw new Error(`Setting "${key}" cannot be changed at runtime`);
-      }
-      Object.assign(next, { [key]: coerce(key as keyof PseudoPayConfig, value) });
-    }
-
-    this.#config = validate(next);
-    return this.#config;
   }
 }

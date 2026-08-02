@@ -13,8 +13,7 @@ import { IntegrationGuard } from './auth/integration.guard';
 import { MerchantGuard } from './auth/merchant.guard';
 import { AppExceptionFilter } from './common/app-exception.filter';
 import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './common/injection-tokens';
-import { ConfigStore, type PseudoPayConfig } from './config';
-import { applyStoredSettings, SettingsService } from './config';
+import { ConfigStore, SettingsService, type PseudoPayConfig } from './config';
 import { openDb, type Db } from './db/index';
 import { ChargeService } from './service/charges.service';
 import { IdempotencyStore } from './service/idempotency.service';
@@ -31,7 +30,6 @@ import {
   KycRepository,
   MerchantRepository,
   RefundRepository,
-  SettingsRepository,
   TokenRepository,
   WebhookDeliveryRepository,
 } from './repositories';
@@ -78,15 +76,7 @@ export class AppModule {
         { provide: SCHEDULER, useValue: options.scheduler ?? new TimeoutScheduler() },
         { provide: FETCH, useValue: options.fetchImpl ?? globalThis.fetch },
         { provide: RANDOM, useValue: options.random ?? Math.random },
-        {
-          provide: ConfigStore,
-          inject: [SettingsRepository, LOGGER],
-          useFactory: (settings: SettingsRepository, logger: Logger) => {
-            const store = new ConfigStore(options.config);
-            applyStoredSettings(settings, store, logger);
-            return store;
-          },
-        },
+        { provide: ConfigStore, useValue: new ConfigStore(options.config) },
         {
           // Timers outlive a request, so they have to be released explicitly or the process
           // never exits.
@@ -107,7 +97,6 @@ export class AppModule {
         KycRepository,
         WebhookDeliveryRepository,
         IdempotencyRepository,
-        SettingsRepository,
         // Business rules, which reach the database only through the repositories above.
         WebhookDispatcher,
         ChargeService,

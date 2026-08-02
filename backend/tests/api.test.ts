@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { settings } from '../src/db/schema';
 import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 
 let harness: TestHarness | null = null;
@@ -315,46 +314,30 @@ describe('panel surface', () => {
     assert.ok(body.deliveries.length >= 1);
   });
 
-  it('applies and persists a settings change', async () => {
-    harness = await createHarness();
+  it('reports the loaded config and refuses to change it', async () => {
+    harness = await createHarness({ config: { approvalRate: 0.5 } });
     const { basic } = await seedMerchantAndToken(harness);
 
+    const read = await harness.app.inject({
+      method: 'GET',
+      url: '/v1/panel/settings',
+      headers: basic,
+    });
+
+    assert.equal(read.statusCode, 200);
+    assert.equal(read.json().source, 'pseudopay.config.json');
+    assert.equal(read.json().values.approvalRate, 0.5);
+
+    // Config lives in the file only: there is no write route to reach.
     const patched = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/settings',
       headers: basic,
-      payload: { approvalRate: 0.5, requireApprovedKycForCharges: true },
+      payload: { approvalRate: 1 },
     });
 
-    assert.equal(patched.statusCode, 200);
-    assert.equal(patched.json().values.approvalRate, 0.5);
-    assert.equal(patched.json().values.requireApprovedKycForCharges, true);
+    assert.equal(patched.statusCode, 404);
     assert.equal(harness.app.services.config.get('approvalRate'), 0.5);
-
-    const stored = harness.app.services.db.select().from(settings).all();
-    assert.equal(stored.length, 2, 'written to the settings table');
-  });
-
-  it('refuses a restart-only setting and an out-of-range value', async () => {
-    harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
-
-    const readOnly = await harness.app.inject({
-      method: 'PATCH',
-      url: '/v1/panel/settings',
-      headers: basic,
-      payload: { port: 9999 },
-    });
-    assert.equal(readOnly.statusCode, 400);
-    assert.match(readOnly.json().error.message, /cannot be changed at runtime/);
-
-    const outOfRange = await harness.app.inject({
-      method: 'PATCH',
-      url: '/v1/panel/settings',
-      headers: basic,
-      payload: { approvalRate: 5 },
-    });
-    assert.equal(outOfRange.statusCode, 400);
   });
 });
 

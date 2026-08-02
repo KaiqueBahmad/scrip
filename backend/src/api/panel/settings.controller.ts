@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 
 import { MerchantGuard } from '../../auth/merchant.guard';
 import { SettingsService } from '../../config';
@@ -11,10 +11,5 @@ export class PanelSettingsController {
   @Get()
   read() {
     return this.settings.read();
-  }
-
-  @Patch()
-  update(@Body() body: Record<string, unknown> = {}) {
-    return this.settings.save(body);
   }
 }

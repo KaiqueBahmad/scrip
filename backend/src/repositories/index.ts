@@ -17,7 +17,6 @@ export * from './idempotency.repository';
 export * from './kyc.repository';
 export * from './merchants.repository';
 export * from './refunds.repository';
-export * from './settings.repository';
 export * from './tokens.repository';
 export * from './types';
 export * from './webhooks.repository';

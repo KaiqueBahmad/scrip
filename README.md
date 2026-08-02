@@ -54,7 +54,7 @@ npm test                    # suíte de testes
 
 > A CLI `npx pseudopay <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`: `openDb` aplica as migrations do Drizzle a cada boot.
 
-Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`).
+Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`) e são lidas uma vez, no boot.
 
 Para iniciar o painel, use outro terminal:
 
@@ -170,35 +170,58 @@ Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-
 
 ## Configuração
 
+`backend/pseudopay.config.json` já vem com todas as chaves nos valores padrão:
+
 ```json
 {
   "port": 4242,
+  "host": "127.0.0.1",
+  "databasePath": "data/pseudopay.sqlite",
+
   "approvalRate": 0.85,
-  "webhookDelayMs": 3000,
   "pixConfirmationDelayMs": 4000,
+  "pixMinConfirmationDelayMs": 500,
   "pixQrCodeExpirationMs": 900000,
+
+  "webhookDelayMs": 3000,
   "webhookMaxRetries": 3,
+  "webhookRetryBackoffMs": 2000,
+  "webhookTimeoutMs": 5000,
+
   "jwtSigningSecret": "change-me",
   "jwtDefaultExpiration": "24h",
-  "kycMaxFileSizeMb": 5
+
+  "kycMaxFileSizeMb": 5,
+  "requireApprovedKycForCharges": false,
+
+  "pixKey": "pseudopay@localhost",
+  "pixReceiverName": "PSEUDOPAY",
+  "pixReceiverCity": "SAO PAULO"
 }
 ```
 
-Outras chaves com valor padrão, todas sobrescrevíveis do mesmo jeito:
+O que cada uma faz:
 
-| Chave | Padrão | O que faz |
-|---|---|---|
-| `host` | `127.0.0.1` | Interface do listener. É um ambiente de dev — não abra por padrão. |
-| `databasePath` | `data/pseudopay.sqlite` | Arquivo SQLite. `:memory:` funciona (os testes usam). |
-| `pixMinConfirmationDelayMs` | `500` | Atraso usado pelo CPF que confirma sempre. |
-| `webhookRetryBackoffMs` | `2000` | Base do intervalo entre tentativas; cresce a cada tentativa. |
-| `webhookTimeoutMs` | `5000` | Timeout de cada requisição de webhook. |
-| `requireApprovedKycForCharges` | `false` | Se `true`, merchant sem KYC aprovado não cria cobrança. |
-| `pixKey` / `pixReceiverName` / `pixReceiverCity` | `pseudopay@localhost` / `PSEUDOPAY` / `SAO PAULO` | Dados do recebedor embutidos no BR Code. |
+| Chave | O que faz |
+|---|---|
+| `port` / `host` | Onde o listener sobe. É um ambiente de dev — não abra por padrão. |
+| `databasePath` | Arquivo SQLite. `:memory:` funciona (os testes usam). |
+| `approvalRate` | Chance de confirmar uma cobrança cujo `payer_document` não é um CPF de teste. |
+| `pixConfirmationDelayMs` | Atraso até uma cobrança se confirmar sozinha. |
+| `pixMinConfirmationDelayMs` | Atraso usado pelo CPF que confirma sempre. |
+| `pixQrCodeExpirationMs` | Validade do QR code antes da cobrança expirar. |
+| `webhookDelayMs` | Espera entre o evento e a primeira tentativa de webhook. |
+| `webhookMaxRetries` | Tentativas por entrega, contando a primeira. |
+| `webhookRetryBackoffMs` | Base do intervalo entre tentativas; cresce a cada tentativa. |
+| `webhookTimeoutMs` | Timeout de cada requisição de webhook. |
+| `jwtSigningSecret` / `jwtDefaultExpiration` | Segredo que assina os tokens de integração e a validade padrão deles. |
+| `kycMaxFileSizeMb` | Tamanho máximo de um documento de KYC. |
+| `requireApprovedKycForCharges` | Se `true`, merchant sem KYC aprovado não cria cobrança. |
+| `pixKey` / `pixReceiverName` / `pixReceiverCity` | Dados do recebedor embutidos no BR Code. |
 
 O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima funcione numa instalação nova — merchants nascem com `kyc_status: "pending"`. Ligue `requireApprovedKycForCharges` quando quiser testar o caminho de bloqueio (`403 kyc_required`).
 
-Tudo na tabela acima, menos `port`, `host`, `databasePath` e `jwtSigningSecret`, também pode ser editado na tela **Configurações** e vale na hora, sem reiniciar.
+`pseudopay.config.json` (com as variáveis `PSEUDOPAY_*` por cima) é o único lugar onde a configuração é editada: nada disso é gravado no banco nem muda em tempo de execução. A tela **Configurações** do painel mostra os valores em uso, só leitura — para mudar um deles, edite o arquivo e reinicie o servidor.
 
 ## Referência da API
 
@@ -250,7 +273,7 @@ backend/
     api/           integration/ e panel/ — superfícies separadas por controller
     auth/          guards de Basic (sessão da loja) e Bearer (integração)
     common/        exception filter, tokens de injeção e leitura de upload
-    config/        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
+    config/        pseudopay.config.json + PSEUDOPAY_*, resolvidos uma vez no boot
     db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
     service/       charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
     dto/           corpos e query strings da API, um arquivo por recurso

@@ -201,13 +201,6 @@ export const webhookDeliveries = sqliteTable(
   ],
 );
 
-/** Runtime-editable subset of pseudopay.config.json, driven by the Settings screen. */
-export const settings = sqliteTable('settings', {
-  key: text().primaryKey(),
-  value: text().notNull(),
-  updated_at: text().notNull(),
-});
-
 /**
  * Replay cache for Idempotency-Key on charge creation. The real table is WITHOUT ROWID,
  * which Drizzle has no way to express — it changes storage, not semantics, so it only lives
@@ -244,5 +237,4 @@ export const TABLES_CHILD_FIRST = [
   kycDocuments,
   integrationTokens,
   merchants,
-  settings,
 ] as const;

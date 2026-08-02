@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
-
 import { PageHeader } from '../components/Layout';
-import { Alert, Button, Input, Panel, PanelHeader, Select } from '../components/ui/primitives';
-import { api, ApiError } from '../lib/api';
+import { Alert, Panel, PanelHeader } from '../components/ui/primitives';
+import { api } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 
 /** Plain-language descriptions: the panel explains behaviour, not field names. */
 const DESCRIPTIONS: Record<string, string> = {
+  port: 'Porta em que o servidor escuta.',
+  host: 'Interface em que o servidor escuta.',
+  databasePath: 'Arquivo SQLite onde os dados ficam.',
   approvalRate:
     'Chance de uma cobrança ser confirmada quando o CPF do pagador não é um dos de teste. 0 nunca confirma, 1 sempre confirma.',
   pixConfirmationDelayMs: 'Tempo até uma cobrança se confirmar sozinha.',
@@ -16,6 +17,7 @@ const DESCRIPTIONS: Record<string, string> = {
   webhookMaxRetries: 'Tentativas por entrega, contando a primeira.',
   webhookRetryBackoffMs: 'Base do intervalo entre tentativas; cresce a cada nova tentativa.',
   webhookTimeoutMs: 'Tempo limite de cada requisição de webhook.',
+  jwtSigningSecret: 'Segredo que assina os tokens de integração.',
   jwtDefaultExpiration: 'Validade padrão dos tokens novos. Ex.: 24h, 7d.',
   kycMaxFileSizeMb: 'Tamanho máximo de um documento de KYC, em megabytes.',
   requireApprovedKycForCharges:
@@ -26,6 +28,9 @@ const DESCRIPTIONS: Record<string, string> = {
 };
 
 const LABELS: Record<string, string> = {
+  port: 'Porta',
+  host: 'Host',
+  databasePath: 'Banco de dados',
   approvalRate: 'Taxa de aprovação',
   pixConfirmationDelayMs: 'Atraso de confirmação',
   pixMinConfirmationDelayMs: 'Atraso mínimo de confirmação',
@@ -34,6 +39,7 @@ const LABELS: Record<string, string> = {
   webhookMaxRetries: 'Tentativas de webhook',
   webhookRetryBackoffMs: 'Intervalo entre tentativas',
   webhookTimeoutMs: 'Timeout do webhook',
+  jwtSigningSecret: 'Segredo de assinatura',
   jwtDefaultExpiration: 'Validade padrão do token',
   kycMaxFileSizeMb: 'Limite de arquivo do KYC',
   requireApprovedKycForCharges: 'Exigir KYC aprovado',
@@ -42,141 +48,55 @@ const LABELS: Record<string, string> = {
   pixReceiverCity: 'Cidade do recebedor',
 };
 
+function display(key: string, value: string | number | boolean): string {
+  if (key === 'jwtSigningSecret') return '••••••••';
+  if (typeof value === 'boolean') return value ? 'Ligado' : 'Desligado';
+  return String(value);
+}
+
 export function Settings() {
   const settings = useAsync(() => api.settings(), []);
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (!settings.data) return;
-
-    const next: Record<string, string> = {};
-    for (const key of settings.data.editable) {
-      next[key] = String(settings.data.values[key] ?? '');
-    }
-    setDraft(next);
-  }, [settings.data]);
-
-  const save = async () => {
-    if (!settings.data) return;
-
-    setSaving(true);
-    setError(null);
-    setSaved(false);
-
-    try {
-      // Only send what actually changed, so a bad field can't silently reset the others.
-      const patch: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(draft)) {
-        if (String(settings.data.values[key] ?? '') !== value) patch[key] = value;
-      }
-
-      if (Object.keys(patch).length === 0) {
-        setSaved(true);
-        return;
-      }
-
-      await api.updateSettings(patch);
-      await settings.reload();
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const editable = settings.data?.editable ?? [];
+  const source = settings.data?.source ?? 'pseudopay.config.json';
   const values = settings.data?.values ?? {};
-  const fixed = Object.keys(values).filter((key) => !editable.includes(key));
+  const entries = Object.entries(values);
 
   return (
     <>
       <PageHeader
         eyebrow="comportamento da simulação"
         title="Configurações"
-        description="Mudanças valem na hora e ficam salvas no banco. Os campos abaixo controlam como a simulação se comporta."
-        actions={
-          <Button variant="primary" disabled={saving} onClick={() => void save()}>
-            {saving ? 'Salvando…' : 'Salvar alterações'}
-          </Button>
-        }
+        description={`Somente leitura. Os valores abaixo vêm de ${source} e controlam como a simulação se comporta.`}
       />
 
-      {error ? (
+      {settings.error ? (
         <div className="mb-4">
-          <Alert>{error}</Alert>
+          <Alert>{settings.error}</Alert>
         </div>
       ) : null}
-      {saved && !error ? (
-        <div className="mb-4">
-          <Alert tone="settle">Configurações salvas.</Alert>
-        </div>
-      ) : null}
-
-      <Panel className="mb-4">
-        <PanelHeader title="Editável agora" hint="Aplicado sem reiniciar o servidor." />
-        <div className="divide-y divide-[var(--hairline-soft)]">
-          {editable.map((key) => {
-            const isBoolean = typeof values[key] === 'boolean';
-
-            return (
-              <div
-                key={key}
-                className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-start"
-              >
-                <div>
-                  <label htmlFor={`setting-${key}`} className="text-[13px] font-medium">
-                    {LABELS[key] ?? key}
-                  </label>
-                  <p className="mt-0.5 font-mono text-[10px] text-[var(--text-muted)]">{key}</p>
-                  {DESCRIPTIONS[key] ? (
-                    <p className="mt-1 max-w-xl text-xs text-[var(--text-muted)]">
-                      {DESCRIPTIONS[key]}
-                    </p>
-                  ) : null}
-                </div>
-
-                {isBoolean ? (
-                  <Select
-                    id={`setting-${key}`}
-                    value={draft[key] ?? 'false'}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, [key]: event.target.value }))
-                    }
-                  >
-                    <option value="true">Ligado</option>
-                    <option value="false">Desligado</option>
-                  </Select>
-                ) : (
-                  <Input
-                    id={`setting-${key}`}
-                    className="tnum"
-                    value={draft[key] ?? ''}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, [key]: event.target.value }))
-                    }
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
 
       <Panel>
         <PanelHeader
-          title="Só na inicialização"
-          hint="Mude em pseudopay.config.json ou nas variáveis PSEUDOPAY_* e reinicie."
+          title="Valores em uso"
+          hint={`Para mudar, edite ${source} (ou uma variável PSEUDOPAY_*) e reinicie o servidor.`}
         />
         <dl className="divide-y divide-[var(--hairline-soft)]">
-          {fixed.map((key) => (
-            <div key={key} className="flex items-baseline justify-between gap-4 px-4 py-2">
-              <dt className="font-mono text-[11px]">{key}</dt>
-              <dd className="tnum text-xs text-[var(--text-muted)]">
-                {key === 'jwtSigningSecret' ? '••••••••' : String(values[key])}
+          {entries.map(([key, value]) => (
+            <div
+              key={key}
+              className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-start"
+            >
+              <div>
+                <dt className="text-[13px] font-medium">{LABELS[key] ?? key}</dt>
+                <p className="mt-0.5 font-mono text-[10px] text-[var(--text-muted)]">{key}</p>
+                {DESCRIPTIONS[key] ? (
+                  <p className="mt-1 max-w-xl text-xs text-[var(--text-muted)]">
+                    {DESCRIPTIONS[key]}
+                  </p>
+                ) : null}
+              </div>
+              <dd className="tnum break-all font-mono text-xs sm:text-right">
+                {display(key, value)}
               </dd>
             </div>
           ))}

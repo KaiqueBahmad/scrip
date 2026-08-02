@@ -8,6 +8,13 @@
       "when": 1785640246279,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785695950423,
+      "tag": "0001_drop_settings",
+      "breakpoints": true
     }
   ]
 }

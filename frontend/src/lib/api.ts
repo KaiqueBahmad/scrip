@@ -114,7 +114,8 @@ export interface ApiKycDocument {
 
 export interface ApiSettings {
   object: 'settings';
-  editable: string[];
+  /** File the values were read from; they are only editable there. */
+  source: string;
   values: Record<string, string | number | boolean>;
 }
 
@@ -323,6 +324,4 @@ export const api = {
 
   // settings
   settings: () => request<ApiSettings>('GET', '/settings'),
-  updateSettings: (body: Record<string, unknown>) =>
-    request<ApiSettings>('PATCH', '/settings', { body }),
 };
