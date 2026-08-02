@@ -13,7 +13,6 @@
     "build:server": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "build:panel": "npm --prefix ../frontend run build",
     "db:generate": "drizzle-kit generate",
-    "reset": "node --require ts-node/register/transpile-only src/db/reset.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --require ts-node/register/transpile-only --test tests/*.test.ts"
   },
