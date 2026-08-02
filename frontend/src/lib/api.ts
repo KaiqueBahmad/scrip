@@ -187,12 +187,53 @@ async function request<T>(
   return parsed as T;
 }
 
+/** Calls the integration surface with a token selected from the panel. */
+async function integrationRequest<T>(
+  method: string,
+  path: string,
+  token: string,
+  body?: unknown,
+): Promise<T> {
+  const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+  if (body !== undefined) headers['content-type'] = 'application/json';
+
+  const response = await fetch(`/v1/integration${path}`, {
+    method,
+    headers,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+
+  if (response.status === 204) return undefined as T;
+
+  const text = await response.text();
+  let parsed: unknown = text;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    /* non-JSON body: keep the text */
+  }
+
+  if (!response.ok) {
+    const envelope = parsed as { error?: { code?: string; message?: string; details?: unknown } };
+    throw new ApiError(
+      response.status,
+      envelope?.error?.code ?? 'request_failed',
+      envelope?.error?.message ?? `${method} ${path} falhou (${response.status})`,
+      envelope?.error?.details,
+    );
+  }
+
+  return parsed as T;
+}
+
 interface ListResponse<T> {
   data: T[];
   total?: number;
 }
 
 export const api = {
+  integrationRequest,
+
   // session — the merchant is the panel identity
   sessionMerchants: () => request<ListResponse<ApiMerchant>>('GET', '/session/merchants'),
   me: () => request<{ merchant: ApiMerchant }>('GET', '/session/me'),
