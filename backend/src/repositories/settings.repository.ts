@@ -11,7 +11,7 @@ export interface SettingRow {
 }
 
 @Injectable()
-export class SettingsModel {
+export class SettingsRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   readAll(): SettingRow[] {

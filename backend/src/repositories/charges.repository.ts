@@ -34,7 +34,7 @@ function chargeFilters(query: ChargeQuery, options: { dateRange: boolean }): SQL
 }
 
 @Injectable()
-export class ChargeModel {
+export class ChargeRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   /** A charge and the event that opened it are written together or not at all. */

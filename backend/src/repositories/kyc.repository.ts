@@ -17,7 +17,7 @@ export interface MerchantKycPatch {
 }
 
 @Injectable()
-export class KycModel {
+export class KycRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   insertDocument(row: KycDocumentInsert): void {

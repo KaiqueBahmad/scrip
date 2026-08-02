@@ -15,7 +15,7 @@
 import { sql } from 'drizzle-orm';
 import { blob, check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { ChargeStatus, DeliveryStatus, KycStatus } from '../models/types';
+import type { ChargeStatus, DeliveryStatus, KycStatus } from '../repositories/types';
 
 export const merchants = sqliteTable(
   'merchants',

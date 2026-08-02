@@ -7,7 +7,7 @@ import { integrationTokens } from '../db/schema';
 import type { IntegrationTokenRow } from './types';
 
 @Injectable()
-export class TokenModel {
+export class TokenRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   insert(row: IntegrationTokenRow): void {

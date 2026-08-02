@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
-import { MerchantModel } from '../models';
-import type { ChargeStatus, MerchantRow } from '../models/types';
+import { MerchantRepository } from '../repositories';
+import type { ChargeStatus, MerchantRow } from '../repositories/types';
 import { serializeMerchant } from './serialize';
 
 /**
@@ -55,7 +55,7 @@ const SETTLED_STATUSES: readonly ChargeStatus[] = ['paid', 'partially_refunded',
 
 @Injectable()
 export class MerchantService {
-  constructor(private readonly merchants: MerchantModel) {}
+  constructor(private readonly merchants: MerchantRepository) {}
 
   /**
    * A store as its own session sees it: the full record — secret included, because you are

@@ -19,7 +19,7 @@ export interface DeliveryQuery {
 }
 
 @Injectable()
-export class WebhookDeliveryModel {
+export class WebhookDeliveryRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   insert(row: WebhookDeliveryInsert): void {

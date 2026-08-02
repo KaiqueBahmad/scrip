@@ -21,7 +21,7 @@ export interface IdempotencyKey {
 }
 
 @Injectable()
-export class IdempotencyModel {
+export class IdempotencyRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   find(lookup: IdempotencyKey): StoredEntry | undefined {

@@ -5,8 +5,8 @@ import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import { decodeExpiry, signIntegrationToken } from '../lib/jwt';
-import { MerchantModel, TokenModel } from '../models';
-import type { IntegrationTokenRow, Scope } from '../models/types';
+import { MerchantRepository, TokenRepository } from '../repositories';
+import type { IntegrationTokenRow, Scope } from '../repositories/types';
 
 export interface IssueTokenInput {
   /** The merchant whose session is issuing this token; it is always the token's scope. */
@@ -24,8 +24,8 @@ export interface IssueTokenInput {
 @Injectable()
 export class TokenService {
   constructor(
-    private readonly tokens: TokenModel,
-    private readonly merchants: MerchantModel,
+    private readonly tokens: TokenRepository,
+    private readonly merchants: MerchantRepository,
     private readonly config: ConfigStore,
   ) {}
 

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 
 import { nowIso } from '../db/index';
 import { conflict } from '../lib/errors';
-import { IdempotencyModel } from '../models';
+import { IdempotencyRepository } from '../repositories';
 
 export interface IdempotencyLookup {
   key: string;
@@ -29,7 +29,7 @@ function hashRequest(body: unknown): string {
  */
 @Injectable()
 export class IdempotencyStore {
-  constructor(private readonly keys: IdempotencyModel) {}
+  constructor(private readonly keys: IdempotencyRepository) {}
 
   find(lookup: IdempotencyLookup): StoredResponse | undefined {
     const row = this.keys.find(lookup);

@@ -28,7 +28,7 @@ export interface MerchantWebhookConfig {
 }
 
 @Injectable()
-export class MerchantModel {
+export class MerchantRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   insert(row: MerchantRow): void {

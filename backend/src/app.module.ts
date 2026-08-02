@@ -26,15 +26,15 @@ import { WebhookDispatcher } from './domain/webhooks';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
 import {
-  ChargeModel,
-  IdempotencyModel,
-  KycModel,
-  MerchantModel,
-  RefundModel,
-  SettingsModel,
-  TokenModel,
-  WebhookDeliveryModel,
-} from './models';
+  ChargeRepository,
+  IdempotencyRepository,
+  KycRepository,
+  MerchantRepository,
+  RefundRepository,
+  SettingsRepository,
+  TokenRepository,
+  WebhookDeliveryRepository,
+} from './repositories';
 
 export interface AppModuleOptions {
   /** Already resolved by `createApp`, which needs the same values to build the adapter. */
@@ -80,8 +80,8 @@ export class AppModule {
         { provide: RANDOM, useValue: options.random ?? Math.random },
         {
           provide: ConfigStore,
-          inject: [SettingsModel, LOGGER],
-          useFactory: (settings: SettingsModel, logger: Logger) => {
+          inject: [SettingsRepository, LOGGER],
+          useFactory: (settings: SettingsRepository, logger: Logger) => {
             const store = new ConfigStore(options.config);
             applyStoredSettings(settings, store, logger);
             return store;
@@ -100,15 +100,15 @@ export class AppModule {
           }),
         },
         // Persistence: every Drizzle query lives behind one of these.
-        MerchantModel,
-        ChargeModel,
-        RefundModel,
-        TokenModel,
-        KycModel,
-        WebhookDeliveryModel,
-        IdempotencyModel,
-        SettingsModel,
-        // Business rules, which reach the database only through the models above.
+        MerchantRepository,
+        ChargeRepository,
+        RefundRepository,
+        TokenRepository,
+        KycRepository,
+        WebhookDeliveryRepository,
+        IdempotencyRepository,
+        SettingsRepository,
+        // Business rules, which reach the database only through the repositories above.
         WebhookDispatcher,
         ChargeService,
         RefundService,

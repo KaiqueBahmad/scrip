@@ -14,7 +14,7 @@ import { Merchant, MerchantId, Public } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
 import { MerchantService } from '../../domain/merchants';
 import { serializeMerchant } from '../../domain/serialize';
-import type { MerchantRow } from '../../models/types';
+import type { MerchantRow } from '../../repositories/types';
 import { toMerchantUpdate, type CreateMerchantBody, type UpdateMerchantBody } from '../../dto';
 
 /**

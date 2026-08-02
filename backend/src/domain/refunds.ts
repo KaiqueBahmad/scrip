@@ -7,8 +7,8 @@ import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { generateE2eId } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
-import { RefundModel } from '../models';
-import type { RefundRow, Scope } from '../models/types';
+import { RefundRepository } from '../repositories';
+import type { RefundRow, Scope } from '../repositories/types';
 import { ChargeService } from './charges';
 import { serializeCharge, serializeRefund } from './serialize';
 import { WebhookDispatcher } from './webhooks';
@@ -29,7 +29,7 @@ export interface CreateRefundInput {
 @Injectable()
 export class RefundService {
   constructor(
-    private readonly refunds: RefundModel,
+    private readonly refunds: RefundRepository,
     @Inject(SCHEDULER) private readonly scheduler: Scheduler,
     @Inject(LOGGER) private readonly log: Logger,
     private readonly charges: ChargeService,

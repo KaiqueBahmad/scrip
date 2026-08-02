@@ -6,8 +6,8 @@ import { nowIso } from '../db/index';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
-import { KycModel, MerchantModel } from '../models';
-import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from '../models/types';
+import { KycRepository, MerchantRepository } from '../repositories';
+import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from '../repositories/types';
 import { serializeMerchant } from './serialize';
 import { WebhookDispatcher } from './webhooks';
 
@@ -40,8 +40,8 @@ export interface ReviewKycInput {
 @Injectable()
 export class KycService {
   constructor(
-    private readonly documents: KycModel,
-    private readonly merchants: MerchantModel,
+    private readonly documents: KycRepository,
+    private readonly merchants: MerchantRepository,
     private readonly config: ConfigStore,
     @Inject(LOGGER) private readonly log: Logger,
     private readonly webhooks: WebhookDispatcher,

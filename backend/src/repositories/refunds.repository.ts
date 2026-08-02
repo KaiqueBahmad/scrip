@@ -7,7 +7,7 @@ import { pixRefunds } from '../db/schema';
 import type { RefundRow } from './types';
 
 @Injectable()
-export class RefundModel {
+export class RefundRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
   insert(row: RefundRow): void {

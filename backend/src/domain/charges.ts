@@ -8,8 +8,8 @@ import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
-import { ChargeModel, MerchantModel, type ChargePatch } from '../models';
-import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from '../models/types';
+import { ChargeRepository, MerchantRepository, type ChargePatch } from '../repositories';
+import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from '../repositories/types';
 import { serializeCharge } from './serialize';
 import { planConfirmation } from './testDocuments';
 import { WebhookDispatcher } from './webhooks';
@@ -64,8 +64,8 @@ export class ChargeService implements OnApplicationBootstrap {
   private readonly timers = new Map<string, ChargeTimers>();
 
   constructor(
-    private readonly charges: ChargeModel,
-    private readonly merchants: MerchantModel,
+    private readonly charges: ChargeRepository,
+    private readonly merchants: MerchantRepository,
     private readonly config: ConfigStore,
     @Inject(SCHEDULER) private readonly scheduler: Scheduler,
     @Inject(LOGGER) private readonly log: Logger,

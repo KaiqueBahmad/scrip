@@ -8,8 +8,8 @@ import { SIGNATURE_HEADER, signPayload } from '../lib/hmac';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import type { Scheduler } from '../lib/scheduler';
-import { ChargeModel, MerchantModel, WebhookDeliveryModel, type DeliveryQuery } from '../models';
-import type { Scope, WebhookDeliveryRow, WebhookEvent } from '../models/types';
+import { ChargeRepository, MerchantRepository, WebhookDeliveryRepository, type DeliveryQuery } from '../repositories';
+import type { Scope, WebhookDeliveryRow, WebhookEvent } from '../repositories/types';
 import { isWebhookFailingDocument } from './testDocuments';
 
 const MAX_STORED_RESPONSE_CHARS = 2000;
@@ -29,9 +29,9 @@ export interface EnqueueInput {
 @Injectable()
 export class WebhookDispatcher {
   constructor(
-    private readonly deliveries: WebhookDeliveryModel,
-    private readonly merchants: MerchantModel,
-    private readonly charges: ChargeModel,
+    private readonly deliveries: WebhookDeliveryRepository,
+    private readonly merchants: MerchantRepository,
+    private readonly charges: ChargeRepository,
     private readonly config: ConfigStore,
     @Inject(SCHEDULER) private readonly scheduler: Scheduler,
     @Inject(LOGGER) private readonly log: Logger,

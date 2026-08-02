@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { nowIso } from '../db/index';
 import { badRequest } from '../lib/errors';
 import type { Logger } from '../lib/logger';
-import { SettingsModel } from '../models';
+import { SettingsRepository } from '../repositories';
 import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config';
 
 /**
@@ -11,8 +11,8 @@ import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config
  * the Settings screen still applies after a restart. Runs while the ConfigStore is being
  * built, before anything can read from it.
  */
-export function applyStoredSettings(model: SettingsModel, config: ConfigStore, log: Logger): void {
-  const rows = model.readAll();
+export function applyStoredSettings(repository: SettingsRepository, config: ConfigStore, log: Logger): void {
+  const rows = repository.readAll();
   if (rows.length === 0) return;
 
   const patch: Record<string, unknown> = {};
@@ -33,7 +33,7 @@ export function applyStoredSettings(model: SettingsModel, config: ConfigStore, l
 @Injectable()
 export class SettingsService {
   constructor(
-    private readonly settings: SettingsModel,
+    private readonly settings: SettingsRepository,
     private readonly config: ConfigStore,
   ) {}
 

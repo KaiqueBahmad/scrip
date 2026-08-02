@@ -9,7 +9,7 @@ import type {
   MerchantRow,
   RefundRow,
   WebhookDeliveryRow,
-} from '../models/types';
+} from '../repositories/types';
 
 /** Row -> JSON, shared by the panel and the integration surface. */
 export function serializeCharge(row: ChargeRow) {
