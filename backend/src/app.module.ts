@@ -20,7 +20,7 @@ import { MerchantService } from './domain/merchants';
 import { RefundService } from './domain/refunds';
 import { TokenService } from './domain/tokens';
 import { WebhookDispatcher } from './domain/webhooks';
-import { HealthController } from './health.controller';
+import { HealthController } from './api/health.controller';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
 import { applyStoredSettings, SettingsService } from './settings';
