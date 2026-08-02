@@ -11,7 +11,6 @@ if (!container) throw new Error('#root not found');
 
 createRoot(container).render(
   <StrictMode>
-    {/* Fastify serves the panel at the root (specs.md:52). */}
     <BrowserRouter>
       <SessionProvider>
         <App />

@@ -44,9 +44,9 @@ npm --prefix backend install   # dependências da API
 npm --prefix frontend install  # dependências do painel
 
 cd backend
-npm run build               # compila API + painel
-npm start                   # sobe API (Fastify) + painel
-npm run dev                 # API com reload (painel: npm --prefix ../frontend run dev)
+npm run build               # compila a API
+npm start                   # sobe a API (Fastify)
+npm run dev                 # API com reload
 npm run reset               # limpa o banco, mantém o schema
 npm run db:generate         # regenera as migrations depois de mudar src/db/schema.ts
 npm test                    # suíte de testes
@@ -56,11 +56,19 @@ npm test                    # suíte de testes
 
 Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`).
 
+Para iniciar o painel, use outro terminal:
+
+```bash
+npm --prefix frontend run dev
+```
+
+Ele ficará disponível em `http://localhost:5273` e fará proxy das chamadas `/v1` para a API.
+
 ## Como usar
 
 ### 1. Acesse o painel
 
-Abra `http://localhost:4242`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
+Abra `http://localhost:5273`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
 
 Se o banco estiver vazio, a própria tela de seleção cria a primeira loja. A criação é pública (ver [Segurança](#segurança)) justamente porque o Basic Auth resolve um merchant que já existe — sem isso não haveria como entrar num banco novo.
 
@@ -237,11 +245,11 @@ Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
 backend/
   src/
     main.ts        bootstrap: sobe a app e escuta
-    app.ts         createApp(): Nest sobre Fastify, multipart e painel estático
+    app.ts         createApp(): Nest sobre Fastify e multipart
     app.module.ts  AppModule.forRoot(): providers, controllers e as costuras de teste
     api/           integration/ e panel/ — superfícies separadas por controller
     auth/          guards de Basic (sessão da loja) e Bearer (integração)
-    common/        exception filter, tokens de injeção, leitura de upload, painel estático
+    common/        exception filter, tokens de injeção e leitura de upload
     config/        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
     db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
@@ -249,7 +257,7 @@ backend/
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
-frontend/          painel em Vite + React, compila para backend/dist/panel e é servido na raiz
+frontend/          painel independente em Vite + React
 ```
 
 O backend é uma aplicação NestJS rodando sobre o adapter Fastify. As regras de negócio ficam

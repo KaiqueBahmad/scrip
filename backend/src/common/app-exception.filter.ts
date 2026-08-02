@@ -11,7 +11,6 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { AppError } from '../lib/errors';
 import type { Logger } from '../lib/logger';
 import { LOGGER } from './injection-tokens';
-import { NOT_BUILT_PAGE, readPanelShell } from './panel-ui';
 
 /**
  * The single place a failure becomes a response, so both surfaces (/v1/integration and
@@ -21,9 +20,6 @@ import { NOT_BUILT_PAGE, readPanelShell } from './panel-ui';
  */
 @Catch()
 export class AppExceptionFilter implements ExceptionFilter {
-  /** Read once at startup: the panel build does not change while the process runs. */
-  private readonly panelShell = readPanelShell();
-
   constructor(@Inject(LOGGER) private readonly log: Logger) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -34,16 +30,6 @@ export class AppExceptionFilter implements ExceptionFilter {
     if (exception instanceof AppError) {
       this.log.debug({ err: exception, code: exception.code }, 'request rejected');
       void reply.status(exception.statusCode).send(exception.toJSON());
-      return;
-    }
-
-    // The panel owns the root, so a client-side route like /transactions has to fall back to
-    // its SPA shell. Only browser navigations get that: an API client asking for an unknown
-    // path must see a JSON 404, not a 200 full of HTML it cannot parse.
-    if (exception instanceof NotFoundException && this.wantsPanel(request)) {
-      void (this.panelShell
-        ? reply.type('text/html').send(this.panelShell)
-        : reply.status(503).type('text/html').send(NOT_BUILT_PAGE));
       return;
     }
 
@@ -70,13 +56,6 @@ export class AppExceptionFilter implements ExceptionFilter {
     void reply.status(status).send({ error: { code, message } });
   }
 
-  private wantsPanel(request: FastifyRequest): boolean {
-    return (
-      request.method === 'GET' &&
-      !request.url.startsWith('/v1/') &&
-      (request.headers.accept?.includes('text/html') ?? false)
-    );
-  }
 }
 
 /**

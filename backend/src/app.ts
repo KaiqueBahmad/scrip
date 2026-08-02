@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
-import { findPanelBuild } from './common/panel-ui';
 import { loadConfig, type PseudoPayConfig } from './config';
 import type { Db } from './db/index';
 import type { Scheduler } from './lib/scheduler';
@@ -53,11 +52,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<PseudoP
   await app.register(fastifyMultipart, {
     limits: { fileSize: Math.max(config.kycMaxFileSizeMb, 1) * 1024 * 1024 * 2, files: 1 },
   });
-
-  // The panel owns the root (specs.md:52-54). When it has not been built the request falls
-  // through to AppExceptionFilter, which explains the missing build step.
-  const panel = findPanelBuild();
-  if (panel) app.useStaticAssets({ root: panel, prefix: '/', decorateReply: false });
 
   await app.init();
 

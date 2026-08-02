@@ -9,16 +9,13 @@
   "scripts": {
     "dev": "node --watch --require ts-node/register/transpile-only src/main.ts",
     "start": "node dist/main.js",
-    "build": "npm run build:server && npm run build:panel",
-    "build:server": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
-    "build:panel": "npm --prefix ../frontend run build",
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --require ts-node/register/transpile-only --test tests/*.test.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^9.0.3",
-    "@fastify/static": "^8.1.1",
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-fastify": "^11.1.28",
