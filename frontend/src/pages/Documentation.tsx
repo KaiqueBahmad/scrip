@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { PageHeader } from '../components/Layout';
-import { Alert, Button, Field, Panel, Select, Table, Td, Textarea, Th } from '../components/ui/primitives';
-import { api, ApiError, type ApiCharge, type ApiToken } from '../lib/api';
+import { Alert, Button, Field, Input, Panel, Select, Table, Td, Textarea, Th } from '../components/ui/primitives';
+import { api, ApiError, type ApiToken } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 
 interface FieldDoc {
@@ -207,12 +207,11 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
 
 export function Documentation() {
   const resources = useAsync(async () => {
-    const [tokenResponse, chargeResponse] = await Promise.all([api.tokens(), api.charges({ limit: '50' })]);
-    return { tokens: tokenResponse.data, charges: chargeResponse.data };
+    const tokenResponse = await api.tokens();
+    return { tokens: tokenResponse.data };
   }, []);
 
   const tokens = resources.data?.tokens.filter((token) => !token.revoked) ?? [];
-  const charges = resources.data?.charges ?? [];
 
   const [tokenId, setTokenId] = useState('');
   const token = tokens.find((item) => item.id === tokenId) ?? tokens[0];
@@ -246,7 +245,7 @@ export function Documentation() {
           <div className="mb-4"><Alert tone="flag">Nenhum token ativo encontrado. <Link className="underline" to="/tokens">Gerar token</Link> para usar os playgrounds.</Alert></div>
         ) : null}
         <div className="grid gap-3">
-          {INTEGRATION_ROUTES.map((route) => <RouteCard key={route.id} route={route} token={token} charges={charges} />)}
+          {INTEGRATION_ROUTES.map((route) => <RouteCard key={route.id} route={route} token={token} />)}
         </div>
       </div>
     </div>
@@ -303,7 +302,7 @@ function ResponseTables({ response }: { response: ResponseDoc }) {
   );
 }
 
-function RouteCard({ route, token, charges }: { route: RouteDoc; token: ApiToken | undefined; charges: ApiCharge[] }) {
+function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
   return (
     <Panel>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-4 py-3">
@@ -317,20 +316,18 @@ function RouteCard({ route, token, charges }: { route: RouteDoc; token: ApiToken
         {route.body ? <FieldTable title="corpo (JSON)" fields={route.body} /> : null}
         <ResponseTables response={route.response} />
       </div>
-      <RoutePlayground route={route} token={token} charges={charges} />
+      <RoutePlayground route={route} token={token} />
     </Panel>
   );
 }
 
-function RoutePlayground({ route, token, charges }: { route: RouteDoc; token: ApiToken | undefined; charges: ApiCharge[] }) {
+function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
   const [chargeId, setChargeId] = useState('');
   const [body, setBody] = useState<string>(route.exampleBody);
   const [response, setResponse] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const resolvedPath = route.path.replace(':id', chargeId || 'ch_example');
-
-  useEffect(() => { if (!chargeId && charges[0]) setChargeId(charges[0].id); }, [chargeId, charges]);
 
   const execute = async () => {
     if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
@@ -347,11 +344,8 @@ function RoutePlayground({ route, token, charges }: { route: RouteDoc; token: Ap
     <div className="border-t bg-[var(--hairline-soft)]/30 p-4">
       <div className="mt-3 grid gap-4">
         {route.path.includes(':id') ? (
-          <Field label="ID da cobrança" htmlFor={`${route.id}-charge-id`} hint="Preenchido com uma cobrança existente quando disponível.">
-            <Select id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)}>
-              {!charges.length ? <option value="">ch_example</option> : null}
-              {charges.map((charge) => <option key={charge.id} value={charge.id}>{charge.id} · {charge.status}</option>)}
-            </Select>
+          <Field label="ID da cobrança" htmlFor={`${route.id}-charge-id`} hint="Cole o id de uma cobrança existente.">
+            <Input id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)} placeholder="ch_example" />
           </Field>
         ) : null}
         {route.method !== 'GET' && route.exampleBody ? (
