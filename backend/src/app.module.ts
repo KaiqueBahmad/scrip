@@ -16,13 +16,13 @@ import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './common/injection-tokens'
 import { ConfigStore, type PseudoPayConfig } from './config';
 import { applyStoredSettings, SettingsService } from './config';
 import { openDb, type Db } from './db/index';
-import { ChargeService } from './domain/charges';
-import { IdempotencyStore } from './domain/idempotency';
-import { KycService } from './domain/kyc';
-import { MerchantService } from './domain/merchants';
-import { RefundService } from './domain/refunds';
-import { TokenService } from './domain/tokens';
-import { WebhookDispatcher } from './domain/webhooks';
+import { ChargeService } from './service/charges.service';
+import { IdempotencyStore } from './service/idempotency.service';
+import { KycService } from './service/kyc.service';
+import { MerchantService } from './service/merchants.service';
+import { RefundService } from './service/refunds.service';
+import { TokenService } from './service/tokens.service';
+import { WebhookDispatcher } from './service/webhooks.service';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
 import {

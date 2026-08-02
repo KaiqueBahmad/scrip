@@ -252,7 +252,7 @@ backend/
     common/        exception filter, tokens de injeção e leitura de upload
     config/        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
     db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
-    domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
+    service/       charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
     dto/           corpos e query strings da API, um arquivo por recurso
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
   tests/           node:test com relógio virtual, sem sleep
@@ -261,7 +261,7 @@ frontend/          painel independente em Vite + React
 ```
 
 O backend é uma aplicação NestJS rodando sobre o adapter Fastify. As regras de negócio ficam
-em `domain/` como serviços injetáveis que não conhecem HTTP; os controllers em `api/` só
+em `service/` como serviços injetáveis que não conhecem HTTP; os controllers em `api/` só
 traduzem requisição e resposta. Autenticação são dois guards, e todo erro vira resposta em um
 único `AppExceptionFilter`.
 

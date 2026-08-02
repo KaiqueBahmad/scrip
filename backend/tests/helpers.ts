@@ -6,11 +6,11 @@ import { createApp, type PseudoPayApp } from '../src/app';
 import { DB } from '../src/common/injection-tokens';
 import { ConfigStore, type PseudoPayConfig } from '../src/config';
 import { openDb, type Db } from '../src/db/index';
-import { ChargeService } from '../src/domain/charges';
-import { KycService } from '../src/domain/kyc';
-import { MerchantService } from '../src/domain/merchants';
-import { TokenService } from '../src/domain/tokens';
-import { WebhookDispatcher } from '../src/domain/webhooks';
+import { ChargeService } from '../src/service/charges.service';
+import { KycService } from '../src/service/kyc.service';
+import { MerchantService } from '../src/service/merchants.service';
+import { TokenService } from '../src/service/tokens.service';
+import { WebhookDispatcher } from '../src/service/webhooks.service';
 import { ManualScheduler } from '../src/lib/scheduler';
 
 export interface RecordedRequest {

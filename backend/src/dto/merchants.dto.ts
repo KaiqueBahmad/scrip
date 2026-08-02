@@ -1,4 +1,4 @@
-import type { UpdateMerchantInput } from '../domain/merchants';
+import type { UpdateMerchantInput } from '../service/merchants.service';
 
 export interface CreateMerchantBody {
   name?: string;

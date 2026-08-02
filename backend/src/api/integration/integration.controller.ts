@@ -14,15 +14,15 @@ import {
 
 import { Auth, type IntegrationAuth } from '../../auth/context';
 import { IntegrationGuard } from '../../auth/integration.guard';
-import { ChargeService } from '../../domain/charges';
-import { MerchantService } from '../../domain/merchants';
-import { RefundService } from '../../domain/refunds';
+import { ChargeService } from '../../service/charges.service';
+import { MerchantService } from '../../service/merchants.service';
+import { RefundService } from '../../service/refunds.service';
 import {
   serializeCharge,
   serializeChargeEvent,
   serializeMerchant,
   serializeRefund,
-} from '../../domain/serialize';
+} from '../../service/serialize.service';
 import {
   chargeFilters,
   toMerchantUpdate,

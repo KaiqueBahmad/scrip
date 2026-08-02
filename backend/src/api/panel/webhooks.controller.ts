@@ -11,8 +11,8 @@ import {
 
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
-import { serializeDelivery } from '../../domain/serialize';
-import { WebhookDispatcher } from '../../domain/webhooks';
+import { serializeDelivery } from '../../service/serialize.service';
+import { WebhookDispatcher } from '../../service/webhooks.service';
 import type { DeliveryQuery } from '../../dto';
 
 @Controller('v1/panel/webhooks/deliveries')

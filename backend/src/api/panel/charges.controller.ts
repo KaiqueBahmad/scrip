@@ -12,15 +12,15 @@ import {
 
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
-import { ChargeService } from '../../domain/charges';
-import { RefundService } from '../../domain/refunds';
+import { ChargeService } from '../../service/charges.service';
+import { RefundService } from '../../service/refunds.service';
 import {
   serializeCharge,
   serializeChargeEvent,
   serializeDelivery,
   serializeRefund,
-} from '../../domain/serialize';
-import { WebhookDispatcher } from '../../domain/webhooks';
+} from '../../service/serialize.service';
+import { WebhookDispatcher } from '../../service/webhooks.service';
 import {
   chargeFilters,
   type ChargeQuery,

@@ -1,6 +1,6 @@
 import { parseJsonColumn } from '../db/index';
 import { decodeExpiry } from '../lib/jwt';
-import type { MerchantBalance } from './merchants';
+import type { MerchantBalance } from './merchants.service';
 import type {
   ChargeEventRow,
   ChargeRow,

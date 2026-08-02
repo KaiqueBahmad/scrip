@@ -10,9 +10,9 @@ import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
 import { ChargeRepository, MerchantRepository, type ChargePatch } from '../repositories';
 import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from '../repositories/types';
-import { serializeCharge } from './serialize';
-import { planConfirmation } from './testDocuments';
-import { WebhookDispatcher } from './webhooks';
+import { serializeCharge } from './serialize.service';
+import { planConfirmation } from './testDocuments.service';
+import { WebhookDispatcher } from './webhooks.service';
 
 /**
  * The PIX state machine. Everything a charge can become is enumerated here, and

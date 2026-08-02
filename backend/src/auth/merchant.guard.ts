@@ -2,7 +2,7 @@ import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { MerchantService } from '../domain/merchants';
+import { MerchantService } from '../service/merchants.service';
 import { unauthorized } from '../lib/errors';
 import { PUBLIC_ROUTE } from './context';
 

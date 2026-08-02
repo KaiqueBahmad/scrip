@@ -5,7 +5,7 @@ import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
 import { MerchantRepository } from '../repositories';
 import type { ChargeStatus, MerchantRow } from '../repositories/types';
-import { serializeMerchant } from './serialize';
+import { serializeMerchant } from './serialize.service';
 
 /**
  * A store is created with just its identity. The webhook is set afterwards through

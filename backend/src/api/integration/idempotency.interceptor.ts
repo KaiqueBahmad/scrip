@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { of, tap, type Observable } from 'rxjs';
 
-import { IdempotencyStore, type IdempotencyLookup } from '../../domain/idempotency';
+import { IdempotencyStore, type IdempotencyLookup } from '../../service/idempotency.service';
 
 /**
  * Idempotency-Key handling for the routes it is applied to (specs.md:15). A repeated key

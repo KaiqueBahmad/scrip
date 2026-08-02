@@ -1,4 +1,4 @@
-import type { ListChargesFilters } from '../domain/charges';
+import type { ListChargesFilters } from '../service/charges.service';
 import type { ChargeStatus } from '../repositories/types';
 
 export interface CreateChargeBody {

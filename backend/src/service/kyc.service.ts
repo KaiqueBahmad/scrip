@@ -8,8 +8,8 @@ import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { KycRepository, MerchantRepository } from '../repositories';
 import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from '../repositories/types';
-import { serializeMerchant } from './serialize';
-import { WebhookDispatcher } from './webhooks';
+import { serializeMerchant } from './serialize.service';
+import { WebhookDispatcher } from './webhooks.service';
 
 /** Document kinds the panel offers. Free-form strings are accepted too. */
 export const KYC_DOCUMENT_TYPES = [

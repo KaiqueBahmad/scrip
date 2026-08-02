@@ -9,9 +9,9 @@ import { generateE2eId } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
 import { RefundRepository } from '../repositories';
 import type { RefundRow, Scope } from '../repositories/types';
-import { ChargeService } from './charges';
-import { serializeCharge, serializeRefund } from './serialize';
-import { WebhookDispatcher } from './webhooks';
+import { ChargeService } from './charges.service';
+import { serializeCharge, serializeRefund } from './serialize.service';
+import { WebhookDispatcher } from './webhooks.service';
 
 export interface CreateRefundInput {
   chargeId: string;

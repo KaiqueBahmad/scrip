@@ -10,7 +10,7 @@ import type { Logger } from '../lib/logger';
 import type { Scheduler } from '../lib/scheduler';
 import { ChargeRepository, MerchantRepository, WebhookDeliveryRepository, type DeliveryQuery } from '../repositories';
 import type { Scope, WebhookDeliveryRow, WebhookEvent } from '../repositories/types';
-import { isWebhookFailingDocument } from './testDocuments';
+import { isWebhookFailingDocument } from './testDocuments.service';
 
 const MAX_STORED_RESPONSE_CHARS = 2000;
 

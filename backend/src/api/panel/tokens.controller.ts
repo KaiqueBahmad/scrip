@@ -12,8 +12,8 @@ import {
 
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
-import { serializeToken } from '../../domain/serialize';
-import { TokenService } from '../../domain/tokens';
+import { serializeToken } from '../../service/serialize.service';
+import { TokenService } from '../../service/tokens.service';
 import type { IssueTokenBody } from '../../dto';
 
 /**

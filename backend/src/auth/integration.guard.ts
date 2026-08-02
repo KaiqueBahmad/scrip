@@ -2,8 +2,8 @@ import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/com
 import type { FastifyRequest } from 'fastify';
 
 import { ConfigStore } from '../config';
-import { MerchantService } from '../domain/merchants';
-import { TokenService } from '../domain/tokens';
+import { MerchantService } from '../service/merchants.service';
+import { TokenService } from '../service/tokens.service';
 import { unauthorized } from '../lib/errors';
 import { verifyIntegrationToken } from '../lib/jwt';
 import { extractBearer } from './context';

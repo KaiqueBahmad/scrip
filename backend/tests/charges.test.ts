@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { canTransition } from '../src/domain/charges';
+import { canTransition } from '../src/service/charges.service';
 import { isValidBrCode } from '../src/lib/pix';
 import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 

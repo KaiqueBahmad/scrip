@@ -16,9 +16,9 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
 import { readUpload } from '../../common/upload';
-import { KYC_DOCUMENT_TYPES, KycService } from '../../domain/kyc';
-import { MerchantService } from '../../domain/merchants';
-import { serializeKycDocument } from '../../domain/serialize';
+import { KYC_DOCUMENT_TYPES, KycService } from '../../service/kyc.service';
+import { MerchantService } from '../../service/merchants.service';
+import { serializeKycDocument } from '../../service/serialize.service';
 import type { SimulateKycBody } from '../../dto';
 import { badRequest } from '../../lib/errors';
 
