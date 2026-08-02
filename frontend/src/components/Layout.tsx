@@ -38,10 +38,10 @@ export function Layout() {
   return (
     // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr), e esse mínimo `auto` deixa a
     // trilha de conteúdo crescer com o filho mais largo, empurrando a página inteira.
-    <div className="min-h-dvh md:grid md:grid-cols-[188px_minmax(0,1fr)]">
-      <nav className="flex flex-col gap-1 bg-ink px-3 py-4 text-white/90 md:sticky md:top-0 md:h-dvh">
-        <div className="px-1.5 pb-4">
-          <span className="font-mono text-[13px] font-semibold tracking-[0.16em] text-white">
+    <div className="min-h-dvh md:grid md:grid-cols-[220px_minmax(0,1fr)]">
+      <nav className="flex flex-col gap-1 bg-ink px-4 py-5 text-white/90 md:sticky md:top-0 md:h-dvh">
+        <div className="px-2 pb-5">
+          <span className="font-mono text-[15px] font-semibold tracking-[0.16em] text-white">
             PSEUDO<span className="text-trace">PAY</span>
           </span>
           <p className="mt-0.5 font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
@@ -56,7 +56,7 @@ export function Layout() {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1.5 text-[13px]',
+                    'flex items-center gap-3 rounded-[var(--radius-panel)] px-2.5 py-2 text-[15px]',
                     'transition-colors',
                     isActive
                       ? 'bg-trace/18 text-white'
@@ -69,11 +69,11 @@ export function Layout() {
                     <span
                       aria-hidden
                       className={cn(
-                        'h-4 w-[2px] rounded-full',
+                        'h-5 w-[2px] rounded-full',
                         isActive ? 'bg-trace' : 'bg-transparent',
                       )}
                     />
-                    <item.icon className="size-3.5 shrink-0" />
+                    <item.icon className="size-4 shrink-0" />
                     {item.label}
                   </>
                 )}
@@ -86,7 +86,7 @@ export function Layout() {
           <NavLink
             to="/documentacao"
             className={cn(
-              'flex items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1.5 text-[13px]',
+              'flex items-center gap-3 rounded-[var(--radius-panel)] px-2.5 py-2 text-[15px]',
               'transition-colors',
               'text-white/60 hover:bg-white/6 hover:text-white/90',
             )}
@@ -95,7 +95,7 @@ export function Layout() {
               aria-hidden
               className="h-4 w-[2px] rounded-full bg-transparent"
             />
-            <BookOpen className="size-3.5 shrink-0" />
+            <BookOpen className="size-4 shrink-0" />
             <span className="flex-1">Documentação</span>
             <ArrowUpRight className="size-3 shrink-0 opacity-60" aria-hidden />
           </NavLink>
@@ -106,8 +106,8 @@ export function Layout() {
             <p className="font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
               loja
             </p>
-            <p className="truncate text-[13px] font-medium text-white">{merchant.name}</p>
-            <p className="tnum truncate text-[13px] text-settle">
+            <p className="truncate text-[15px] font-medium text-white">{merchant.name}</p>
+            <p className="tnum truncate text-[15px] text-settle">
               {formatBRL(merchant.balance?.available ?? 0)}
             </p>
             <button
@@ -122,7 +122,7 @@ export function Layout() {
       </nav>
 
       <div className="flex min-w-0 flex-col">
-        <main className="min-w-0 flex-1 p-4 md:p-6">
+        <main className="min-w-0 flex-1 p-5 md:p-8">
           <Outlet />
         </main>
       </div>

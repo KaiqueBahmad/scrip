@@ -21,9 +21,9 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: 'h-7 px-2.5 text-xs gap-1.5',
-  md: 'h-9 px-3.5 text-sm gap-2',
-  icon: 'h-7 w-7 justify-center',
+  sm: 'h-8 px-3 text-xs gap-2',
+  md: 'h-10 px-4 text-sm gap-2.5',
+  icon: 'h-8 w-8 justify-center',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -82,7 +82,7 @@ export function PanelHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
       <div className="min-w-0">
         <h2 className="text-[13px] font-semibold tracking-tight">{title}</h2>
         {hint ? <p className="text-xs text-[var(--text-muted)]">{hint}</p> : null}
@@ -117,7 +117,7 @@ export function Field({
 }
 
 const CONTROL_CLASS =
-  'h-9 w-full rounded-[var(--radius-panel)] border bg-[var(--surface)] px-2.5 text-sm ' +
+  'h-10 w-full rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 text-sm ' +
   'placeholder:text-[var(--text-muted)] disabled:opacity-50';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
@@ -131,7 +131,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
     return (
       <textarea
         ref={ref}
-        className={cn(CONTROL_CLASS, 'h-auto min-h-20 py-2 font-mono text-xs', className)}
+        className={cn(CONTROL_CLASS, 'h-auto min-h-24 py-2.5 font-mono text-xs', className)}
         {...props}
       />
     );
@@ -156,12 +156,12 @@ export function Table({ children, className }: { children: ReactNode; className?
 
 export function Th({ children, className }: { children?: ReactNode; className?: string }) {
   return (
-    <th className={cn('eyebrow border-b px-4 py-2 text-left font-medium', className)}>{children}</th>
+    <th className={cn('eyebrow border-b px-5 py-2.5 text-left font-medium', className)}>{children}</th>
   );
 }
 
 export function Td({ children, className }: { children?: ReactNode; className?: string }) {
-  return <td className={cn('border-b border-[var(--hairline-soft)] px-4 py-2.5', className)}>{children}</td>;
+  return <td className={cn('border-b border-[var(--hairline-soft)] px-5 py-3', className)}>{children}</td>;
 }
 
 /** Empty states are an invitation to act, not a shrug. */
