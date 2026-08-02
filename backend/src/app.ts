@@ -3,10 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
+import { findPanelBuild } from './common/panel-ui';
 import { loadConfig, type PseudoPayConfig } from './config';
 import type { Db } from './db/index';
 import type { Scheduler } from './lib/scheduler';
-import { findPanelBuild } from './panel-ui';
 
 export interface CreateAppOptions {
   /** Overrides layered on top of pseudopay.config.json and PSEUDOPAY_* env vars. */

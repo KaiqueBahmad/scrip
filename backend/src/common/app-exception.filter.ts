@@ -8,10 +8,10 @@ import {
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { AppError } from './lib/errors';
-import type { Logger } from './lib/logger';
+import { AppError } from '../lib/errors';
+import type { Logger } from '../lib/logger';
+import { LOGGER } from './injection-tokens';
 import { NOT_BUILT_PAGE, readPanelShell } from './panel-ui';
-import { LOGGER } from './tokens';
 
 /**
  * The single place a failure becomes a response, so both surfaces (/v1/integration and

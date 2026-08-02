@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import type { InjectOptions, LightMyRequestResponse } from 'fastify';
 
 import { createApp, type PseudoPayApp } from '../src/app';
+import { DB } from '../src/common/injection-tokens';
 import { ConfigStore, type PseudoPayConfig } from '../src/config';
 import { openDb, type Db } from '../src/db/index';
 import { ChargeService } from '../src/domain/charges';
@@ -11,7 +12,6 @@ import { MerchantService } from '../src/domain/merchants';
 import { TokenService } from '../src/domain/tokens';
 import { WebhookDispatcher } from '../src/domain/webhooks';
 import { ManualScheduler } from '../src/lib/scheduler';
-import { DB } from '../src/tokens';
 
 export interface RecordedRequest {
   url: string;

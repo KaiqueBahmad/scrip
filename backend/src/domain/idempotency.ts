@@ -1,10 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-
 import { createHash } from 'node:crypto';
 
+import { DB } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
 import { conflict } from '../lib/errors';
-import { DB } from '../tokens';
 
 export interface IdempotencyLookup {
   key: string;

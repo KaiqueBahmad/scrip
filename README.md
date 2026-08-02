@@ -238,12 +238,14 @@ backend/
     main.ts        bootstrap: sobe a app e escuta
     app.ts         createApp(): Nest sobre Fastify, multipart e painel estático
     app.module.ts  AppModule.forRoot(): providers, controllers e as costuras de teste
-    config.ts      pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
-    db/            schema.sql, openDb, reset
-    lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
-    domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
-    auth/          guards de Basic (sessão da loja) e Bearer (integração)
     api/           integration/ e panel/ — superfícies separadas por controller
+    auth/          guards de Basic (sessão da loja) e Bearer (integração)
+    common/        exception filter, tokens de injeção, leitura de upload, painel estático
+    config/        pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
+    db/            schema.sql, openDb, reset
+    domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
+    dto/           corpos e query strings da API, um arquivo por recurso
+    lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
 frontend/          painel em Vite + React, compila para backend/dist/panel e é servido na raiz

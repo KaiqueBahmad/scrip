@@ -1,16 +1,16 @@
 import 'reflect-metadata';
 
 import { createApp } from './app';
+import { LOGGER } from './common/injection-tokens';
 import { loadConfig } from './config';
 import type { Logger } from './lib/logger';
-import { LOGGER } from './tokens';
 
 async function bootstrap(): Promise<void> {
   const config = loadConfig();
   const app = await createApp();
   const log = app.get<Logger>(LOGGER);
 
-  // Closes the app — and with it the scheduler's timers and the database — on SIGINT/SIGTERM.
+  // On SIGINT/SIGTERM closes the app, with its scheduler's, timers and database.
   app.enableShutdownHooks();
 
   try {

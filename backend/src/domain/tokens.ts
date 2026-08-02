@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import { decodeExpiry, signIntegrationToken } from '../lib/jwt';
-import { DB } from '../tokens';
-import type { IntegrationTokenRow, Scope } from '../types';
+import type { IntegrationTokenRow, Scope } from './types';
 
 export interface IssueTokenInput {
   /** The merchant whose session is issuing this token; it is always the token's scope. */

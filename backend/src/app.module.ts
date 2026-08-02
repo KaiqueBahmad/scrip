@@ -1,6 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 
+import { HealthController } from './api/health.controller';
 import { IntegrationController } from './api/integration/integration.controller';
 import { PanelChargesController } from './api/panel/charges.controller';
 import { PanelKycController } from './api/panel/kyc.controller';
@@ -8,10 +9,12 @@ import { SessionController } from './api/panel/session.controller';
 import { PanelSettingsController } from './api/panel/settings.controller';
 import { PanelTokensController } from './api/panel/tokens.controller';
 import { PanelWebhooksController } from './api/panel/webhooks.controller';
-import { AppExceptionFilter } from './app-exception.filter';
 import { IntegrationGuard } from './auth/integration.guard';
 import { MerchantGuard } from './auth/merchant.guard';
+import { AppExceptionFilter } from './common/app-exception.filter';
+import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './common/injection-tokens';
 import { ConfigStore, type PseudoPayConfig } from './config';
+import { applyStoredSettings, SettingsService } from './config';
 import { openDb, type Db } from './db/index';
 import { ChargeService } from './domain/charges';
 import { IdempotencyStore } from './domain/idempotency';
@@ -20,11 +23,8 @@ import { MerchantService } from './domain/merchants';
 import { RefundService } from './domain/refunds';
 import { TokenService } from './domain/tokens';
 import { WebhookDispatcher } from './domain/webhooks';
-import { HealthController } from './api/health.controller';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
-import { applyStoredSettings, SettingsService } from './settings';
-import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './tokens';
 
 export interface AppModuleOptions {
   /** Already resolved by `createApp`, which needs the same values to build the adapter. */

@@ -15,12 +15,12 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
+import { readUpload } from '../../common/upload';
 import { KYC_DOCUMENT_TYPES, KycService } from '../../domain/kyc';
 import { MerchantService } from '../../domain/merchants';
 import { serializeKycDocument } from '../../domain/serialize';
 import type { SimulateKycBody } from '../../dto';
 import { badRequest } from '../../lib/errors';
-import { readUpload } from '../../upload';
 
 @Controller('v1/panel/kyc')
 @UseGuards(MerchantGuard)

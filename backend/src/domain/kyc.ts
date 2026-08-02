@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB, LOGGER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
 import { badRequest, notFound, payloadTooLarge } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
-import { DB, LOGGER } from '../tokens';
-import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from '../types';
 import { serializeMerchant } from './serialize';
+import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 /** Document kinds the panel offers. Free-form strings are accepted too. */

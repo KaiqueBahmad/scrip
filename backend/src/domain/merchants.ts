@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
-import { DB } from '../tokens';
-import type { MerchantRow } from '../types';
 import { serializeMerchant } from './serialize';
+import type { MerchantRow } from './types';
 
 /**
  * A store is created with just its identity. The webhook is set afterwards through

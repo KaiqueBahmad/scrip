@@ -1,5 +1,6 @@
 import { Inject, Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 
+import { DB, LOGGER, RANDOM, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
@@ -7,10 +8,9 @@ import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
-import { DB, LOGGER, RANDOM, SCHEDULER } from '../tokens';
-import type { ChargeEventRow, ChargeRow, ChargeStatus, MerchantRow, Scope } from '../types';
 import { serializeCharge } from './serialize';
 import { planConfirmation } from './testDocuments';
+import type { ChargeEventRow, ChargeRow, ChargeStatus, MerchantRow, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 /**

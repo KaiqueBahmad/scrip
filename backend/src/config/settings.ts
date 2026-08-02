@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB } from '../common/injection-tokens';
+import { nowIso, type Db } from '../db/index';
+import { badRequest } from '../lib/errors';
+import type { Logger } from '../lib/logger';
 import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config';
-import { nowIso, type Db } from './db/index';
-import { badRequest } from './lib/errors';
-import type { Logger } from './lib/logger';
-import { DB } from './tokens';
 
 /**
  * Loads the persisted settings overrides on top of file/env config, so a value changed in

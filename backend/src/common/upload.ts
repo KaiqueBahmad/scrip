@@ -1,7 +1,7 @@
 import type { MultipartFile } from '@fastify/multipart';
 import type { FastifyRequest } from 'fastify';
 
-import { badRequest } from './lib/errors';
+import { badRequest } from '../lib/errors';
 
 export interface UploadPayload {
   type: string;

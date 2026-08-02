@@ -1,15 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB, LOGGER, SCHEDULER } from '../common/injection-tokens';
 import { nowIso, type Db } from '../db/index';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { generateE2eId } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
-import { DB, LOGGER, SCHEDULER } from '../tokens';
-import type { RefundRow, Scope } from '../types';
 import { ChargeService } from './charges';
 import { serializeCharge, serializeRefund } from './serialize';
+import type { RefundRow, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 export interface CreateRefundInput {

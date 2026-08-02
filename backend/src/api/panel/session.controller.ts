@@ -14,8 +14,8 @@ import { Merchant, MerchantId, Public } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
 import { MerchantService } from '../../domain/merchants';
 import { serializeMerchant } from '../../domain/serialize';
+import type { MerchantRow } from '../../domain/types';
 import { toMerchantUpdate, type CreateMerchantBody, type UpdateMerchantBody } from '../../dto';
-import type { MerchantRow } from '../../types';
 
 /**
  * The store behind the panel session, and the two routes that necessarily come before one:

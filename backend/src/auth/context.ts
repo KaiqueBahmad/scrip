@@ -1,8 +1,8 @@
 import { createParamDecorator, SetMetadata, type ExecutionContext } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 
+import type { MerchantRow } from '../domain/types';
 import { unauthorized } from '../lib/errors';
-import type { MerchantRow } from '../types';
 
 /** Resolved credential for a /v1/integration request. */
 export interface IntegrationAuth {

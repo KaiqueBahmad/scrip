@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 
 import { MerchantGuard } from '../../auth/merchant.guard';
-import { SettingsService } from '../../settings';
+import { SettingsService } from '../../config';
 
 @Controller('v1/panel/settings')
 @UseGuards(MerchantGuard)

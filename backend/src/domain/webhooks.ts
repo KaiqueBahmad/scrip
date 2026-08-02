@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { DB, FETCH, LOGGER, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso, type Db } from '../db/index';
 import { notFound } from '../lib/errors';
@@ -7,9 +8,8 @@ import { SIGNATURE_HEADER, signPayload } from '../lib/hmac';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import type { Scheduler } from '../lib/scheduler';
-import { DB, FETCH, LOGGER, SCHEDULER } from '../tokens';
-import type { ChargeRow, Scope, WebhookDeliveryRow, WebhookEvent } from '../types';
 import { isWebhookFailingDocument } from './testDocuments';
+import type { ChargeRow, Scope, WebhookDeliveryRow, WebhookEvent } from './types';
 
 const MAX_STORED_RESPONSE_CHARS = 2000;
 
