@@ -30,6 +30,11 @@ export function Documentation() {
   const tokens = resources.data?.tokens.filter((token) => !token.revoked) ?? [];
   const charges = resources.data?.charges ?? [];
 
+  const [tokenId, setTokenId] = useState('');
+  const token = tokens.find((item) => item.id === tokenId) ?? tokens[0];
+
+  useEffect(() => { if (!tokenId && tokens[0]) setTokenId(tokens[0].id); }, [tokenId, tokens]);
+
   return (
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
       <div className="mx-auto max-w-5xl">
@@ -40,20 +45,31 @@ export function Documentation() {
           eyebrow="integração"
           title="Documentação"
           description="Cada rota possui sua própria área de teste. Os tokens ficam disponíveis novamente sempre que você precisar."
+          actions={
+            tokens.length ? (
+              <div className="w-48">
+                <Field label="Token" htmlFor="doc-token">
+                  <Select id="doc-token" value={token?.id ?? ''} onChange={(event) => setTokenId(event.target.value)}>
+                    {tokens.map((item) => <option key={item.id} value={item.id}>{item.name || 'Token sem nome'}</option>)}
+                  </Select>
+                </Field>
+              </div>
+            ) : undefined
+          }
         />
         {resources.error ? <div className="mb-4"><Alert>{resources.error}</Alert></div> : null}
         {!resources.loading && tokens.length === 0 ? (
           <div className="mb-4"><Alert tone="flag">Nenhum token ativo encontrado. <Link className="underline" to="/tokens">Gerar token</Link> para usar os playgrounds.</Alert></div>
         ) : null}
         <div className="grid gap-3">
-          {INTEGRATION_ROUTES.map((route) => <RouteCard key={route.id} route={route} tokens={tokens} charges={charges} />)}
+          {INTEGRATION_ROUTES.map((route) => <RouteCard key={route.id} route={route} token={token} charges={charges} />)}
         </div>
       </div>
     </div>
   );
 }
 
-function RouteCard({ route, tokens, charges }: { route: RouteDoc; tokens: ApiToken[]; charges: ApiCharge[] }) {
+function RouteCard({ route, token, charges }: { route: RouteDoc; token: ApiToken | undefined; charges: ApiCharge[] }) {
   return (
     <Panel>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-4 py-3">
@@ -65,22 +81,19 @@ function RouteCard({ route, tokens, charges }: { route: RouteDoc; tokens: ApiTok
         <div><p className="eyebrow mb-1.5">payload</p><code className="block rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 py-2 text-xs break-words text-[var(--text-muted)]">{route.payload}</code></div>
         <div><p className="eyebrow mb-1.5">retorno</p><code className="block rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 py-2 text-xs break-words text-[var(--text-muted)]">{route.returns}</code></div>
       </div>
-      <RoutePlayground route={route} tokens={tokens} charges={charges} />
+      <RoutePlayground route={route} token={token} charges={charges} />
     </Panel>
   );
 }
 
-function RoutePlayground({ route, tokens, charges }: { route: RouteDoc; tokens: ApiToken[]; charges: ApiCharge[] }) {
-  const [tokenId, setTokenId] = useState('');
+function RoutePlayground({ route, token, charges }: { route: RouteDoc; token: ApiToken | undefined; charges: ApiCharge[] }) {
   const [chargeId, setChargeId] = useState('');
   const [body, setBody] = useState<string>(route.exampleBody);
   const [response, setResponse] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-  const token = tokens.find((item) => item.id === tokenId) ?? tokens[0];
   const resolvedPath = route.path.replace(':id', chargeId || 'ch_example');
 
-  useEffect(() => { if (!tokenId && tokens[0]) setTokenId(tokens[0].id); }, [tokenId, tokens]);
   useEffect(() => { if (!chargeId && charges[0]) setChargeId(charges[0].id); }, [chargeId, charges]);
 
   const execute = async () => {
@@ -97,12 +110,6 @@ function RoutePlayground({ route, tokens, charges }: { route: RouteDoc; tokens: 
   return (
     <div className="border-t bg-[var(--hairline-soft)]/30 p-4">
       <div className="mt-3 grid gap-4">
-        <Field label="Token" htmlFor={`${route.id}-token`}>
-          <Select id={`${route.id}-token`} value={token?.id ?? ''} onChange={(event) => setTokenId(event.target.value)}>
-            {!tokens.length ? <option value="">Nenhum token ativo</option> : null}
-            {tokens.map((item) => <option key={item.id} value={item.id}>{item.name || 'Token sem nome'}</option>)}
-          </Select>
-        </Field>
         {route.path.includes(':id') ? (
           <Field label="ID da cobrança" htmlFor={`${route.id}-charge-id`} hint="Preenchido com uma cobrança existente quando disponível.">
             <Select id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)}>
