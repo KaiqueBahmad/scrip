@@ -61,7 +61,7 @@ export function Copyable({
   );
 }
 
-/** Reveal-on-demand for secrets that are shown in the panel by design (specs.md:116). */
+/** Reveal-on-demand for secrets that are shown in the panel by design. */
 export function Secret({ value, label }: { value: string; label: string }) {
   const [revealed, setRevealed] = useState(false);
 

@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-/** Centavos -> "R$ 150,00". Amounts are always integers on the wire (specs.md:72). */
+/** Centavos -> "R$ 150,00". Amounts are always integers on the wire. */
 export function formatBRL(centavos: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
     centavos / 100,

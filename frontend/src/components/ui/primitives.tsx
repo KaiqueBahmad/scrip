@@ -1,5 +1,5 @@
 /**
- * shadcn/ui-shaped primitives (specs.md:34), written against this project's blueprint
+ * shadcn/ui-shaped primitives, written against this project's blueprint
  * tokens rather than pulled in wholesale. Same composition API — `className` merges,
  * variants via props — minus the Radix dependency, which nothing here needs.
  */

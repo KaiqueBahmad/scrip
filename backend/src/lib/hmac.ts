@@ -1,10 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
- * Webhook payload signing (specs.md:108).
+ * Webhook payload signing.
  *
- * The spec mandates HMAC-SHA256 in `X-PseudoPay-Signature` but not the encoding, so we use
- * the Stripe-style scheme:
+ * HMAC-SHA256 goes in `X-PseudoPay-Signature`, using the Stripe-style scheme:
  *
  *   X-PseudoPay-Signature: t=1717171717,v1=<hex hmac-sha256 of "<t>.<rawBody>">
  *

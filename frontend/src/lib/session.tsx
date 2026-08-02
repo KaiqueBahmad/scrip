@@ -17,7 +17,7 @@ interface SessionValue {
   merchants: ApiMerchant[];
   loading: boolean;
   error: string | null;
-  /** Selecting a store *is* the login (specs.md:54). */
+  /** Selecting a store *is* the login. */
   selectMerchant: (merchant: ApiMerchant) => void;
   signOut: () => void;
   refreshMerchants: () => Promise<void>;

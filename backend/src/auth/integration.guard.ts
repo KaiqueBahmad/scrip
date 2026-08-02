@@ -9,7 +9,7 @@ import { verifyIntegrationToken } from '../lib/jwt';
 import { extractBearer } from './context';
 
 /**
- * Integration auth (specs.md:36): a Bearer JWT minted by a merchant session in the panel.
+ * Integration auth: a Bearer JWT minted by a merchant session in the panel.
  *
  * Signature and expiry are checked in the JWT itself; revocation and the merchant's
  * continued existence are checked against the database on every request, so revoking a

@@ -22,9 +22,9 @@ export interface EnqueueInput {
 }
 
 /**
- * Webhook delivery (specs.md:104-108). Deliveries are persisted before being attempted, so
+ * Webhook delivery. Deliveries are persisted before being attempted, so
  * the panel can show the full history, but the retry timers themselves are in-process
- * setTimeouts and are lost on restart — the documented limitation at specs.md:138.
+ * setTimeouts and are lost on restart
  */
 @Injectable()
 export class WebhookDispatcher {
@@ -123,8 +123,8 @@ export class WebhookDispatcher {
     );
 
     if (this.shouldForceFailure(delivery)) {
-      // specs.md:101 — this CPF exists so retry handling can be exercised. No request is
-      // sent; the attempt is recorded as a failure.
+      // This CPF exists so retry handling can be exercised. No request is sent; the
+      // attempt is recorded as a failure.
       this.recordFailure(delivery, attempt, signature, {
         error: 'forced_failure_test_document',
       });
@@ -198,7 +198,7 @@ export class WebhookDispatcher {
 
   /**
    * Resolved per attempt rather than stored on the row, so a manual retry of a
-   * `33333333333` charge still fails the way the docs promise.
+   * `33333333333` charge still fails
    */
   private shouldForceFailure(delivery: WebhookDeliveryRow): boolean {
     if (!delivery.charge_id) return false;

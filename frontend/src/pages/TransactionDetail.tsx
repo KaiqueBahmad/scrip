@@ -22,7 +22,7 @@ import { api, ApiError, type ChargeDetail } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { formatBRL, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
 
-/** The BR Code rendered as an actual QR — not scannable by a bank app (specs.md:140). */
+/** The BR Code rendered as an actual QR — not scannable by a bank app. */
 function QrPreview({ payload }: { payload: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 

@@ -17,7 +17,7 @@ export interface IssueTokenInput {
 }
 
 /**
- * Integration tokens (specs.md:60-62). Only a merchant session can mint one, and it is
+ * Integration tokens. Only a merchant session can mint one, and it is
  * always scoped to that merchant — inside that scope it reaches every integration route.
  * The JWT itself is stored so the panel can show it again at any time.
  */

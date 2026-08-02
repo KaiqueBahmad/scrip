@@ -32,7 +32,7 @@ export function newId(kind: EntityKind): string {
   return `${ID_PREFIXES[kind]}_${randomId(16)}`;
 }
 
-/** Per-merchant webhook signing secret (specs.md:108). */
+/** Per-merchant webhook signing secret. */
 export function newWebhookSecret(): string {
   return `whsec_${randomId(32)}`;
 }

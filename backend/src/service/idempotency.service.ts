@@ -22,8 +22,7 @@ function hashRequest(body: unknown): string {
 }
 
 /**
- * Idempotency-Key replay cache. Testing idempotency is one of the stated reasons this tool
- * exists (specs.md:15), so the semantics match what a real gateway does: the same key with
+ * Idempotency-Key replay cache: the semantics match what a real gateway does: the same key with
  * the same body replays the stored response; the same key with a different body is a
  * conflict rather than a silent second charge.
  */

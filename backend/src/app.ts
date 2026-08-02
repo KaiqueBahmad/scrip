@@ -25,11 +25,7 @@ export interface CreateAppOptions {
 
 export type PseudoPayApp = NestFastifyApplication;
 
-/**
- * Builds the application without listening, so tests can drive it through `app.inject`.
- * The adapter is created first because its Fastify instance owns the logger that the
- * domain services write to.
- */
+/* Builds the application without listening, so tests can drive it through `app.inject`. */
 export async function createApp(options: CreateAppOptions = {}): Promise<PseudoPayApp> {
   const config = loadConfig(options.config ?? {});
   const logging = options.logger ?? true;
@@ -37,7 +33,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<PseudoP
 
   const adapter = new FastifyAdapter({
     logger: false,
-    // Keeps ids in logs aligned with the ones the API returns.
+    /* Keeps ids in logs aligned with the ones the API returns. */
     genReqId: () => Math.random().toString(36).slice(2, 10),
   });
 
@@ -52,18 +48,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<PseudoP
     },
   );
 
-  // The admin panel is served from its own origin and calls this API directly, so every
-  // request is cross-origin. A simulated sandbox has nothing to protect here.
-  // Methods are listed explicitly: the default preflight reply omits PATCH and DELETE,
-  // which would block webhook edits, token revocation and KYC document removal.
+  // Enabling CORS
   app.enableCors({
     origin: true,
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['authorization', 'content-type'],
   });
 
-  // The precise size limit is enforced in KycService against the live config; this is just
-  // a hard ceiling so a huge upload can't be buffered before that check runs.
+  // The precise size limit is enforced in KycService against config.kycMaxFileSizeMb; this
+  // is just a hard ceiling so a huge upload can't be buffered before that check runs.
   await app.register(fastifyMultipart, {
     limits: { fileSize: Math.max(config.kycMaxFileSizeMb, 1) * 1024 * 1024 * 2, files: 1 },
   });

@@ -12,7 +12,7 @@ export class SettingsService {
    * changing one means editing the file and restarting.
    *
    * The signing secret is redacted — this project is lax about access control
-   * (specs.md:112-118), but handing out the key that mints tokens is a different order of
+   * but handing out the key that mints tokens is a different order of
    * leak from showing the tokens themselves.
    */
   read() {

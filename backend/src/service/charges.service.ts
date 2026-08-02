@@ -101,7 +101,7 @@ export class ChargeService implements OnApplicationBootstrap {
       throw notFound('merchant_not_found', `No merchant ${input.merchantId}`);
     }
 
-    // KYC gate (specs.md:149). Off by default so a fresh install can charge immediately.
+    // KYC gate. Off by default so a fresh install can charge immediately.
     if (config.requireApprovedKycForCharges && merchant.kyc_status !== 'approved') {
       throw forbidden(
         'kyc_required',
@@ -188,7 +188,7 @@ export class ChargeService implements OnApplicationBootstrap {
     return this.charges.listEvents(chargeId);
   }
 
-  /** Forces an outcome for tests and CI (specs.md:84-93). */
+  /** Forces an outcome for tests and CI. */
   simulate(chargeId: string, result: 'paid' | 'expired', scope: Scope = {}): ChargeRow {
     const charge = this.get(chargeId, scope);
 
@@ -264,7 +264,7 @@ export class ChargeService implements OnApplicationBootstrap {
     this.clearTimers(chargeId);
     this.log.info({ charge_id: chargeId }, 'pix charge canceled');
 
-    // No webhook: specs.md:106 does not define a pix.charge.canceled event.
+    // No webhook: there is no pix.charge.canceled event.
     return updated;
   }
 
@@ -289,8 +289,8 @@ export class ChargeService implements OnApplicationBootstrap {
 
   /**
    * Re-arms expiration for charges still pending. Auto-confirmation is deliberately not
-   * re-planned on boot: the original decision was made in memory and, per specs.md:138,
-   * in-process timers do not survive a restart.
+   * re-planned on boot: the original decision was made in memory, and in-process timers
+   * do not survive a restart.
    */
   restorePendingTimers(): number {
     const pending = this.charges.listByStatus('pending');

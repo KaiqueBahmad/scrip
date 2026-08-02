@@ -1,6 +1,6 @@
 /**
  * All of PseudoPay's asynchrony (payment confirmation, QR expiration, webhook retry) is
- * simulated in-process with setTimeout (specs.md:24). Routing every timer through this
+ * simulated in-process with setTimeout. Routing every timer through this
  * interface buys two things: timers can be cancelled on shutdown instead of leaking, and
  * tests can drive virtual time instead of sleeping.
  */

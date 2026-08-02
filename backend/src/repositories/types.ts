@@ -43,7 +43,7 @@ export type KycDocumentRow = Omit<typeof kycDocuments.$inferSelect, 'content'>;
 
 export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
 
-/** Webhook event names, exactly as listed in specs.md:106. */
+/** Webhook event names. */
 export const WEBHOOK_EVENTS = [
   'pix.charge.created',
   'pix.charge.paid',

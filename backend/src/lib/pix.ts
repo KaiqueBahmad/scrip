@@ -2,9 +2,9 @@
  * BR Code ("PIX copia e cola") generation.
  *
  * The payload follows the EMV®QRCPS TLV structure the real Bacen spec is based on, so it
- * looks and parses like the real thing — but per specs.md:140 it is not meant to be
- * scannable by an actual bank app, and the e2e_id (specs.md:141) mimics the Bacen shape
- * without implementing the official algorithm.
+ * looks and parses like the real thing — but it is not meant to be scannable by an actual
+ * bank app, and the e2e_id mimics the Bacen shape without implementing the official
+ * algorithm.
  */
 
 const GUI_PIX = 'br.gov.bcb.pix';
@@ -71,7 +71,7 @@ function randomAlnumUpper(length: number): string {
   return out;
 }
 
-/** Amounts travel as integer centavos (specs.md:72) but EMV field 54 wants "150.00". */
+/** Amounts travel as integer centavos but EMV field 54 wants "150.00". */
 export function formatAmount(centavos: number): string {
   if (!Number.isInteger(centavos)) {
     throw new Error(`Amount must be an integer number of centavos, got ${centavos}`);

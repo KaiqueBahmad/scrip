@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { unauthorized } from './errors';
 
 /**
- * Integration tokens (specs.md:36) — HS256 JWTs a merchant session mints in the panel,
+ * Integration tokens — HS256 JWTs a merchant session mints in the panel,
  * scoped to that merchant. A valid token reaches every integration route.
  */
 export interface IntegrationTokenClaims {
@@ -18,7 +18,7 @@ export interface SignTokenInput {
   secret: string;
   tokenId: string;
   merchantId: string;
-  /** e.g. "24h". Empty or undefined issues a token with no `exp` (specs.md:116). */
+  /** e.g. "24h". Empty or undefined issues a token with no `exp`. */
   expiresIn?: string;
 }
 

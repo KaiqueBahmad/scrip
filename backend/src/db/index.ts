@@ -46,7 +46,7 @@ export function openDb(options: OpenDbOptions): Db {
   sqlite.pragma('busy_timeout = 5000');
   if (!inMemory) {
     // WAL keeps the panel's reads from blocking on webhook/charge writes. SQLite is still
-    // the wrong choice under real write concurrency (specs.md:139) — fine for a dev tool.
+    // the wrong choice under real write concurrency — fine for a dev tool.
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('synchronous = NORMAL');
   }
@@ -62,7 +62,7 @@ export function openDb(options: OpenDbOptions): Db {
   return db;
 }
 
-/** Drops all rows but keeps the schema — the behaviour specs.md:45 describes for `reset`. */
+/** Drops all rows but keeps the schema. */
 export function resetData(db: Db): void {
   db.transaction((tx) => {
     for (const table of schema.TABLES_CHILD_FIRST) tx.delete(table).run();

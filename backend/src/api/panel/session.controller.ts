@@ -19,8 +19,8 @@ import { toMerchantUpdate, type CreateMerchantBody, type UpdateMerchantBody } fr
 
 /**
  * The store behind the panel session, and the two routes that necessarily come before one:
- * the merchant is the panel identity (specs.md:35), so picking and creating a store cannot
- * themselves require a session.
+ * the merchant is the panel identity, so picking and creating a store cannot themselves
+ * require a session.
  */
 @Controller('v1/panel')
 @UseGuards(MerchantGuard)
@@ -29,8 +29,8 @@ export class SessionController {
 
   /**
    * Public on purpose: this is the list the panel shows so you can pick which store to be,
-   * because there is no login screen (specs.md:54). The balance comes along so the picker
-   * can show it, but the webhook secret does not — you are not that store yet.
+   * because there is no login screen. The balance comes along so the picker can show it,
+   * but the webhook secret does not — you are not that store yet.
    */
   @Get('session/merchants')
   @Public()
@@ -46,7 +46,7 @@ export class SessionController {
   }
 
   /**
-   * Public on purpose (specs.md:114): Basic auth resolves an existing merchant, so with an
+   * Public on purpose: Basic auth resolves an existing merchant, so with an
    * empty database there would be no way to create the first one. No webhook_url here
    * either — wiring the webhook is a separate step through PATCH /merchants/me.
    */

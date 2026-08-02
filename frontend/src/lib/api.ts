@@ -151,7 +151,7 @@ const BASE = `${API_ROOT}/v1/panel`;
 
 let authHeader: string | null = null;
 
-/** Basic auth with an empty password, per specs.md:35. The merchant is the identity. */
+/** Basic auth with an empty password. The merchant is the identity. */
 export function setActingMerchant(merchantId: string | null): void {
   authHeader = merchantId ? `Basic ${btoa(`${merchantId}:`)}` : null;
 }

@@ -81,10 +81,6 @@ export function serializeMerchant(
   };
 }
 
-/**
- * The JWT is always included: specs.md:62 requires it to stay visible in the panel
- * instead of being shown once and discarded.
- */
 export function serializeToken(row: IntegrationTokenRow) {
   return {
     id: row.id,

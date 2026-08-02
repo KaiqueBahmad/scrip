@@ -30,7 +30,7 @@ const NAV: NavItem[] = [
 /**
  * Fixed ink rail plus paper content. The rail is a channel strip: identity at the top,
  * destinations in the middle, the acting user pinned at the bottom because "who am I right
- * now" is the panel's central concept (specs.md:54).
+ * now" is the panel's central concept.
  */
 export function Layout() {
   const { merchant, signOut } = useSession();

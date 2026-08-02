@@ -7,7 +7,7 @@ import { useSession } from '../lib/session';
 import { formatBRL } from '../lib/utils';
 
 /**
- * There is no login screen (specs.md:54): you pick which store to be. When the database is
+ * There is no login screen: you pick which store to be. When the database is
  * empty the same screen creates the first one, because store creation is unauthenticated —
  * Basic auth resolves an existing merchant, so otherwise nothing could ever be created.
  */

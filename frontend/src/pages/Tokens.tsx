@@ -21,7 +21,7 @@ import { useAsync } from '../lib/useAsync';
 import { cn, formatDateTime } from '../lib/utils';
 
 /**
- * Integration tokens (specs.md:60-62). Only this store can mint them, and each one is
+ * Integration tokens. Only this store can mint them, and each one is
  * scoped to it — within that scope a token reaches every integration route. The JWT stays
  * visible forever instead of being shown once — that is a deliberate convenience of this
  * tool, not an oversight.

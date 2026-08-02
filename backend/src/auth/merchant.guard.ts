@@ -8,12 +8,12 @@ import { PUBLIC_ROUTE } from './context';
 
 /**
  * Panel auth: HTTP Basic where the username is a merchant id and the password is always
- * empty (specs.md:35).
+ * empty.
  *
  * The merchant *is* the panel identity — there is no separate operator login, so a session
  * only ever sees its own charges, tokens, webhooks and KYC. There is no password check at
- * all: the panel is an account *selector*, not a login (specs.md:54), which is why
- * specs.md:110-118 says never to expose an instance publicly.
+ * all: the panel is an account *selector*, not a login, which is why an instance should
+ * never be exposed publicly.
  */
 @Injectable()
 export class MerchantGuard implements CanActivate {

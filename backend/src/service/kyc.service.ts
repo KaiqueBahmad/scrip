@@ -34,8 +34,8 @@ export interface ReviewKycInput {
 }
 
 /**
- * KYC (specs.md:149). Documents are stored as BLOBs in SQLite — no S3, no disk
- * (specs.md:25) — and approval is a manual action taken from the panel.
+ * KYC. Documents are stored as BLOBs in SQLite — no S3, no disk
+ * approval is a manual action taken from the panel.
  */
 @Injectable()
 export class KycService {

@@ -20,7 +20,6 @@ export interface CreateMerchantInput {
 export interface UpdateMerchantInput {
   name?: string;
   webhookUrl?: string | null;
-  /** Rotates the HMAC secret used to sign this merchant's webhooks. */
   rotateWebhookSecret?: boolean;
 }
 

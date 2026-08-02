@@ -46,7 +46,7 @@ export const integrationTokens = sqliteTable(
       .references(() => merchants.id, { onDelete: 'cascade' }),
     name: text(),
     // Stored in plaintext on purpose: the panel must be able to show it again at any
-    // time (specs.md:62, specs.md:116).
+    // time.
     token: text().notNull(),
     expires_at: text(),
     revoked_at: text(),
@@ -144,7 +144,7 @@ export const kycDocuments = sqliteTable(
     filename: text().notNull(),
     mime_type: text().notNull(),
     size: integer().notNull(),
-    // No external storage by design (specs.md:25): the file lives here as a BLOB.
+    // No external storage by design: the file lives here as a BLOB.
     content: blob({ mode: 'buffer' }).notNull(),
     status: text().$type<KycStatus>().notNull().default('pending'),
     created_at: text().notNull(),

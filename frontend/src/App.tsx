@@ -24,7 +24,7 @@ export function App() {
     );
   }
 
-  // No store selected yet: the panel is a store picker, not a login form (specs.md:54).
+  // No store selected yet: the panel is a store picker, not a login form.
   if (!merchant) return <SelectMerchant />;
 
   return (

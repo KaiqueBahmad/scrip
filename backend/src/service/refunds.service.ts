@@ -15,7 +15,7 @@ import { WebhookDispatcher } from './webhooks.service';
 
 export interface CreateRefundInput {
   chargeId: string;
-  /** Integer centavos. Omit to refund everything still outstanding. */
+  /** Integer cents. Omit to refund everything still outstanding. */
   amount?: number | null;
   reason?: string | null;
   /** Restricts the charge lookup to one merchant on the integration surface. */

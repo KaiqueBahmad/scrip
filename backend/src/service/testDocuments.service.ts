@@ -1,7 +1,7 @@
 import type { PseudoPayConfig } from '../config';
 
 /**
- * Deterministic test CPFs (specs.md:95-102). These are what make PseudoPay usable in CI:
+ * Deterministic test CPFs. These are what make PseudoPay usable in CI:
  * the same payer_document always produces the same outcome, no coin flip involved.
  */
 export const TEST_DOCUMENTS = {
@@ -33,7 +33,7 @@ export interface ConfirmationPlan {
 
 /**
  * Decides if and when a charge auto-confirms. Known test CPFs short-circuit; everything
- * else follows `approvalRate` (specs.md:102).
+ * else follows `approvalRate`.
  */
 export function planConfirmation(
   payerDocument: string | null | undefined,

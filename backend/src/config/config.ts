@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * Runtime configuration. The keys documented in the README (specs.md:122-134) are the
- * public contract; the rest are additions this implementation needs.
+ * Runtime configuration. The keys documented in the README are the public contract; the
+ * rest are additions this implementation needs.
  */
 export interface PseudoPayConfig {
   /** Port the Fastify server listens on. */
@@ -17,14 +17,14 @@ export interface PseudoPayConfig {
   approvalRate: number;
   /** Delay before a charge auto-confirms. */
   pixConfirmationDelayMs: number;
-  /** Floor used by the "always confirms" test CPF (specs.md:99). */
+  /** Floor used by the "always confirms" test CPF. */
   pixMinConfirmationDelayMs: number;
   /** Lifetime of a QR code before the charge expires. */
   pixQrCodeExpirationMs: number;
 
   /** Delay between an event happening and its first webhook attempt. */
   webhookDelayMs: number;
-  /** Total attempts per delivery, first included (specs.md:108). */
+  /** Total attempts per delivery, first included. */
   webhookMaxRetries: number;
   /** Base backoff between webhook attempts; grows linearly with the attempt number. */
   webhookRetryBackoffMs: number;
@@ -40,8 +40,8 @@ export interface PseudoPayConfig {
   kycMaxFileSizeMb: number;
   /**
    * When true, a merchant whose kyc_status is not 'approved' cannot create charges.
-   * Defaults to false so the README quickstart (specs.md:56-75) works against a fresh
-   * install; flip it on to exercise the blocking path.
+   * Defaults to false so the README quickstart works against a fresh install; flip it on
+   * to exercise the blocking path.
    */
   requireApprovedKycForCharges: boolean;
 

@@ -34,9 +34,7 @@ import {
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 
 /**
- * Integration API (specs.md:22), called by the merchant's own backend with a JWT. Kept in
- * its own controller from the panel API, because specs.md:21 asks for the surfaces to be
- * physically separated by route.
+ * Integration API, called by the merchant's own backend with a JWT.
  */
 @Controller('v1/integration')
 @UseGuards(IntegrationGuard)
