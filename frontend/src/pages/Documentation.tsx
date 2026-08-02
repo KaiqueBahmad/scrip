@@ -3,23 +3,207 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { PageHeader } from '../components/Layout';
-import { Alert, Button, Field, Panel, Select, Textarea } from '../components/ui/primitives';
+import { Alert, Button, Field, Panel, Select, Table, Td, Textarea, Th } from '../components/ui/primitives';
 import { api, ApiError, type ApiCharge, type ApiToken } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 
-const INTEGRATION_ROUTES = [
-  { id: 'create-charge', method: 'POST', path: '/pix/charges', description: 'Cria uma cobrança PIX.', payload: '{ amount, payer_document?, payer_name?, description?, metadata? }', returns: 'pix_charge', exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Pedido de teste",\n  "metadata": { "order_id": "abc-123" }\n}', query: '' },
-  { id: 'list-charges', method: 'GET', path: '/pix/charges', description: 'Lista as cobranças da loja.', payload: 'Filtros: status, from, to, limit, offset', returns: '{ object: "list", data: pix_charge[], total }', exampleBody: '', query: '?limit=20' },
-  { id: 'get-charge', method: 'GET', path: '/pix/charges/:id', description: 'Consulta uma cobrança.', payload: '—', returns: 'pix_charge', exampleBody: '', query: '' },
-  { id: 'charge-events', method: 'GET', path: '/pix/charges/:id/events', description: 'Lista o histórico de status.', payload: '—', returns: '{ object: "list", data: charge_event[] }', exampleBody: '', query: '' },
-  { id: 'cancel-charge', method: 'POST', path: '/pix/charges/:id/cancel', description: 'Cancela uma cobrança.', payload: '—', returns: 'pix_charge', exampleBody: '', query: '' },
-  { id: 'create-refund', method: 'POST', path: '/pix/charges/:id/refunds', description: 'Solicita o reembolso.', payload: '{ amount?, reason? }', returns: 'pix_refund', exampleBody: '{\n  "amount": 5000,\n  "reason": "Solicitação do cliente"\n}', query: '' },
-  { id: 'list-refunds', method: 'GET', path: '/pix/charges/:id/refunds', description: 'Lista os reembolsos da cobrança.', payload: '—', returns: '{ object: "list", data: pix_refund[] }', exampleBody: '', query: '' },
-  { id: 'get-merchant', method: 'GET', path: '/merchants/me', description: 'Consulta os dados da loja.', payload: '—', returns: 'merchant', exampleBody: '', query: '' },
-  { id: 'update-merchant', method: 'PATCH', path: '/merchants/me', description: 'Atualiza os dados da loja.', payload: '{ name?, webhook_url?, rotate_webhook_secret? }', returns: 'merchant', exampleBody: '{\n  "name": "Minha loja",\n  "webhook_url": "https://example.test/webhook"\n}', query: '' },
-] as const;
+interface FieldDoc {
+  name: string;
+  type: string;
+  required?: boolean;
+  description: string;
+}
 
-type RouteDoc = (typeof INTEGRATION_ROUTES)[number];
+/** Response object shapes, keyed by the `object` value the API returns. Shared across routes so each is documented once. */
+const MODELS = {
+  pix_charge: [
+    { name: 'id', type: 'string', description: 'Identificador da cobrança.' },
+    { name: 'object', type: '"pix_charge"', description: 'Tipo do objeto.' },
+    { name: 'merchant_id', type: 'string', description: 'Loja dona da cobrança.' },
+    { name: 'status', type: "'pending' | 'paid' | 'expired' | 'canceled' | 'partially_refunded' | 'refunded'", description: 'Situação atual da cobrança.' },
+    { name: 'amount', type: 'integer', description: 'Valor total, em centavos.' },
+    { name: 'amount_refunded', type: 'integer', description: 'Total já reembolsado, em centavos.' },
+    { name: 'payer_document', type: 'string | null', description: 'CPF/CNPJ do pagador, se informado.' },
+    { name: 'payer_name', type: 'string | null', description: 'Nome do pagador, se informado.' },
+    { name: 'description', type: 'string | null', description: 'Descrição livre da cobrança.' },
+    { name: 'metadata', type: 'object', description: 'Dados livres definidos na criação.' },
+    { name: 'qr_code', type: 'string', description: 'Payload "copia e cola" do QR Code PIX.' },
+    { name: 'qr_code_txid', type: 'string', description: 'TXID do QR Code.' },
+    { name: 'qr_code_expires_at', type: 'string (ISO 8601)', description: 'Quando o QR Code expira.' },
+    { name: 'e2e_id', type: 'string | null', description: 'Identificador end-to-end do PIX, presente após o pagamento.' },
+    { name: 'paid_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança foi paga.' },
+    { name: 'expired_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança expirou.' },
+    { name: 'canceled_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança foi cancelada.' },
+    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando a cobrança foi criada.' },
+    { name: 'updated_at', type: 'string (ISO 8601)', description: 'Última atualização.' },
+  ],
+  pix_refund: [
+    { name: 'id', type: 'string', description: 'Identificador do reembolso.' },
+    { name: 'object', type: '"pix_refund"', description: 'Tipo do objeto.' },
+    { name: 'charge_id', type: 'string', description: 'Cobrança reembolsada.' },
+    { name: 'amount', type: 'integer', description: 'Valor reembolsado, em centavos.' },
+    { name: 'status', type: "'succeeded' | 'failed'", description: 'Resultado do reembolso.' },
+    { name: 'reason', type: 'string | null', description: 'Motivo informado na solicitação.' },
+    { name: 'e2e_id', type: 'string | null', description: 'Identificador end-to-end do reembolso.' },
+    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando o reembolso foi criado.' },
+  ],
+  charge_event: [
+    { name: 'id', type: 'string', description: 'Identificador do evento.' },
+    { name: 'charge_id', type: 'string', description: 'Cobrança relacionada.' },
+    { name: 'from_status', type: 'ChargeStatus | null', description: 'Status anterior (nulo no primeiro evento).' },
+    { name: 'to_status', type: 'ChargeStatus', description: 'Novo status após a transição.' },
+    { name: 'reason', type: 'string | null', description: 'Motivo da transição, quando houver.' },
+    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando o evento ocorreu.' },
+  ],
+  merchant: [
+    { name: 'id', type: 'string', description: 'Identificador da loja.' },
+    { name: 'object', type: '"merchant"', description: 'Tipo do objeto.' },
+    { name: 'name', type: 'string', description: 'Nome da loja.' },
+    { name: 'webhook_url', type: 'string | null', description: 'URL que recebe os webhooks.' },
+    { name: 'webhook_secret', type: 'string', description: 'Segredo usado para assinar os webhooks.' },
+    { name: 'kyc_status', type: "'pending' | 'approved' | 'rejected'", description: 'Situação da verificação KYC.' },
+    { name: 'kyc_reason', type: 'string | null', description: 'Motivo informado na revisão do KYC.' },
+    { name: 'kyc_reviewed_at', type: 'string (ISO 8601) | null', description: 'Quando o KYC foi revisado.' },
+    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando a loja foi criada.' },
+    { name: 'updated_at', type: 'string (ISO 8601)', description: 'Última atualização.' },
+  ],
+} satisfies Record<string, FieldDoc[]>;
+
+type ModelName = keyof typeof MODELS;
+
+type ResponseDoc =
+  | { kind: 'object'; model: ModelName }
+  | { kind: 'list'; model: ModelName; extra?: FieldDoc[] };
+
+interface RouteDoc {
+  id: string;
+  method: string;
+  path: string;
+  description: string;
+  pathParams?: FieldDoc[];
+  query?: FieldDoc[];
+  body?: FieldDoc[];
+  response: ResponseDoc;
+  exampleBody: string;
+  /** Query string appended to the actual request the playground fires. */
+  requestQuery: string;
+}
+
+const CHARGE_ID_PARAM: FieldDoc[] = [
+  { name: 'id', type: 'string', required: true, description: 'Identificador da cobrança, na URL.' },
+];
+
+const INTEGRATION_ROUTES: RouteDoc[] = [
+  {
+    id: 'create-charge',
+    method: 'POST',
+    path: '/pix/charges',
+    description: 'Cria uma cobrança PIX.',
+    body: [
+      { name: 'amount', type: 'integer', required: true, description: 'Valor da cobrança, em centavos.' },
+      { name: 'payer_document', type: 'string | null', description: 'CPF/CNPJ do pagador.' },
+      { name: 'payer_name', type: 'string | null', description: 'Nome do pagador.' },
+      { name: 'description', type: 'string | null', description: 'Descrição livre da cobrança.' },
+      { name: 'metadata', type: 'object | null', description: 'Dados livres, devolvidos como estão.' },
+    ],
+    response: { kind: 'object', model: 'pix_charge' },
+    exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Pedido de teste",\n  "metadata": { "order_id": "abc-123" }\n}',
+    requestQuery: '',
+  },
+  {
+    id: 'list-charges',
+    method: 'GET',
+    path: '/pix/charges',
+    description: 'Lista as cobranças da loja.',
+    query: [
+      { name: 'status', type: 'ChargeStatus', description: 'Filtra por situação da cobrança.' },
+      { name: 'from', type: 'string (ISO 8601)', description: 'Data inicial do filtro por criação.' },
+      { name: 'to', type: 'string (ISO 8601)', description: 'Data final do filtro por criação.' },
+      { name: 'limit', type: 'integer', description: 'Quantidade máxima de itens.' },
+      { name: 'offset', type: 'integer', description: 'Quantidade de itens a pular, para paginação.' },
+    ],
+    response: { kind: 'list', model: 'pix_charge', extra: [{ name: 'total', type: 'integer', description: 'Total de cobranças que atendem ao filtro.' }] },
+    exampleBody: '',
+    requestQuery: '?limit=20',
+  },
+  {
+    id: 'get-charge',
+    method: 'GET',
+    path: '/pix/charges/:id',
+    description: 'Consulta uma cobrança.',
+    pathParams: CHARGE_ID_PARAM,
+    response: { kind: 'object', model: 'pix_charge' },
+    exampleBody: '',
+    requestQuery: '',
+  },
+  {
+    id: 'charge-events',
+    method: 'GET',
+    path: '/pix/charges/:id/events',
+    description: 'Lista o histórico de status.',
+    pathParams: CHARGE_ID_PARAM,
+    response: { kind: 'list', model: 'charge_event' },
+    exampleBody: '',
+    requestQuery: '',
+  },
+  {
+    id: 'cancel-charge',
+    method: 'POST',
+    path: '/pix/charges/:id/cancel',
+    description: 'Cancela uma cobrança.',
+    pathParams: CHARGE_ID_PARAM,
+    response: { kind: 'object', model: 'pix_charge' },
+    exampleBody: '',
+    requestQuery: '',
+  },
+  {
+    id: 'create-refund',
+    method: 'POST',
+    path: '/pix/charges/:id/refunds',
+    description: 'Solicita o reembolso.',
+    pathParams: CHARGE_ID_PARAM,
+    body: [
+      { name: 'amount', type: 'integer | null', description: 'Valor a reembolsar, em centavos. Omitido reembolsa o saldo restante.' },
+      { name: 'reason', type: 'string | null', description: 'Motivo do reembolso.' },
+    ],
+    response: { kind: 'object', model: 'pix_refund' },
+    exampleBody: '{\n  "amount": 5000,\n  "reason": "Solicitação do cliente"\n}',
+    requestQuery: '',
+  },
+  {
+    id: 'list-refunds',
+    method: 'GET',
+    path: '/pix/charges/:id/refunds',
+    description: 'Lista os reembolsos da cobrança.',
+    pathParams: CHARGE_ID_PARAM,
+    response: { kind: 'list', model: 'pix_refund' },
+    exampleBody: '',
+    requestQuery: '',
+  },
+  {
+    id: 'get-merchant',
+    method: 'GET',
+    path: '/merchants/me',
+    description: 'Consulta os dados da loja.',
+    response: { kind: 'object', model: 'merchant' },
+    exampleBody: '',
+    requestQuery: '',
+  },
+  {
+    id: 'update-merchant',
+    method: 'PATCH',
+    path: '/merchants/me',
+    description: 'Atualiza os dados da loja.',
+    body: [
+      { name: 'name', type: 'string', description: 'Novo nome da loja.' },
+      { name: 'webhook_url', type: 'string | null', description: 'Nova URL de webhook; null remove a atual.' },
+      { name: 'rotate_webhook_secret', type: 'boolean', description: 'Quando true, gera um novo webhook_secret.' },
+    ],
+    response: { kind: 'object', model: 'merchant' },
+    exampleBody: '{\n  "name": "Minha loja",\n  "webhook_url": "https://example.test/webhook"\n}',
+    requestQuery: '',
+  },
+];
 
 export function Documentation() {
   const resources = useAsync(async () => {
@@ -69,6 +253,56 @@ export function Documentation() {
   );
 }
 
+function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
+  return (
+    <div className="min-w-0">
+      <p className="eyebrow mb-1.5">{title}</p>
+      <div className="rounded-[var(--radius-panel)] border">
+        <Table>
+          <thead>
+            <tr>
+              <Th className="px-3 py-1.5">campo</Th>
+              <Th className="px-3 py-1.5">tipo</Th>
+              <Th className="px-3 py-1.5">descrição</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((field) => (
+              <tr key={field.name}>
+                <Td className="px-3 py-1.5 font-mono text-xs">
+                  {field.name}
+                  {field.required ? <span className="text-trace"> *</span> : null}
+                </Td>
+                <Td className="px-3 py-1.5 font-mono text-xs text-[var(--text-muted)]">{field.type}</Td>
+                <Td className="px-3 py-1.5 text-xs text-[var(--text-muted)]">{field.description}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function ResponseTables({ response }: { response: ResponseDoc }) {
+  if (response.kind === 'object') {
+    return <FieldTable title="retorno" fields={MODELS[response.model]} />;
+  }
+
+  const wrapper: FieldDoc[] = [
+    { name: 'object', type: '"list"', description: 'Tipo do objeto retornado.' },
+    { name: 'data', type: `${response.model}[]`, description: 'Itens encontrados — ver estrutura abaixo.' },
+    ...(response.extra ?? []),
+  ];
+
+  return (
+    <>
+      <FieldTable title="retorno" fields={wrapper} />
+      <FieldTable title={`objeto ${response.model}`} fields={MODELS[response.model]} />
+    </>
+  );
+}
+
 function RouteCard({ route, token, charges }: { route: RouteDoc; token: ApiToken | undefined; charges: ApiCharge[] }) {
   return (
     <Panel>
@@ -77,9 +311,11 @@ function RouteCard({ route, token, charges }: { route: RouteDoc; token: ApiToken
         <code className="min-w-0 break-all text-xs">/v1/integration{route.path}</code>
         <p className="w-full text-[13px] text-[var(--text-muted)]">{route.description}</p>
       </div>
-      <div className="grid gap-4 p-4 md:grid-cols-2">
-        <div><p className="eyebrow mb-1.5">payload</p><code className="block rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 py-2 text-xs break-words text-[var(--text-muted)]">{route.payload}</code></div>
-        <div><p className="eyebrow mb-1.5">retorno</p><code className="block rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 py-2 text-xs break-words text-[var(--text-muted)]">{route.returns}</code></div>
+      <div className="grid gap-4 p-4">
+        {route.pathParams ? <FieldTable title="parâmetros de rota" fields={route.pathParams} /> : null}
+        {route.query ? <FieldTable title="query string" fields={route.query} /> : null}
+        {route.body ? <FieldTable title="corpo (JSON)" fields={route.body} /> : null}
+        <ResponseTables response={route.response} />
       </div>
       <RoutePlayground route={route} token={token} charges={charges} />
     </Panel>
@@ -100,7 +336,7 @@ function RoutePlayground({ route, token, charges }: { route: RouteDoc; token: Ap
     if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
     setRunning(true); setError(null); setResponse(null);
     try {
-      const result = await api.integrationRequest<unknown>(route.method, `${resolvedPath}${route.query}`, token.token, body.trim() ? JSON.parse(body) : undefined);
+      const result = await api.integrationRequest<unknown>(route.method, `${resolvedPath}${route.requestQuery}`, token.token, body.trim() ? JSON.parse(body) : undefined);
       setResponse(result);
     } catch (err) {
       setError(err instanceof SyntaxError ? 'O payload não contém um JSON válido.' : err instanceof ApiError ? `${err.code}: ${err.message}` : 'Não foi possível executar a chamada');
@@ -124,7 +360,7 @@ function RoutePlayground({ route, token, charges }: { route: RouteDoc; token: Ap
           </Field>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/integration{resolvedPath}{route.query}</code>
+          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/integration{resolvedPath}{route.requestQuery}</code>
           <Button variant="primary" disabled={running || !token} onClick={() => void execute()}><Play className="size-3.5" />{running ? 'executando…' : 'executar'}</Button>
         </div>
         {error ? <Alert>{error}</Alert> : null}
