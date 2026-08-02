@@ -13,13 +13,7 @@ import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
 import { serializeDelivery } from '../../domain/serialize';
 import { WebhookDispatcher } from '../../domain/webhooks';
-
-interface DeliveryQuery {
-  charge_id?: string;
-  event?: string;
-  status?: string;
-  limit?: string;
-}
+import type { DeliveryQuery } from '../../dto';
 
 @Controller('v1/panel/webhooks/deliveries')
 @UseGuards(MerchantGuard)

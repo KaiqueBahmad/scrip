@@ -53,27 +53,6 @@ export interface ListChargesFilters {
   offset?: number;
 }
 
-/** The charge list query string, identical on both surfaces. */
-export interface ChargeQuery {
-  status?: ChargeStatus;
-  from?: string;
-  to?: string;
-  limit?: string;
-  offset?: string;
-}
-
-/** Query string to filters, dropping the keys the caller left out. */
-export function chargeFilters(merchantId: string, query: ChargeQuery): ListChargesFilters {
-  return {
-    merchantId,
-    ...(query.status ? { status: query.status } : {}),
-    ...(query.from ? { from: query.from } : {}),
-    ...(query.to ? { to: query.to } : {}),
-    ...(query.limit ? { limit: Number(query.limit) } : {}),
-    ...(query.offset ? { offset: Number(query.offset) } : {}),
-  };
-}
-
 interface ChargeTimers {
   confirm?: number;
   expire?: number;

@@ -12,7 +12,7 @@ import {
 
 import { MerchantId } from '../../auth/context';
 import { MerchantGuard } from '../../auth/merchant.guard';
-import { chargeFilters, ChargeService, type ChargeQuery } from '../../domain/charges';
+import { ChargeService } from '../../domain/charges';
 import { RefundService } from '../../domain/refunds';
 import {
   serializeCharge,
@@ -21,7 +21,12 @@ import {
   serializeRefund,
 } from '../../domain/serialize';
 import { WebhookDispatcher } from '../../domain/webhooks';
-import type { CreateRefundBody, SimulateChargeBody } from '../../dto';
+import {
+  chargeFilters,
+  type ChargeQuery,
+  type CreateRefundBody,
+  type SimulateChargeBody,
+} from '../../dto';
 import { badRequest } from '../../lib/errors';
 
 /**

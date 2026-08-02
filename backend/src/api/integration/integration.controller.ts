@@ -14,7 +14,7 @@ import {
 
 import { Auth, type IntegrationAuth } from '../../auth/context';
 import { IntegrationGuard } from '../../auth/integration.guard';
-import { chargeFilters, ChargeService, type ChargeQuery } from '../../domain/charges';
+import { ChargeService } from '../../domain/charges';
 import { MerchantService } from '../../domain/merchants';
 import { RefundService } from '../../domain/refunds';
 import {
@@ -24,7 +24,9 @@ import {
   serializeRefund,
 } from '../../domain/serialize';
 import {
+  chargeFilters,
   toMerchantUpdate,
+  type ChargeQuery,
   type CreateChargeBody,
   type CreateRefundBody,
   type UpdateMerchantBody,
