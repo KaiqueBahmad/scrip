@@ -85,8 +85,8 @@ interface RouteDoc {
   body?: FieldDoc[];
   response: ResponseDoc;
   exampleBody: string;
-  /** Query string appended to the actual request the playground fires. */
-  requestQuery: string;
+  /** Prefilled values for the playground's query string inputs, keyed by field name. */
+  queryDefaults?: Record<string, string>;
 }
 
 const CHARGE_ID_PARAM: FieldDoc[] = [
@@ -108,7 +108,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     ],
     response: { kind: 'object', model: 'pix_charge' },
     exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Pedido de teste",\n  "metadata": { "order_id": "abc-123" }\n}',
-    requestQuery: '',
   },
   {
     id: 'list-charges',
@@ -124,7 +123,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     ],
     response: { kind: 'list', model: 'pix_charge', extra: [{ name: 'total', type: 'integer', description: 'Total de cobranças que atendem ao filtro.' }] },
     exampleBody: '',
-    requestQuery: '?limit=20',
+    queryDefaults: { limit: '20' },
   },
   {
     id: 'get-charge',
@@ -134,7 +133,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'pix_charge' },
     exampleBody: '',
-    requestQuery: '',
   },
   {
     id: 'charge-events',
@@ -144,7 +142,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'charge_event' },
     exampleBody: '',
-    requestQuery: '',
   },
   {
     id: 'cancel-charge',
@@ -154,7 +151,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'pix_charge' },
     exampleBody: '',
-    requestQuery: '',
   },
   {
     id: 'create-refund',
@@ -168,7 +164,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     ],
     response: { kind: 'object', model: 'pix_refund' },
     exampleBody: '{\n  "amount": 5000,\n  "reason": "Solicitação do cliente"\n}',
-    requestQuery: '',
   },
   {
     id: 'list-refunds',
@@ -178,7 +173,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'pix_refund' },
     exampleBody: '',
-    requestQuery: '',
   },
   {
     id: 'get-merchant',
@@ -187,7 +181,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     description: 'Consulta os dados da loja.',
     response: { kind: 'object', model: 'merchant' },
     exampleBody: '',
-    requestQuery: '',
   },
   {
     id: 'update-merchant',
@@ -201,7 +194,6 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     ],
     response: { kind: 'object', model: 'merchant' },
     exampleBody: '{\n  "name": "Minha loja",\n  "webhook_url": "https://example.test/webhook"\n}',
-    requestQuery: '',
   },
 ];
 
@@ -321,19 +313,33 @@ function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefi
   );
 }
 
+/** Drops blank values so an untouched field doesn't show up as `?limit=`. */
+function buildQueryString(values: Record<string, string>): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(values)) {
+    if (value.trim()) params.set(name, value.trim());
+  }
+  const search = params.toString();
+  return search ? `?${search}` : '';
+}
+
 function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
   const [chargeId, setChargeId] = useState('');
+  const [queryValues, setQueryValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries((route.query ?? []).map((field) => [field.name, route.queryDefaults?.[field.name] ?? ''])),
+  );
   const [body, setBody] = useState<string>(route.exampleBody);
   const [response, setResponse] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const resolvedPath = route.path.replace(':id', chargeId || 'ch_example');
+  const queryString = buildQueryString(queryValues);
 
   const execute = async () => {
     if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
     setRunning(true); setError(null); setResponse(null);
     try {
-      const result = await api.integrationRequest<unknown>(route.method, `${resolvedPath}${route.requestQuery}`, token.token, body.trim() ? JSON.parse(body) : undefined);
+      const result = await api.integrationRequest<unknown>(route.method, `${resolvedPath}${queryString}`, token.token, body.trim() ? JSON.parse(body) : undefined);
       setResponse(result);
     } catch (err) {
       setError(err instanceof SyntaxError ? 'O payload não contém um JSON válido.' : err instanceof ApiError ? `${err.code}: ${err.message}` : 'Não foi possível executar a chamada');
@@ -348,13 +354,27 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
             <Input id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)} placeholder="ch_example" />
           </Field>
         ) : null}
+        {route.query ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {route.query.map((field) => (
+              <Field key={field.name} label={field.name} htmlFor={`${route.id}-query-${field.name}`} hint={field.description}>
+                <Input
+                  id={`${route.id}-query-${field.name}`}
+                  value={queryValues[field.name] ?? ''}
+                  onChange={(event) => setQueryValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                  placeholder={field.type}
+                />
+              </Field>
+            ))}
+          </div>
+        ) : null}
         {route.method !== 'GET' && route.exampleBody ? (
           <Field label="Payload JSON" htmlFor={`${route.id}-body`}>
             <Textarea id={`${route.id}-body`} value={body} onChange={(event) => setBody(event.target.value)} rows={7} />
           </Field>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/integration{resolvedPath}{route.requestQuery}</code>
+          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/integration{resolvedPath}{queryString}</code>
           <Button variant="primary" disabled={running || !token} onClick={() => void execute()}><Play className="size-3.5" />{running ? 'executando…' : 'executar'}</Button>
         </div>
         {error ? <Alert>{error}</Alert> : null}
