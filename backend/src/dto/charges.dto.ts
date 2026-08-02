@@ -1,5 +1,5 @@
 import type { ListChargesFilters } from '../domain/charges';
-import type { ChargeStatus } from '../domain/types';
+import type { ChargeStatus } from '../models/types';
 
 export interface CreateChargeBody {
   amount?: number;

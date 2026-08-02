@@ -1,11 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
 
-import { DB } from '../common/injection-tokens';
-import { nowIso, type Db } from '../db/index';
-import { settings } from '../db/schema';
+import { nowIso } from '../db/index';
 import { badRequest } from '../lib/errors';
 import type { Logger } from '../lib/logger';
+import { SettingsModel } from '../models';
 import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config';
 
 /**
@@ -13,8 +11,8 @@ import { ConfigStore, MUTABLE_CONFIG_KEYS, type PseudoPayConfig } from './config
  * the Settings screen still applies after a restart. Runs while the ConfigStore is being
  * built, before anything can read from it.
  */
-export function applyStoredSettings(db: Db, config: ConfigStore, log: Logger): void {
-  const rows = db.select({ key: settings.key, value: settings.value }).from(settings).all();
+export function applyStoredSettings(model: SettingsModel, config: ConfigStore, log: Logger): void {
+  const rows = model.readAll();
   if (rows.length === 0) return;
 
   const patch: Record<string, unknown> = {};
@@ -35,7 +33,7 @@ export function applyStoredSettings(db: Db, config: ConfigStore, log: Logger): v
 @Injectable()
 export class SettingsService {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    private readonly settings: SettingsModel,
     private readonly config: ConfigStore,
   ) {}
 
@@ -70,17 +68,13 @@ export class SettingsService {
 
     const at = nowIso();
 
-    this.db.transaction((tx) => {
-      for (const key of Object.keys(patch)) {
-        tx.insert(settings)
-          .values({ key, value: JSON.stringify(next[key as keyof PseudoPayConfig]), updated_at: at })
-          .onConflictDoUpdate({
-            target: settings.key,
-            set: { value: sql`excluded.value`, updated_at: sql`excluded.updated_at` },
-          })
-          .run();
-      }
-    });
+    this.settings.upsertMany(
+      Object.keys(patch).map((key) => ({
+        key,
+        value: JSON.stringify(next[key as keyof PseudoPayConfig]),
+        updated_at: at,
+      })),
+    );
 
     return this.read();
   }

@@ -1,13 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
 
-import { DB } from '../common/injection-tokens';
-import { nowIso, type Db } from '../db/index';
-import { merchants, pixCharges } from '../db/schema';
+import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
+import { MerchantModel } from '../models';
+import type { ChargeStatus, MerchantRow } from '../models/types';
 import { serializeMerchant } from './serialize';
-import type { MerchantRow } from './types';
 
 /**
  * A store is created with just its identity. The webhook is set afterwards through
@@ -53,11 +51,11 @@ export interface MerchantBalance {
 }
 
 /** Only these statuses ever moved money; a fully refunded charge contributes zero. */
-const SETTLED_STATUSES = ['paid', 'partially_refunded', 'refunded'] as const;
+const SETTLED_STATUSES: readonly ChargeStatus[] = ['paid', 'partially_refunded', 'refunded'];
 
 @Injectable()
 export class MerchantService {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(private readonly merchants: MerchantModel) {}
 
   /**
    * A store as its own session sees it: the full record — secret included, because you are
@@ -73,28 +71,13 @@ export class MerchantService {
    * recorded on pix_charges.
    */
   balanceFor(merchantId: string): MerchantBalance {
-    const row = this.db
-      .select({
-        available: sql<number>`
-          COALESCE(SUM(${pixCharges.amount} - ${pixCharges.refunded_amount}), 0)`,
-        gross: sql<number>`COALESCE(SUM(${pixCharges.amount}), 0)`,
-        refunded: sql<number>`COALESCE(SUM(${pixCharges.refunded_amount}), 0)`,
-        settled: sql<number>`COUNT(*)`,
-      })
-      .from(pixCharges)
-      .where(
-        and(
-          eq(pixCharges.merchant_id, merchantId),
-          inArray(pixCharges.status, [...SETTLED_STATUSES]),
-        ),
-      )
-      .get();
+    const totals = this.merchants.sumCharges(merchantId, SETTLED_STATUSES);
 
     return {
-      available: row?.available ?? 0,
-      gross_received: row?.gross ?? 0,
-      refunded: row?.refunded ?? 0,
-      settled_charges: row?.settled ?? 0,
+      available: totals.amount - totals.refunded_amount,
+      gross_received: totals.amount,
+      refunded: totals.refunded_amount,
+      settled_charges: totals.count,
     };
   }
 
@@ -118,7 +101,7 @@ export class MerchantService {
       updated_at: at,
     };
 
-    this.db.insert(merchants).values(row).run();
+    this.merchants.insert(row);
 
     return row;
   }
@@ -131,11 +114,11 @@ export class MerchantService {
   }
 
   find(merchantId: string): MerchantRow | undefined {
-    return this.db.select().from(merchants).where(eq(merchants.id, merchantId)).get();
+    return this.merchants.findById(merchantId);
   }
 
   list(): MerchantRow[] {
-    return this.db.select().from(merchants).orderBy(desc(merchants.created_at)).all();
+    return this.merchants.list();
   }
 
   update(merchantId: string, input: UpdateMerchantInput): MerchantRow {
@@ -146,21 +129,18 @@ export class MerchantService {
     }
     if (input.webhookUrl !== undefined) assertValidWebhookUrl(input.webhookUrl);
 
-    const next = {
+    this.merchants.update(merchantId, {
       name: input.name?.trim() ?? current.name,
       webhook_url: input.webhookUrl === undefined ? current.webhook_url : input.webhookUrl,
       webhook_secret: input.rotateWebhookSecret ? newWebhookSecret() : current.webhook_secret,
       updated_at: nowIso(),
-    };
-
-    this.db.update(merchants).set(next).where(eq(merchants.id, merchantId)).run();
+    });
 
     return this.get(merchantId);
   }
 
   delete(merchantId: string): void {
     this.get(merchantId);
-    // Charges, tokens, KYC docs and deliveries cascade (see schema.sql).
-    this.db.delete(merchants).where(eq(merchants.id, merchantId)).run();
+    this.merchants.delete(merchantId);
   }
 }

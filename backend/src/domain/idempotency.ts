@@ -1,11 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 
-import { DB } from '../common/injection-tokens';
-import { nowIso, type Db } from '../db/index';
-import { idempotencyKeys } from '../db/schema';
+import { nowIso } from '../db/index';
 import { conflict } from '../lib/errors';
+import { IdempotencyModel } from '../models';
 
 export interface IdempotencyLookup {
   key: string;
@@ -31,24 +29,10 @@ function hashRequest(body: unknown): string {
  */
 @Injectable()
 export class IdempotencyStore {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(private readonly keys: IdempotencyModel) {}
 
   find(lookup: IdempotencyLookup): StoredResponse | undefined {
-    const row = this.db
-      .select({
-        request_hash: idempotencyKeys.request_hash,
-        response_status: idempotencyKeys.response_status,
-        response_body: idempotencyKeys.response_body,
-      })
-      .from(idempotencyKeys)
-      .where(
-        and(
-          eq(idempotencyKeys.merchant_id, lookup.merchantId),
-          eq(idempotencyKeys.endpoint, lookup.endpoint),
-          eq(idempotencyKeys.key, lookup.key),
-        ),
-      )
-      .get();
+    const row = this.keys.find(lookup);
 
     if (!row) return undefined;
 
@@ -64,26 +48,14 @@ export class IdempotencyStore {
   }
 
   store(lookup: IdempotencyLookup, response: StoredResponse): void {
-    this.db
-      .insert(idempotencyKeys)
-      .values({
-        key: lookup.key,
-        merchant_id: lookup.merchantId,
-        endpoint: lookup.endpoint,
-        request_hash: hashRequest(lookup.requestBody),
-        response_status: response.status,
-        response_body: JSON.stringify(response.body),
-        created_at: nowIso(),
-      })
-      .onConflictDoUpdate({
-        target: [idempotencyKeys.merchant_id, idempotencyKeys.endpoint, idempotencyKeys.key],
-        set: {
-          request_hash: sql`excluded.request_hash`,
-          response_status: sql`excluded.response_status`,
-          response_body: sql`excluded.response_body`,
-          created_at: sql`excluded.created_at`,
-        },
-      })
-      .run();
+    this.keys.upsert({
+      key: lookup.key,
+      merchant_id: lookup.merchantId,
+      endpoint: lookup.endpoint,
+      request_hash: hashRequest(lookup.requestBody),
+      response_status: response.status,
+      response_body: JSON.stringify(response.body),
+      created_at: nowIso(),
+    });
   }
 }

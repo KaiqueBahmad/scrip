@@ -1,17 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
 
-import { DB, LOGGER, SCHEDULER } from '../common/injection-tokens';
-import { nowIso, type Db } from '../db/index';
-import { pixRefunds } from '../db/schema';
+import { LOGGER, SCHEDULER } from '../common/injection-tokens';
+import { nowIso } from '../db/index';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { generateE2eId } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
+import { RefundModel } from '../models';
+import type { RefundRow, Scope } from '../models/types';
 import { ChargeService } from './charges';
 import { serializeCharge, serializeRefund } from './serialize';
-import type { RefundRow, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 export interface CreateRefundInput {
@@ -30,7 +29,7 @@ export interface CreateRefundInput {
 @Injectable()
 export class RefundService {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    private readonly refunds: RefundModel,
     @Inject(SCHEDULER) private readonly scheduler: Scheduler,
     @Inject(LOGGER) private readonly log: Logger,
     private readonly charges: ChargeService,
@@ -76,7 +75,7 @@ export class RefundService {
       created_at: nowIso(this.scheduler.now()),
     };
 
-    this.db.insert(pixRefunds).values(refund).run();
+    this.refunds.insert(refund);
 
     const updatedCharge = this.charges.applyRefund(charge.id, amount);
 
@@ -99,16 +98,11 @@ export class RefundService {
     // Runs the scoped charge lookup first so a foreign charge id 404s consistently.
     this.charges.get(chargeId, scope);
 
-    return this.db
-      .select()
-      .from(pixRefunds)
-      .where(eq(pixRefunds.charge_id, chargeId))
-      .orderBy(asc(pixRefunds.created_at))
-      .all();
+    return this.refunds.listByCharge(chargeId);
   }
 
   get(refundId: string): RefundRow {
-    const row = this.db.select().from(pixRefunds).where(eq(pixRefunds.id, refundId)).get();
+    const row = this.refunds.findById(refundId);
 
     if (!row) throw notFound('refund_not_found', `No refund ${refundId}`);
     return row;

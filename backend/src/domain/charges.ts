@@ -1,18 +1,17 @@
 import { Inject, Injectable, type OnApplicationBootstrap } from '@nestjs/common';
-import { and, asc, count, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
 
-import { DB, LOGGER, RANDOM, SCHEDULER } from '../common/injection-tokens';
+import { LOGGER, RANDOM, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
-import { nowIso, type Db, type DbOrTx } from '../db/index';
-import { chargeEvents, merchants, pixCharges } from '../db/schema';
+import { nowIso } from '../db/index';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
+import { ChargeModel, MerchantModel, type ChargePatch } from '../models';
+import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from '../models/types';
 import { serializeCharge } from './serialize';
 import { planConfirmation } from './testDocuments';
-import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from './types';
 import { WebhookDispatcher } from './webhooks';
 
 /**
@@ -55,22 +54,6 @@ export interface ListChargesFilters {
   offset?: number;
 }
 
-/**
- * The WHERE shared by `list` and `count`. `and` drops the undefined branches, so an absent
- * filter simply contributes nothing.
- */
-function chargeFilters(
-  filters: ListChargesFilters,
-  options: { dateRange: boolean },
-): SQL | undefined {
-  return and(
-    filters.merchantId ? eq(pixCharges.merchant_id, filters.merchantId) : undefined,
-    filters.status ? eq(pixCharges.status, filters.status) : undefined,
-    options.dateRange && filters.from ? gte(pixCharges.created_at, filters.from) : undefined,
-    options.dateRange && filters.to ? lte(pixCharges.created_at, filters.to) : undefined,
-  );
-}
-
 interface ChargeTimers {
   confirm?: number;
   expire?: number;
@@ -81,7 +64,8 @@ export class ChargeService implements OnApplicationBootstrap {
   private readonly timers = new Map<string, ChargeTimers>();
 
   constructor(
-    @Inject(DB) private readonly db: Db,
+    private readonly charges: ChargeModel,
+    private readonly merchants: MerchantModel,
     private readonly config: ConfigStore,
     @Inject(SCHEDULER) private readonly scheduler: Scheduler,
     @Inject(LOGGER) private readonly log: Logger,
@@ -111,11 +95,7 @@ export class ChargeService implements OnApplicationBootstrap {
       }
     }
 
-    const merchant = this.db
-      .select()
-      .from(merchants)
-      .where(eq(merchants.id, input.merchantId))
-      .get();
+    const merchant = this.merchants.findById(input.merchantId);
 
     if (!merchant) {
       throw notFound('merchant_not_found', `No merchant ${input.merchantId}`);
@@ -165,10 +145,7 @@ export class ChargeService implements OnApplicationBootstrap {
       updated_at: createdAt,
     };
 
-    this.db.transaction((tx) => {
-      tx.insert(pixCharges).values(row).run();
-      this.recordEvent(tx, id, null, 'pending', 'charge_created', createdAt);
-    });
+    this.charges.insert(row, this.event(id, null, 'pending', 'charge_created', createdAt));
 
     this.webhooks.enqueue({
       merchantId: merchant.id,
@@ -188,7 +165,7 @@ export class ChargeService implements OnApplicationBootstrap {
   }
 
   get(chargeId: string, scope: Scope = {}): ChargeRow {
-    const row = this.db.select().from(pixCharges).where(eq(pixCharges.id, chargeId)).get();
+    const row = this.charges.findById(chargeId);
 
     // A charge belonging to another merchant is reported as missing rather than forbidden,
     // so ids can't be probed across merchants.
@@ -200,35 +177,15 @@ export class ChargeService implements OnApplicationBootstrap {
   }
 
   list(filters: ListChargesFilters = {}): ChargeRow[] {
-    return this.db
-      .select()
-      .from(pixCharges)
-      .where(chargeFilters(filters, { dateRange: true }))
-      .orderBy(desc(pixCharges.created_at), desc(pixCharges.id))
-      .limit(Math.min(filters.limit ?? 50, 200))
-      .offset(filters.offset ?? 0)
-      .all();
+    return this.charges.list(filters);
   }
 
-  // Note: the date range is not applied here, matching the SQL this replaced. A `total`
-  // taken with from/to set therefore counts more rows than `list` returns.
   count(filters: ListChargesFilters = {}): number {
-    const row = this.db
-      .select({ total: count() })
-      .from(pixCharges)
-      .where(chargeFilters(filters, { dateRange: false }))
-      .get();
-
-    return row?.total ?? 0;
+    return this.charges.count(filters);
   }
 
   listEvents(chargeId: string): ChargeEventRow[] {
-    return this.db
-      .select()
-      .from(chargeEvents)
-      .where(eq(chargeEvents.charge_id, chargeId))
-      .orderBy(asc(chargeEvents.created_at), asc(chargeEvents.id))
-      .all();
+    return this.charges.listEvents(chargeId);
   }
 
   /** Forces an outcome for tests and CI (specs.md:84-93). */
@@ -241,23 +198,18 @@ export class ChargeService implements OnApplicationBootstrap {
 
   markPaid(chargeId: string, reason: string): ChargeRow {
     const charge = this.get(chargeId);
-    this.assertTransition(charge, 'paid');
-
     const at = nowIso(this.scheduler.now());
     const e2eId = generateE2eId(new Date(this.scheduler.now()));
 
-    this.db.transaction((tx) => {
-      tx.update(pixCharges)
-        .set({ status: 'paid', paid_at: at, e2e_id: e2eId, updated_at: at })
-        .where(eq(pixCharges.id, chargeId))
-        .run();
-
-      this.recordEvent(tx, chargeId, charge.status, 'paid', reason, at);
-    });
+    const updated = this.transition(
+      charge,
+      'paid',
+      { paid_at: at, e2e_id: e2eId, updated_at: at },
+      reason,
+      at,
+    );
 
     this.clearTimers(chargeId);
-
-    const updated = this.get(chargeId);
 
     this.webhooks.enqueue({
       merchantId: updated.merchant_id,
@@ -273,22 +225,17 @@ export class ChargeService implements OnApplicationBootstrap {
 
   markExpired(chargeId: string, reason: string): ChargeRow {
     const charge = this.get(chargeId);
-    this.assertTransition(charge, 'expired');
-
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction((tx) => {
-      tx.update(pixCharges)
-        .set({ status: 'expired', expired_at: at, updated_at: at })
-        .where(eq(pixCharges.id, chargeId))
-        .run();
-
-      this.recordEvent(tx, chargeId, charge.status, 'expired', reason, at);
-    });
+    const updated = this.transition(
+      charge,
+      'expired',
+      { expired_at: at, updated_at: at },
+      reason,
+      at,
+    );
 
     this.clearTimers(chargeId);
-
-    const updated = this.get(chargeId);
 
     this.webhooks.enqueue({
       merchantId: updated.merchant_id,
@@ -304,24 +251,21 @@ export class ChargeService implements OnApplicationBootstrap {
 
   cancel(chargeId: string, scope: Scope = {}): ChargeRow {
     const charge = this.get(chargeId, scope);
-    this.assertTransition(charge, 'canceled');
-
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction((tx) => {
-      tx.update(pixCharges)
-        .set({ status: 'canceled', canceled_at: at, updated_at: at })
-        .where(eq(pixCharges.id, chargeId))
-        .run();
-
-      this.recordEvent(tx, chargeId, charge.status, 'canceled', 'canceled_by_merchant', at);
-    });
+    const updated = this.transition(
+      charge,
+      'canceled',
+      { canceled_at: at, updated_at: at },
+      'canceled_by_merchant',
+      at,
+    );
 
     this.clearTimers(chargeId);
     this.log.info({ charge_id: chargeId }, 'pix charge canceled');
 
     // No webhook: specs.md:106 does not define a pix.charge.canceled event.
-    return this.get(chargeId);
+    return updated;
   }
 
   /**
@@ -332,21 +276,15 @@ export class ChargeService implements OnApplicationBootstrap {
     const charge = this.get(chargeId);
     const refundedTotal = charge.refunded_amount + amount;
     const nextStatus: ChargeStatus = refundedTotal >= charge.amount ? 'refunded' : 'partially_refunded';
-
-    this.assertTransition(charge, nextStatus);
-
     const at = nowIso(this.scheduler.now());
 
-    this.db.transaction((tx) => {
-      tx.update(pixCharges)
-        .set({ status: nextStatus, refunded_amount: refundedTotal, updated_at: at })
-        .where(eq(pixCharges.id, chargeId))
-        .run();
-
-      this.recordEvent(tx, chargeId, charge.status, nextStatus, 'refund_applied', at);
-    });
-
-    return this.get(chargeId);
+    return this.transition(
+      charge,
+      nextStatus,
+      { refunded_amount: refundedTotal, updated_at: at },
+      'refund_applied',
+      at,
+    );
   }
 
   /**
@@ -355,11 +293,7 @@ export class ChargeService implements OnApplicationBootstrap {
    * in-process timers do not survive a restart.
    */
   restorePendingTimers(): number {
-    const pending = this.db
-      .select()
-      .from(pixCharges)
-      .where(eq(pixCharges.status, 'pending'))
-      .all();
+    const pending = this.charges.listByStatus('pending');
 
     for (const charge of pending) {
       const remaining = new Date(charge.qr_code_expires_at).getTime() - this.scheduler.now();
@@ -379,6 +313,28 @@ export class ChargeService implements OnApplicationBootstrap {
     }
 
     return pending.length;
+  }
+
+  /**
+   * The single door to a status change: the transition is checked against the state machine,
+   * then the new status and the event that records it are written together.
+   */
+  private transition(
+    charge: ChargeRow,
+    to: ChargeStatus,
+    patch: ChargePatch,
+    reason: string,
+    at: string,
+  ): ChargeRow {
+    this.assertTransition(charge, to);
+
+    this.charges.updateWithEvent(
+      charge.id,
+      { ...patch, status: to },
+      this.event(charge.id, charge.status, to, reason, at),
+    );
+
+    return this.get(charge.id);
   }
 
   /** Schedules auto-confirmation (if any) and QR expiration for a new charge. */
@@ -442,25 +398,22 @@ export class ChargeService implements OnApplicationBootstrap {
     );
   }
 
-  /** Always called from inside a transaction, alongside the status write it records. */
-  private recordEvent(
-    tx: DbOrTx,
+  /** The append-only record of one transition, written alongside the status it describes. */
+  private event(
     chargeId: string,
     from: ChargeStatus | null,
     to: ChargeStatus,
     reason: string,
     at: string,
-  ): void {
-    tx.insert(chargeEvents)
-      .values({
-        id: newId('chargeEvent'),
-        charge_id: chargeId,
-        from_status: from,
-        to_status: to,
-        reason,
-        created_at: at,
-      })
-      .run();
+  ): ChargeEventRow {
+    return {
+      id: newId('chargeEvent'),
+      charge_id: chargeId,
+      from_status: from,
+      to_status: to,
+      reason,
+      created_at: at,
+    };
   }
 
   private setTimer(chargeId: string, kind: keyof ChargeTimers, handle: number): void {

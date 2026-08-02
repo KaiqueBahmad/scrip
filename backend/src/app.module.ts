@@ -25,6 +25,16 @@ import { TokenService } from './domain/tokens';
 import { WebhookDispatcher } from './domain/webhooks';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
+import {
+  ChargeModel,
+  IdempotencyModel,
+  KycModel,
+  MerchantModel,
+  RefundModel,
+  SettingsModel,
+  TokenModel,
+  WebhookDeliveryModel,
+} from './models';
 
 export interface AppModuleOptions {
   /** Already resolved by `createApp`, which needs the same values to build the adapter. */
@@ -70,10 +80,10 @@ export class AppModule {
         { provide: RANDOM, useValue: options.random ?? Math.random },
         {
           provide: ConfigStore,
-          inject: [DB, LOGGER],
-          useFactory: (database: Db, logger: Logger) => {
+          inject: [SettingsModel, LOGGER],
+          useFactory: (settings: SettingsModel, logger: Logger) => {
             const store = new ConfigStore(options.config);
-            applyStoredSettings(database, store, logger);
+            applyStoredSettings(settings, store, logger);
             return store;
           },
         },
@@ -89,6 +99,16 @@ export class AppModule {
             },
           }),
         },
+        // Persistence: every Drizzle query lives behind one of these.
+        MerchantModel,
+        ChargeModel,
+        RefundModel,
+        TokenModel,
+        KycModel,
+        WebhookDeliveryModel,
+        IdempotencyModel,
+        SettingsModel,
+        // Business rules, which reach the database only through the models above.
         WebhookDispatcher,
         ChargeService,
         RefundService,

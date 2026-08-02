@@ -1,14 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { Injectable } from '@nestjs/common';
 
-import { DB } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
-import { nowIso, type Db } from '../db/index';
-import { integrationTokens, merchants } from '../db/schema';
+import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
 import { decodeExpiry, signIntegrationToken } from '../lib/jwt';
-import type { IntegrationTokenRow, Scope } from './types';
+import { MerchantModel, TokenModel } from '../models';
+import type { IntegrationTokenRow, Scope } from '../models/types';
 
 export interface IssueTokenInput {
   /** The merchant whose session is issuing this token; it is always the token's scope. */
@@ -26,7 +24,8 @@ export interface IssueTokenInput {
 @Injectable()
 export class TokenService {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    private readonly tokens: TokenModel,
+    private readonly merchants: MerchantModel,
     private readonly config: ConfigStore,
   ) {}
 
@@ -37,13 +36,9 @@ export class TokenService {
       throw badRequest('merchant_required', 'A token must be scoped to a merchant');
     }
 
-    const merchantExists = this.db
-      .select({ id: merchants.id })
-      .from(merchants)
-      .where(eq(merchants.id, merchantId))
-      .get();
-
-    if (!merchantExists) throw badRequest('merchant_not_found', `No merchant ${merchantId}`);
+    if (!this.merchants.findById(merchantId)) {
+      throw badRequest('merchant_not_found', `No merchant ${merchantId}`);
+    }
 
     const configuredExpiry = this.config.get('jwtDefaultExpiration');
     const requestedExpiry = input.expiresIn === undefined ? configuredExpiry : input.expiresIn;
@@ -79,7 +74,7 @@ export class TokenService {
       created_at: nowIso(),
     };
 
-    this.db.insert(integrationTokens).values(row).run();
+    this.tokens.insert(row);
 
     return row;
   }
@@ -95,33 +90,24 @@ export class TokenService {
   }
 
   find(tokenId: string): IntegrationTokenRow | undefined {
-    return this.db.select().from(integrationTokens).where(eq(integrationTokens.id, tokenId)).get();
+    return this.tokens.findById(tokenId);
   }
 
   listForMerchant(merchantId: string): IntegrationTokenRow[] {
-    return this.db
-      .select()
-      .from(integrationTokens)
-      .where(eq(integrationTokens.merchant_id, merchantId))
-      .orderBy(desc(integrationTokens.created_at))
-      .all();
+    return this.tokens.listByMerchant(merchantId);
   }
 
   revoke(tokenId: string, scope: Scope = {}): IntegrationTokenRow {
     const token = this.get(tokenId, scope);
     if (token.revoked_at) return token;
 
-    this.db
-      .update(integrationTokens)
-      .set({ revoked_at: nowIso() })
-      .where(eq(integrationTokens.id, tokenId))
-      .run();
+    this.tokens.markRevoked(tokenId, nowIso());
 
     return this.get(tokenId);
   }
 
   delete(tokenId: string, scope: Scope = {}): void {
     this.get(tokenId, scope);
-    this.db.delete(integrationTokens).where(eq(integrationTokens.id, tokenId)).run();
+    this.tokens.delete(tokenId);
   }
 }
