@@ -1,18 +1,21 @@
-import type { ConfigStore } from '../config.js';
-import { nowIso, type Db } from '../db/index.js';
-import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
-import { newId } from '../lib/ids.js';
-import type { Logger } from '../lib/logger.js';
-import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix.js';
-import type { Scheduler } from '../lib/scheduler.js';
-import type { ChargeEventRow, ChargeRow, ChargeStatus, MerchantRow } from '../types.js';
-import { serializeCharge } from './serialize.js';
-import { planConfirmation } from './testDocuments.js';
-import type { WebhookDispatcher } from './webhooks.js';
+import { Inject, Injectable, type OnApplicationBootstrap } from '@nestjs/common';
+
+import { ConfigStore } from '../config';
+import { nowIso, type Db } from '../db/index';
+import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
+import { newId } from '../lib/ids';
+import type { Logger } from '../lib/logger';
+import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
+import type { Scheduler } from '../lib/scheduler';
+import { DB, LOGGER, RANDOM, SCHEDULER } from '../tokens';
+import type { ChargeEventRow, ChargeRow, ChargeStatus, MerchantRow, Scope } from '../types';
+import { serializeCharge } from './serialize';
+import { planConfirmation } from './testDocuments';
+import { WebhookDispatcher } from './webhooks';
 
 /**
  * The PIX state machine. Everything a charge can become is enumerated here, and
- * `#transition` is the only place a status is ever written.
+ * `transition` is the only place a status is ever written.
  */
 const ALLOWED_TRANSITIONS: Record<ChargeStatus, readonly ChargeStatus[]> = {
   pending: ['paid', 'expired', 'canceled'],
@@ -50,14 +53,25 @@ export interface ListChargesFilters {
   offset?: number;
 }
 
-export interface ChargeServiceDeps {
-  db: Db;
-  config: ConfigStore;
-  scheduler: Scheduler;
-  log: Logger;
-  webhooks: WebhookDispatcher;
-  /** Injectable for deterministic tests of the approvalRate path. */
-  random?: () => number;
+/** The charge list query string, identical on both surfaces. */
+export interface ChargeQuery {
+  status?: ChargeStatus;
+  from?: string;
+  to?: string;
+  limit?: string;
+  offset?: string;
+}
+
+/** Query string to filters, dropping the keys the caller left out. */
+export function chargeFilters(merchantId: string, query: ChargeQuery): ListChargesFilters {
+  return {
+    merchantId,
+    ...(query.status ? { status: query.status } : {}),
+    ...(query.from ? { from: query.from } : {}),
+    ...(query.to ? { to: query.to } : {}),
+    ...(query.limit ? { limit: Number(query.limit) } : {}),
+    ...(query.offset ? { offset: Number(query.offset) } : {}),
+  };
 }
 
 interface ChargeTimers {
@@ -65,26 +79,26 @@ interface ChargeTimers {
   expire?: number;
 }
 
-export class ChargeService {
-  #db: Db;
-  #config: ConfigStore;
-  #scheduler: Scheduler;
-  #log: Logger;
-  #webhooks: WebhookDispatcher;
-  #random: () => number;
-  #timers = new Map<string, ChargeTimers>();
+@Injectable()
+export class ChargeService implements OnApplicationBootstrap {
+  private readonly timers = new Map<string, ChargeTimers>();
 
-  constructor(deps: ChargeServiceDeps) {
-    this.#db = deps.db;
-    this.#config = deps.config;
-    this.#scheduler = deps.scheduler;
-    this.#log = deps.log;
-    this.#webhooks = deps.webhooks;
-    this.#random = deps.random ?? Math.random;
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    private readonly config: ConfigStore,
+    @Inject(SCHEDULER) private readonly scheduler: Scheduler,
+    @Inject(LOGGER) private readonly log: Logger,
+    private readonly webhooks: WebhookDispatcher,
+    @Inject(RANDOM) private readonly random: () => number,
+  ) {}
+
+  /** Charges still pending when the process stopped get their expiry re-armed on boot. */
+  onApplicationBootstrap(): void {
+    this.restorePendingTimers();
   }
 
   create(input: CreateChargeInput): ChargeRow {
-    const config = this.#config.current();
+    const config = this.config.current();
 
     if (!Number.isInteger(input.amount) || input.amount <= 0) {
       throw badRequest(
@@ -100,7 +114,7 @@ export class ChargeService {
       }
     }
 
-    const merchant = this.#db
+    const merchant = this.db
       .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
       .get(input.merchantId);
 
@@ -119,7 +133,7 @@ export class ChargeService {
 
     const id = newId('charge');
     const txid = generateTxid();
-    const createdAtMs = this.#scheduler.now();
+    const createdAtMs = this.scheduler.now();
     const createdAt = nowIso(createdAtMs);
     const expiresAt = nowIso(createdAtMs + config.pixQrCodeExpirationMs);
 
@@ -152,8 +166,8 @@ export class ChargeService {
       updated_at: createdAt,
     };
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare(
           `INSERT INTO pix_charges
              (id, merchant_id, amount, status, payer_document, payer_name, description,
@@ -166,19 +180,19 @@ export class ChargeService {
         )
         .run(row);
 
-      this.#recordEvent(id, null, 'pending', 'charge_created', createdAt);
+      this.recordEvent(id, null, 'pending', 'charge_created', createdAt);
     })();
 
-    this.#webhooks.enqueue({
+    this.webhooks.enqueue({
       merchantId: merchant.id,
       event: 'pix.charge.created',
       chargeId: id,
       data: { charge: serializeCharge(row) },
     });
 
-    this.#armTimers(row);
+    this.armTimers(row);
 
-    this.#log.info(
+    this.log.info(
       { charge_id: id, merchant_id: merchant.id, amount: input.amount },
       'pix charge created',
     );
@@ -186,8 +200,8 @@ export class ChargeService {
     return row;
   }
 
-  get(chargeId: string, scope: { merchantId?: string } = {}): ChargeRow {
-    const row = this.#db
+  get(chargeId: string, scope: Scope = {}): ChargeRow {
+    const row = this.db
       .prepare<[string], ChargeRow>('SELECT * FROM pix_charges WHERE id = ?')
       .get(chargeId);
 
@@ -223,7 +237,7 @@ export class ChargeService {
 
     params.push(Math.min(filters.limit ?? 50, 200), filters.offset ?? 0);
 
-    return this.#db
+    return this.db
       .prepare<unknown[], ChargeRow>(
         `SELECT * FROM pix_charges
          ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
@@ -246,7 +260,7 @@ export class ChargeService {
       params.push(filters.status);
     }
 
-    const row = this.#db
+    const row = this.db
       .prepare<unknown[], { total: number }>(
         `SELECT COUNT(*) AS total FROM pix_charges
          ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}`,
@@ -257,7 +271,7 @@ export class ChargeService {
   }
 
   listEvents(chargeId: string): ChargeEventRow[] {
-    return this.#db
+    return this.db
       .prepare<[string], ChargeEventRow>(
         'SELECT * FROM charge_events WHERE charge_id = ? ORDER BY created_at ASC, id ASC',
       )
@@ -265,7 +279,7 @@ export class ChargeService {
   }
 
   /** Forces an outcome for tests and CI (specs.md:84-93). */
-  simulate(chargeId: string, result: 'paid' | 'expired', scope: { merchantId?: string } = {}): ChargeRow {
+  simulate(chargeId: string, result: 'paid' | 'expired', scope: Scope = {}): ChargeRow {
     const charge = this.get(chargeId, scope);
 
     if (result === 'paid') return this.markPaid(charge.id, 'simulated');
@@ -274,84 +288,84 @@ export class ChargeService {
 
   markPaid(chargeId: string, reason: string): ChargeRow {
     const charge = this.get(chargeId);
-    this.#assertTransition(charge, 'paid');
+    this.assertTransition(charge, 'paid');
 
-    const at = nowIso(this.#scheduler.now());
-    const e2eId = generateE2eId(new Date(this.#scheduler.now()));
+    const at = nowIso(this.scheduler.now());
+    const e2eId = generateE2eId(new Date(this.scheduler.now()));
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare(
           `UPDATE pix_charges SET status = 'paid', paid_at = ?, e2e_id = ?, updated_at = ?
             WHERE id = ?`,
         )
         .run(at, e2eId, at, chargeId);
 
-      this.#recordEvent(chargeId, charge.status, 'paid', reason, at);
+      this.recordEvent(chargeId, charge.status, 'paid', reason, at);
     })();
 
-    this.#clearTimers(chargeId);
+    this.clearTimers(chargeId);
 
     const updated = this.get(chargeId);
 
-    this.#webhooks.enqueue({
+    this.webhooks.enqueue({
       merchantId: updated.merchant_id,
       event: 'pix.charge.paid',
       chargeId,
       data: { charge: serializeCharge(updated) },
     });
 
-    this.#log.info({ charge_id: chargeId, reason, e2e_id: e2eId }, 'pix charge paid');
+    this.log.info({ charge_id: chargeId, reason, e2e_id: e2eId }, 'pix charge paid');
 
     return updated;
   }
 
   markExpired(chargeId: string, reason: string): ChargeRow {
     const charge = this.get(chargeId);
-    this.#assertTransition(charge, 'expired');
+    this.assertTransition(charge, 'expired');
 
-    const at = nowIso(this.#scheduler.now());
+    const at = nowIso(this.scheduler.now());
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare(`UPDATE pix_charges SET status = 'expired', expired_at = ?, updated_at = ? WHERE id = ?`)
         .run(at, at, chargeId);
 
-      this.#recordEvent(chargeId, charge.status, 'expired', reason, at);
+      this.recordEvent(chargeId, charge.status, 'expired', reason, at);
     })();
 
-    this.#clearTimers(chargeId);
+    this.clearTimers(chargeId);
 
     const updated = this.get(chargeId);
 
-    this.#webhooks.enqueue({
+    this.webhooks.enqueue({
       merchantId: updated.merchant_id,
       event: 'pix.charge.expired',
       chargeId,
       data: { charge: serializeCharge(updated) },
     });
 
-    this.#log.info({ charge_id: chargeId, reason }, 'pix charge expired');
+    this.log.info({ charge_id: chargeId, reason }, 'pix charge expired');
 
     return updated;
   }
 
-  cancel(chargeId: string, scope: { merchantId?: string } = {}): ChargeRow {
+  cancel(chargeId: string, scope: Scope = {}): ChargeRow {
     const charge = this.get(chargeId, scope);
-    this.#assertTransition(charge, 'canceled');
+    this.assertTransition(charge, 'canceled');
 
-    const at = nowIso(this.#scheduler.now());
+    const at = nowIso(this.scheduler.now());
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare(`UPDATE pix_charges SET status = 'canceled', canceled_at = ?, updated_at = ? WHERE id = ?`)
         .run(at, at, chargeId);
 
-      this.#recordEvent(chargeId, charge.status, 'canceled', 'canceled_by_merchant', at);
+      this.recordEvent(chargeId, charge.status, 'canceled', 'canceled_by_merchant', at);
     })();
 
-    this.#clearTimers(chargeId);
-    this.#log.info({ charge_id: chargeId }, 'pix charge canceled');
+    this.clearTimers(chargeId);
+    this.log.info({ charge_id: chargeId }, 'pix charge canceled');
 
     // No webhook: specs.md:106 does not define a pix.charge.canceled event.
     return this.get(chargeId);
@@ -366,16 +380,16 @@ export class ChargeService {
     const refundedTotal = charge.refunded_amount + amount;
     const nextStatus: ChargeStatus = refundedTotal >= charge.amount ? 'refunded' : 'partially_refunded';
 
-    this.#assertTransition(charge, nextStatus);
+    this.assertTransition(charge, nextStatus);
 
-    const at = nowIso(this.#scheduler.now());
+    const at = nowIso(this.scheduler.now());
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare('UPDATE pix_charges SET status = ?, refunded_amount = ?, updated_at = ? WHERE id = ?')
         .run(nextStatus, refundedTotal, at, chargeId);
 
-      this.#recordEvent(chargeId, charge.status, nextStatus, 'refund_applied', at);
+      this.recordEvent(chargeId, charge.status, nextStatus, 'refund_applied', at);
     })();
 
     return this.get(chargeId);
@@ -387,48 +401,48 @@ export class ChargeService {
    * in-process timers do not survive a restart.
    */
   restorePendingTimers(): number {
-    const pending = this.#db
+    const pending = this.db
       .prepare<[], ChargeRow>(`SELECT * FROM pix_charges WHERE status = 'pending'`)
       .all();
 
     for (const charge of pending) {
-      const remaining = new Date(charge.qr_code_expires_at).getTime() - this.#scheduler.now();
+      const remaining = new Date(charge.qr_code_expires_at).getTime() - this.scheduler.now();
 
       if (remaining <= 0) {
         this.markExpired(charge.id, 'expired_while_offline');
         continue;
       }
 
-      this.#setTimer(charge.id, 'expire', this.#scheduler.schedule(remaining, () => {
-        this.#safeExpire(charge.id, 'qr_code_expired');
+      this.setTimer(charge.id, 'expire', this.scheduler.schedule(remaining, () => {
+        this.safeExpire(charge.id, 'qr_code_expired');
       }));
     }
 
     if (pending.length > 0) {
-      this.#log.info({ count: pending.length }, 'restored pending charge timers');
+      this.log.info({ count: pending.length }, 'restored pending charge timers');
     }
 
     return pending.length;
   }
 
   /** Schedules auto-confirmation (if any) and QR expiration for a new charge. */
-  #armTimers(charge: ChargeRow): void {
-    const config = this.#config.current();
-    const plan = planConfirmation(charge.payer_document, config, this.#random);
+  private armTimers(charge: ChargeRow): void {
+    const config = this.config.current();
+    const plan = planConfirmation(charge.payer_document, config, this.random);
 
     if (plan.confirm) {
-      this.#setTimer(charge.id, 'confirm', this.#scheduler.schedule(plan.delayMs, () => {
-        this.#safePay(charge.id, plan.reason);
+      this.setTimer(charge.id, 'confirm', this.scheduler.schedule(plan.delayMs, () => {
+        this.safePay(charge.id, plan.reason);
       }));
     } else {
-      this.#log.debug(
+      this.log.debug(
         { charge_id: charge.id, reason: plan.reason },
         'charge will not auto-confirm',
       );
     }
 
-    this.#setTimer(charge.id, 'expire', this.#scheduler.schedule(config.pixQrCodeExpirationMs, () => {
-      this.#safeExpire(charge.id, 'qr_code_expired');
+    this.setTimer(charge.id, 'expire', this.scheduler.schedule(config.pixQrCodeExpirationMs, () => {
+      this.safeExpire(charge.id, 'qr_code_expired');
     }));
   }
 
@@ -436,27 +450,27 @@ export class ChargeService {
    * Timer callbacks race with API calls — a payer may simulate a result microseconds
    * before the auto-confirm fires. Losing that race is normal, not an error.
    */
-  #safePay(chargeId: string, reason: string): void {
+  private safePay(chargeId: string, reason: string): void {
     try {
       const charge = this.get(chargeId);
       if (charge.status !== 'pending') return;
       this.markPaid(chargeId, reason);
     } catch (err) {
-      this.#log.debug({ charge_id: chargeId, err }, 'auto-confirmation skipped');
+      this.log.debug({ charge_id: chargeId, err }, 'auto-confirmation skipped');
     }
   }
 
-  #safeExpire(chargeId: string, reason: string): void {
+  private safeExpire(chargeId: string, reason: string): void {
     try {
       const charge = this.get(chargeId);
       if (charge.status !== 'pending') return;
       this.markExpired(chargeId, reason);
     } catch (err) {
-      this.#log.debug({ charge_id: chargeId, err }, 'expiration skipped');
+      this.log.debug({ charge_id: chargeId, err }, 'expiration skipped');
     }
   }
 
-  #assertTransition(charge: ChargeRow, to: ChargeStatus): void {
+  private assertTransition(charge: ChargeRow, to: ChargeStatus): void {
     if (canTransition(charge.status, to)) return;
 
     throw conflict(
@@ -472,14 +486,14 @@ export class ChargeService {
     );
   }
 
-  #recordEvent(
+  private recordEvent(
     chargeId: string,
     from: ChargeStatus | null,
     to: ChargeStatus,
     reason: string,
     at: string,
   ): void {
-    this.#db
+    this.db
       .prepare(
         `INSERT INTO charge_events (id, charge_id, from_status, to_status, reason, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
@@ -487,19 +501,19 @@ export class ChargeService {
       .run(newId('chargeEvent'), chargeId, from, to, reason, at);
   }
 
-  #setTimer(chargeId: string, kind: keyof ChargeTimers, handle: number): void {
-    const timers = this.#timers.get(chargeId) ?? {};
+  private setTimer(chargeId: string, kind: keyof ChargeTimers, handle: number): void {
+    const timers = this.timers.get(chargeId) ?? {};
     timers[kind] = handle;
-    this.#timers.set(chargeId, timers);
+    this.timers.set(chargeId, timers);
   }
 
-  #clearTimers(chargeId: string): void {
-    const timers = this.#timers.get(chargeId);
+  private clearTimers(chargeId: string): void {
+    const timers = this.timers.get(chargeId);
     if (!timers) return;
 
-    if (timers.confirm !== undefined) this.#scheduler.cancel(timers.confirm);
-    if (timers.expire !== undefined) this.#scheduler.cancel(timers.expire);
+    if (timers.confirm !== undefined) this.scheduler.cancel(timers.confirm);
+    if (timers.expire !== undefined) this.scheduler.cancel(timers.expire);
 
-    this.#timers.delete(chargeId);
+    this.timers.delete(chargeId);
   }
 }

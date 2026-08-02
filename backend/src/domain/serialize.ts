@@ -1,6 +1,6 @@
-import { parseJsonColumn } from '../db/index.js';
-import { decodeExpiry } from '../lib/jwt.js';
-import type { MerchantBalance } from './merchants.js';
+import { parseJsonColumn } from '../db/index';
+import { decodeExpiry } from '../lib/jwt';
+import type { MerchantBalance } from './merchants';
 import type {
   ChargeEventRow,
   ChargeRow,
@@ -9,7 +9,7 @@ import type {
   MerchantRow,
   RefundRow,
   WebhookDeliveryRow,
-} from '../types.js';
+} from '../types';
 
 /** Row -> JSON, shared by the panel and the integration surface. */
 export function serializeCharge(row: ChargeRow) {

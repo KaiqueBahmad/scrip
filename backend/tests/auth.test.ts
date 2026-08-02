@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { computeSignature, parseSignatureHeader, signPayload, verifySignature } from '../src/lib/hmac.js';
-import { decodeExpiry, signIntegrationToken, verifyIntegrationToken } from '../src/lib/jwt.js';
-import { AppError } from '../src/lib/errors.js';
+import { computeSignature, parseSignatureHeader, signPayload, verifySignature } from '../src/lib/hmac';
+import { decodeExpiry, signIntegrationToken, verifyIntegrationToken } from '../src/lib/jwt';
+import { AppError } from '../src/lib/errors';
 
 describe('webhook signatures', () => {
   const secret = 'whsec_test';

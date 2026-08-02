@@ -1,6 +1,6 @@
 /** `npm run reset` — clears the data, keeps the schema (specs.md:45). */
-import { loadConfig } from '../config.js';
-import { openDb, resetData } from './index.js';
+import { loadConfig } from '../config';
+import { openDb, resetData } from './index';
 
 const config = loadConfig();
 const db = openDb({ databasePath: config.databasePath });

@@ -1,15 +1,12 @@
 import Database from 'better-sqlite3';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export type Db = Database.Database;
 
-const here = dirname(fileURLToPath(import.meta.url));
-
 /** Reads schema.sql from beside this module — works from both src/ (tsx) and dist/. */
 function readSchema(): string {
-  return readFileSync(resolve(here, 'schema.sql'), 'utf8');
+  return readFileSync(resolve(__dirname, 'schema.sql'), 'utf8');
 }
 
 export function nowIso(at: number | Date = Date.now()): string {

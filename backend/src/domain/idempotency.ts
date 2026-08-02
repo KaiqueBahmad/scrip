@@ -1,7 +1,10 @@
+import { Inject, Injectable } from '@nestjs/common';
+
 import { createHash } from 'node:crypto';
 
-import { nowIso, type Db } from '../db/index.js';
-import { conflict } from '../lib/errors.js';
+import { nowIso, type Db } from '../db/index';
+import { conflict } from '../lib/errors';
+import { DB } from '../tokens';
 
 export interface IdempotencyLookup {
   key: string;
@@ -25,15 +28,12 @@ function hashRequest(body: unknown): string {
  * the same body replays the stored response; the same key with a different body is a
  * conflict rather than a silent second charge.
  */
+@Injectable()
 export class IdempotencyStore {
-  #db: Db;
-
-  constructor(db: Db) {
-    this.#db = db;
-  }
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   find(lookup: IdempotencyLookup): StoredResponse | undefined {
-    const row = this.#db
+    const row = this.db
       .prepare<[string, string, string], { request_hash: string; response_status: number; response_body: string }>(
         `SELECT request_hash, response_status, response_body
            FROM idempotency_keys
@@ -55,7 +55,7 @@ export class IdempotencyStore {
   }
 
   store(lookup: IdempotencyLookup, response: StoredResponse): void {
-    this.#db
+    this.db
       .prepare(
         `INSERT OR REPLACE INTO idempotency_keys
            (key, merchant_id, endpoint, request_hash, response_status, response_body, created_at)

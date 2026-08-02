@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers.js';
+import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 
 let harness: TestHarness | null = null;
 

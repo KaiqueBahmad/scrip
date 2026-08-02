@@ -1,8 +1,10 @@
+import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { unauthorized } from '../lib/errors.js';
-import type { Services } from '../services.js';
-import type { MerchantRow } from '../types.js';
+import { MerchantService } from '../domain/merchants';
+import { unauthorized } from '../lib/errors';
+import { PUBLIC_ROUTE } from './context';
 
 /**
  * Panel auth: HTTP Basic where the username is a merchant id and the password is always
@@ -13,16 +15,31 @@ import type { MerchantRow } from '../types.js';
  * all: the panel is an account *selector*, not a login (specs.md:54), which is why
  * specs.md:110-118 says never to expose an instance publicly.
  */
-export function requireMerchantSession(services: Services) {
-  return async function merchantAuthHook(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> {
+@Injectable()
+export class MerchantGuard implements CanActivate {
+  constructor(
+    private readonly merchants: MerchantService,
+    private readonly reflector: Reflector,
+  ) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) return true;
+
+    const http = context.switchToHttp();
+    const request = http.getRequest<FastifyRequest>();
     const header = request.headers.authorization;
     const match = header ? /^Basic\s+(.+)$/i.exec(header.trim()) : null;
 
     if (!match?.[1]) {
-      reply.header('WWW-Authenticate', 'Basic realm="PseudoPay", charset="UTF-8"');
+      http
+        .getResponse<FastifyReply>()
+        .header('WWW-Authenticate', 'Basic realm="PseudoPay", charset="UTF-8"');
+
       throw unauthorized(
         'merchant_auth_required',
         'Send HTTP Basic credentials: username is your merchant id, password is empty',
@@ -43,7 +60,7 @@ export function requireMerchantSession(services: Services) {
       throw unauthorized('invalid_credentials', 'Basic username (merchant id) is required');
     }
 
-    const merchant = services.merchants.find(identifier);
+    const merchant = this.merchants.find(identifier);
 
     if (!merchant) {
       throw unauthorized(
@@ -53,12 +70,7 @@ export function requireMerchantSession(services: Services) {
     }
 
     request.merchant = merchant;
-  };
-}
 
-/** Reads the merchant resolved by `requireMerchantSession`. */
-export function sessionMerchant(request: FastifyRequest): MerchantRow {
-  const merchant = request.merchant;
-  if (!merchant) throw unauthorized('merchant_auth_required', 'No merchant on this request');
-  return merchant;
+    return true;
+  }
 }

@@ -235,17 +235,24 @@ Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
 ```
 backend/
   src/
-    server.ts      buildServer(): instância Fastify + registro de plugins e rotas
+    main.ts        bootstrap: sobe a app e escuta
+    app.ts         createApp(): Nest sobre Fastify, multipart e painel estático
+    app.module.ts  AppModule.forRoot(): providers, controllers e as costuras de teste
     config.ts      pseudopay.config.json + PSEUDOPAY_* + settings salvos no banco
     db/            schema.sql, openDb, reset
     lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
     domain/        charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants
-    auth/          basic (sessão da loja), bearer (integração)
-    routes/        integration.ts, panel.ts — superfícies separadas por arquivo
+    auth/          guards de Basic (sessão da loja) e Bearer (integração)
+    api/           integration/ e panel/ — superfícies separadas por controller
   tests/           node:test com relógio virtual, sem sleep
   data/            banco SQLite
 frontend/          painel em Vite + React, compila para backend/dist/panel e é servido na raiz
 ```
+
+O backend é uma aplicação NestJS rodando sobre o adapter Fastify. As regras de negócio ficam
+em `domain/` como serviços injetáveis que não conhecem HTTP; os controllers em `api/` só
+traduzem requisição e resposta. Autenticação são dois guards, e todo erro vira resposta em um
+único `AppExceptionFilter`.
 
 Toda assincronia passa por `backend/src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.
 

@@ -1,11 +1,14 @@
-import type { ConfigStore } from '../config.js';
-import { nowIso, type Db } from '../db/index.js';
-import { badRequest, notFound, payloadTooLarge } from '../lib/errors.js';
-import { newId } from '../lib/ids.js';
-import type { Logger } from '../lib/logger.js';
-import type { KycDocumentRow, KycStatus, MerchantRow } from '../types.js';
-import { serializeMerchant } from './serialize.js';
-import type { WebhookDispatcher } from './webhooks.js';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { ConfigStore } from '../config';
+import { nowIso, type Db } from '../db/index';
+import { badRequest, notFound, payloadTooLarge } from '../lib/errors';
+import { newId } from '../lib/ids';
+import type { Logger } from '../lib/logger';
+import { DB, LOGGER } from '../tokens';
+import type { KycDocumentRow, KycStatus, MerchantRow, Scope } from '../types';
+import { serializeMerchant } from './serialize';
+import { WebhookDispatcher } from './webhooks';
 
 /** Document kinds the panel offers. Free-form strings are accepted too. */
 export const KYC_DOCUMENT_TYPES = [
@@ -29,32 +32,21 @@ export interface ReviewKycInput {
   reason?: string | null;
 }
 
-export interface KycServiceDeps {
-  db: Db;
-  config: ConfigStore;
-  log: Logger;
-  webhooks: WebhookDispatcher;
-}
-
 /**
  * KYC (specs.md:149). Documents are stored as BLOBs in SQLite — no S3, no disk
  * (specs.md:25) — and approval is a manual action taken from the panel.
  */
+@Injectable()
 export class KycService {
-  #db: Db;
-  #config: ConfigStore;
-  #log: Logger;
-  #webhooks: WebhookDispatcher;
-
-  constructor(deps: KycServiceDeps) {
-    this.#db = deps.db;
-    this.#config = deps.config;
-    this.#log = deps.log;
-    this.#webhooks = deps.webhooks;
-  }
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    private readonly config: ConfigStore,
+    @Inject(LOGGER) private readonly log: Logger,
+    private readonly webhooks: WebhookDispatcher,
+  ) {}
 
   upload(input: UploadKycInput): KycDocumentRow {
-    const maxBytes = this.#config.get('kycMaxFileSizeMb') * 1024 * 1024;
+    const maxBytes = this.config.get('kycMaxFileSizeMb') * 1024 * 1024;
 
     if (input.content.length === 0) {
       throw badRequest('empty_document', 'The uploaded document is empty');
@@ -73,12 +65,12 @@ export class KycService {
 
     const type = input.type?.trim() || 'other';
 
-    this.#requireMerchant(input.merchantId);
+    this.requireMerchant(input.merchantId);
 
     const at = nowIso();
     const id = newId('kycDocument');
 
-    this.#db
+    this.db
       .prepare(
         `INSERT INTO kyc_documents
            (id, merchant_id, type, filename, mime_type, size, content, status, created_at)
@@ -95,7 +87,7 @@ export class KycService {
         at,
       );
 
-    this.#log.info(
+    this.log.info(
       { merchant_id: input.merchantId, document_id: id, size: input.content.length },
       'kyc document uploaded',
     );
@@ -104,22 +96,25 @@ export class KycService {
   }
 
   /** Metadata only — the BLOB is fetched separately so listings stay cheap. */
-  getDocument(documentId: string): KycDocumentRow {
-    const row = this.#db
+  getDocument(documentId: string, scope: Scope = {}): KycDocumentRow {
+    const row = this.db
       .prepare<[string], KycDocumentRow>(
         `SELECT id, merchant_id, type, filename, mime_type, size, status, created_at
            FROM kyc_documents WHERE id = ?`,
       )
       .get(documentId);
 
-    if (!row) throw notFound('document_not_found', `No KYC document ${documentId}`);
+    if (!row || (scope.merchantId && row.merchant_id !== scope.merchantId)) {
+      throw notFound('document_not_found', `No KYC document ${documentId}`);
+    }
+
     return row;
   }
 
-  getDocumentContent(documentId: string): { row: KycDocumentRow; content: Buffer } {
-    const row = this.getDocument(documentId);
+  getDocumentContent(documentId: string, scope: Scope = {}): { row: KycDocumentRow; content: Buffer } {
+    const row = this.getDocument(documentId, scope);
 
-    const blob = this.#db
+    const blob = this.db
       .prepare<[string], { content: Buffer }>('SELECT content FROM kyc_documents WHERE id = ?')
       .get(documentId);
 
@@ -132,49 +127,40 @@ export class KycService {
     const columns = `id, merchant_id, type, filename, mime_type, size, status, created_at`;
 
     if (merchantId) {
-      return this.#db
+      return this.db
         .prepare<[string], KycDocumentRow>(
           `SELECT ${columns} FROM kyc_documents WHERE merchant_id = ? ORDER BY created_at DESC`,
         )
         .all(merchantId);
     }
 
-    return this.#db
+    return this.db
       .prepare<[], KycDocumentRow>(
         `SELECT ${columns} FROM kyc_documents ORDER BY created_at DESC`,
       )
       .all();
   }
 
-  deleteDocument(documentId: string): void {
-    this.getDocument(documentId);
-    this.#db.prepare('DELETE FROM kyc_documents WHERE id = ?').run(documentId);
+  deleteDocument(documentId: string, scope: Scope = {}): void {
+    this.getDocument(documentId, scope);
+    this.db.prepare('DELETE FROM kyc_documents WHERE id = ?').run(documentId);
   }
 
   approve(input: ReviewKycInput): MerchantRow {
-    return this.#review(input, 'approved');
+    return this.review(input, 'approved');
   }
 
   reject(input: ReviewKycInput): MerchantRow {
-    return this.#review(input, 'rejected');
+    return this.review(input, 'rejected');
   }
 
-  /** Merchants whose KYC still needs a decision — the panel's review queue. */
-  pendingMerchants(): MerchantRow[] {
-    return this.#db
-      .prepare<[], MerchantRow>(
-        `SELECT * FROM merchants WHERE kyc_status = 'pending' ORDER BY created_at ASC`,
-      )
-      .all();
-  }
-
-  #review(input: ReviewKycInput, status: Extract<KycStatus, 'approved' | 'rejected'>): MerchantRow {
-    this.#requireMerchant(input.merchantId);
+  private review(input: ReviewKycInput, status: Extract<KycStatus, 'approved' | 'rejected'>): MerchantRow {
+    this.requireMerchant(input.merchantId);
 
     const at = nowIso();
 
-    this.#db.transaction(() => {
-      this.#db
+    this.db.transaction(() => {
+      this.db
         .prepare(
           `UPDATE merchants
               SET kyc_status = ?, kyc_reason = ?, kyc_reviewed_at = ?, updated_at = ?
@@ -183,14 +169,14 @@ export class KycService {
         .run(status, input.reason ?? null, at, at, input.merchantId);
 
       // Documents follow the merchant-level decision, so the queue empties as it is worked.
-      this.#db
+      this.db
         .prepare(`UPDATE kyc_documents SET status = ? WHERE merchant_id = ? AND status = 'pending'`)
         .run(status, input.merchantId);
     })();
 
-    const merchant = this.#requireMerchant(input.merchantId);
+    const merchant = this.requireMerchant(input.merchantId);
 
-    this.#webhooks.enqueue({
+    this.webhooks.enqueue({
       merchantId: merchant.id,
       event: status === 'approved' ? 'kyc.approved' : 'kyc.rejected',
       data: {
@@ -199,13 +185,13 @@ export class KycService {
       },
     });
 
-    this.#log.info({ merchant_id: merchant.id, kyc_status: status }, 'kyc reviewed');
+    this.log.info({ merchant_id: merchant.id, kyc_status: status }, 'kyc reviewed');
 
     return merchant;
   }
 
-  #requireMerchant(merchantId: string): MerchantRow {
-    const merchant = this.#db
+  private requireMerchant(merchantId: string): MerchantRow {
+    const merchant = this.db
       .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
       .get(merchantId);
 

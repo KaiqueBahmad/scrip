@@ -1,30 +1,33 @@
-import { loadConfig } from './config.js';
-import { buildServer } from './server.js';
+import 'reflect-metadata';
 
-const config = loadConfig();
-const app = await buildServer();
+import { createApp } from './app';
+import { loadConfig } from './config';
+import type { Logger } from './lib/logger';
+import { LOGGER } from './tokens';
 
-const shutdown = async (signal: string) => {
-  app.log.info({ signal }, 'shutting down');
-  await app.close();
-  process.exit(0);
-};
+async function bootstrap(): Promise<void> {
+  const config = loadConfig();
+  const app = await createApp();
+  const log = app.get<Logger>(LOGGER);
 
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  // Closes the app — and with it the scheduler's timers and the database — on SIGINT/SIGTERM.
+  app.enableShutdownHooks();
 
-try {
-  await app.listen({ port: config.port, host: config.host });
+  try {
+    await app.listen(config.port, config.host);
 
-  app.log.info(
-    {
-      panel: `http://${config.host}:${config.port}`,
-      api: `http://${config.host}:${config.port}/v1`,
-      database: config.databasePath,
-    },
-    'pseudopay is up',
-  );
-} catch (err) {
-  app.log.error({ err }, 'failed to start');
-  process.exit(1);
+    log.info(
+      {
+        panel: `http://${config.host}:${config.port}`,
+        api: `http://${config.host}:${config.port}/v1`,
+        database: config.databasePath,
+      },
+      'pseudopay is up',
+    );
+  } catch (err) {
+    log.error({ err }, 'failed to start');
+    process.exit(1);
+  }
 }
+
+void bootstrap();

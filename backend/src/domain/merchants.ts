@@ -1,7 +1,11 @@
-import { nowIso, type Db } from '../db/index.js';
-import { badRequest, notFound } from '../lib/errors.js';
-import { newId, newWebhookSecret } from '../lib/ids.js';
-import type { MerchantRow } from '../types.js';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { nowIso, type Db } from '../db/index';
+import { badRequest, notFound } from '../lib/errors';
+import { newId, newWebhookSecret } from '../lib/ids';
+import { DB } from '../tokens';
+import type { MerchantRow } from '../types';
+import { serializeMerchant } from './serialize';
 
 /**
  * A store is created with just its identity. The webhook is set afterwards through
@@ -49,11 +53,16 @@ export interface MerchantBalance {
 /** Only these statuses ever moved money; a fully refunded charge contributes zero. */
 const SETTLED_STATUSES = ['paid', 'partially_refunded', 'refunded'] as const;
 
+@Injectable()
 export class MerchantService {
-  #db: Db;
+  constructor(@Inject(DB) private readonly db: Db) {}
 
-  constructor(db: Db) {
-    this.#db = db;
+  /**
+   * A store as its own session sees it: the full record — secret included, because you are
+   * looking at yourself — plus the derived balance.
+   */
+  present(merchant: MerchantRow) {
+    return serializeMerchant(merchant, true, this.balanceFor(merchant.id));
   }
 
   /**
@@ -64,7 +73,7 @@ export class MerchantService {
   balanceFor(merchantId: string): MerchantBalance {
     const placeholders = SETTLED_STATUSES.map(() => '?').join(', ');
 
-    const row = this.#db
+    const row = this.db
       .prepare<
         unknown[],
         { available: number; gross: number; refunded: number; settled: number }
@@ -106,7 +115,7 @@ export class MerchantService {
       updated_at: at,
     };
 
-    this.#db
+    this.db
       .prepare(
         `INSERT INTO merchants
            (id, name, webhook_url, webhook_secret, kyc_status, kyc_reason,
@@ -120,7 +129,7 @@ export class MerchantService {
   }
 
   get(merchantId: string): MerchantRow {
-    const row = this.#db
+    const row = this.db
       .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
       .get(merchantId);
 
@@ -129,13 +138,13 @@ export class MerchantService {
   }
 
   find(merchantId: string): MerchantRow | undefined {
-    return this.#db
+    return this.db
       .prepare<[string], MerchantRow>('SELECT * FROM merchants WHERE id = ?')
       .get(merchantId);
   }
 
   list(): MerchantRow[] {
-    return this.#db
+    return this.db
       .prepare<[], MerchantRow>('SELECT * FROM merchants ORDER BY created_at DESC')
       .all();
   }
@@ -155,7 +164,7 @@ export class MerchantService {
       updated_at: nowIso(),
     };
 
-    this.#db
+    this.db
       .prepare(
         `UPDATE merchants
             SET name = @name, webhook_url = @webhook_url,
@@ -170,6 +179,6 @@ export class MerchantService {
   delete(merchantId: string): void {
     this.get(merchantId);
     // Charges, tokens, KYC docs and deliveries cascade (see schema.sql).
-    this.#db.prepare('DELETE FROM merchants WHERE id = ?').run(merchantId);
+    this.db.prepare('DELETE FROM merchants WHERE id = ?').run(merchantId);
   }
 }

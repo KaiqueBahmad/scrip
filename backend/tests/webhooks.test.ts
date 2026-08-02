@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { SIGNATURE_HEADER, verifySignature } from '../src/lib/hmac.js';
-import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers.js';
+import { SIGNATURE_HEADER, verifySignature } from '../src/lib/hmac';
+import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 
 let harness: TestHarness | null = null;
 

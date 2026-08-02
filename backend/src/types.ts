@@ -117,3 +117,11 @@ export const WEBHOOK_EVENTS = [
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+/**
+ * Restricts a lookup to one merchant. A row belonging to another one is reported as
+ * missing rather than forbidden, so ids cannot be probed across merchants.
+ */
+export interface Scope {
+  merchantId?: string;
+}

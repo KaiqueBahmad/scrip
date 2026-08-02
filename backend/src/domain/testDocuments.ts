@@ -1,4 +1,4 @@
-import type { PseudoPayConfig } from '../config.js';
+import type { PseudoPayConfig } from '../config';
 
 /**
  * Deterministic test CPFs (specs.md:95-102). These are what make PseudoPay usable in CI:

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-import { unauthorized } from './errors.js';
+import { unauthorized } from './errors';
 
 /**
  * Integration tokens (specs.md:36) — HS256 JWTs a merchant session mints in the panel,

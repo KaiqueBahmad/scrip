@@ -1,13 +1,16 @@
-import { nowIso, type Db } from '../db/index.js';
-import { badRequest, conflict, notFound } from '../lib/errors.js';
-import { newId } from '../lib/ids.js';
-import type { Logger } from '../lib/logger.js';
-import { generateE2eId } from '../lib/pix.js';
-import type { Scheduler } from '../lib/scheduler.js';
-import type { RefundRow } from '../types.js';
-import type { ChargeService } from './charges.js';
-import { serializeCharge, serializeRefund } from './serialize.js';
-import type { WebhookDispatcher } from './webhooks.js';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { nowIso, type Db } from '../db/index';
+import { badRequest, conflict, notFound } from '../lib/errors';
+import { newId } from '../lib/ids';
+import type { Logger } from '../lib/logger';
+import { generateE2eId } from '../lib/pix';
+import type { Scheduler } from '../lib/scheduler';
+import { DB, LOGGER, SCHEDULER } from '../tokens';
+import type { RefundRow, Scope } from '../types';
+import { ChargeService } from './charges';
+import { serializeCharge, serializeRefund } from './serialize';
+import { WebhookDispatcher } from './webhooks';
 
 export interface CreateRefundInput {
   chargeId: string;
@@ -18,35 +21,22 @@ export interface CreateRefundInput {
   merchantId?: string;
 }
 
-export interface RefundServiceDeps {
-  db: Db;
-  scheduler: Scheduler;
-  log: Logger;
-  charges: ChargeService;
-  webhooks: WebhookDispatcher;
-}
-
 /**
  * Refunds own the pix_refunds ledger; the charge's own status and refunded_amount are moved
  * by ChargeService.applyRefund so all status writes stay in the state machine.
  */
+@Injectable()
 export class RefundService {
-  #db: Db;
-  #scheduler: Scheduler;
-  #log: Logger;
-  #charges: ChargeService;
-  #webhooks: WebhookDispatcher;
-
-  constructor(deps: RefundServiceDeps) {
-    this.#db = deps.db;
-    this.#scheduler = deps.scheduler;
-    this.#log = deps.log;
-    this.#charges = deps.charges;
-    this.#webhooks = deps.webhooks;
-  }
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(SCHEDULER) private readonly scheduler: Scheduler,
+    @Inject(LOGGER) private readonly log: Logger,
+    private readonly charges: ChargeService,
+    private readonly webhooks: WebhookDispatcher,
+  ) {}
 
   create(input: CreateRefundInput): RefundRow {
-    const charge = this.#charges.get(input.chargeId, { merchantId: input.merchantId });
+    const charge = this.charges.get(input.chargeId, { merchantId: input.merchantId });
 
     if (charge.status !== 'paid' && charge.status !== 'partially_refunded') {
       throw conflict(
@@ -80,27 +70,27 @@ export class RefundService {
       amount,
       status: 'succeeded',
       reason: input.reason ?? null,
-      e2e_id: generateE2eId(new Date(this.#scheduler.now())),
-      created_at: nowIso(this.#scheduler.now()),
+      e2e_id: generateE2eId(new Date(this.scheduler.now())),
+      created_at: nowIso(this.scheduler.now()),
     };
 
-    this.#db
+    this.db
       .prepare(
         `INSERT INTO pix_refunds (id, charge_id, merchant_id, amount, status, reason, e2e_id, created_at)
          VALUES (@id, @charge_id, @merchant_id, @amount, @status, @reason, @e2e_id, @created_at)`,
       )
       .run(refund);
 
-    const updatedCharge = this.#charges.applyRefund(charge.id, amount);
+    const updatedCharge = this.charges.applyRefund(charge.id, amount);
 
-    this.#webhooks.enqueue({
+    this.webhooks.enqueue({
       merchantId: charge.merchant_id,
       event: 'pix.charge.refunded',
       chargeId: charge.id,
       data: { charge: serializeCharge(updatedCharge), refund: serializeRefund(refund) },
     });
 
-    this.#log.info(
+    this.log.info(
       { charge_id: charge.id, refund_id: refund.id, amount, status: updatedCharge.status },
       'pix charge refunded',
     );
@@ -108,11 +98,11 @@ export class RefundService {
     return refund;
   }
 
-  list(chargeId: string, scope: { merchantId?: string } = {}): RefundRow[] {
+  list(chargeId: string, scope: Scope = {}): RefundRow[] {
     // Runs the scoped charge lookup first so a foreign charge id 404s consistently.
-    this.#charges.get(chargeId, scope);
+    this.charges.get(chargeId, scope);
 
-    return this.#db
+    return this.db
       .prepare<[string], RefundRow>(
         'SELECT * FROM pix_refunds WHERE charge_id = ? ORDER BY created_at ASC',
       )
@@ -120,7 +110,7 @@ export class RefundService {
   }
 
   get(refundId: string): RefundRow {
-    const row = this.#db
+    const row = this.db
       .prepare<[string], RefundRow>('SELECT * FROM pix_refunds WHERE id = ?')
       .get(refundId);
 

@@ -1,7 +1,17 @@
-import { openDb } from '../src/db/index.js';
-import { ManualScheduler } from '../src/lib/scheduler.js';
-import { buildServer, type PseudoPayServer } from '../src/server.js';
-import type { PseudoPayConfig } from '../src/config.js';
+import 'reflect-metadata';
+
+import type { InjectOptions, LightMyRequestResponse } from 'fastify';
+
+import { createApp, type PseudoPayApp } from '../src/app';
+import { ConfigStore, type PseudoPayConfig } from '../src/config';
+import { openDb, type Db } from '../src/db/index';
+import { ChargeService } from '../src/domain/charges';
+import { KycService } from '../src/domain/kyc';
+import { MerchantService } from '../src/domain/merchants';
+import { TokenService } from '../src/domain/tokens';
+import { WebhookDispatcher } from '../src/domain/webhooks';
+import { ManualScheduler } from '../src/lib/scheduler';
+import { DB } from '../src/tokens';
 
 export interface RecordedRequest {
   url: string;
@@ -38,11 +48,39 @@ export function createFetchStub(respond: (call: number, url: string) => number |
   return { calls, fetchImpl };
 }
 
+/** The domain services a test reaches for directly, pulled out of the Nest container. */
+export interface TestServices {
+  db: Db;
+  config: ConfigStore;
+  merchants: MerchantService;
+  tokens: TokenService;
+  charges: ChargeService;
+  kyc: KycService;
+  webhooks: WebhookDispatcher;
+}
+
+export interface TestApp {
+  inject(options: InjectOptions): Promise<LightMyRequestResponse>;
+  services: TestServices;
+}
+
 export interface TestHarness {
-  app: PseudoPayServer;
+  app: TestApp;
   scheduler: ManualScheduler;
   calls: RecordedRequest[];
   close: () => Promise<void>;
+}
+
+function servicesOf(app: PseudoPayApp): TestServices {
+  return {
+    db: app.get<Db>(DB),
+    config: app.get(ConfigStore),
+    merchants: app.get(MerchantService),
+    tokens: app.get(TokenService),
+    charges: app.get(ChargeService),
+    kyc: app.get(KycService),
+    webhooks: app.get(WebhookDispatcher),
+  };
 }
 
 /**
@@ -60,7 +98,7 @@ export async function createHarness(
   const scheduler = new ManualScheduler(Date.parse('2026-01-01T12:00:00.000Z'));
   const { calls, fetchImpl } = createFetchStub(options.respond);
 
-  const app = await buildServer({
+  const app = await createApp({
     db,
     scheduler,
     fetchImpl,
@@ -81,7 +119,12 @@ export async function createHarness(
   });
 
   return {
-    app,
+    // Kept to the surface the suite actually uses, so a test never has to know it is
+    // talking to a Nest container.
+    app: {
+      inject: (injectOptions) => app.inject(injectOptions),
+      services: servicesOf(app),
+    },
     scheduler,
     calls,
     close: async () => {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { canTransition } from '../src/domain/charges.js';
-import { isValidBrCode } from '../src/lib/pix.js';
-import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers.js';
+import { canTransition } from '../src/domain/charges';
+import { isValidBrCode } from '../src/lib/pix';
+import { createCharge, createHarness, seedMerchantAndToken, type TestHarness } from './helpers';
 
 let harness: TestHarness | null = null;
 

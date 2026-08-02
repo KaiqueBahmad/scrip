@@ -10,7 +10,7 @@ import {
   isValidBrCode,
   parseTlv,
   tlv,
-} from '../src/lib/pix.js';
+} from '../src/lib/pix';
 
 describe('crc16 (CRC-16/CCITT-FALSE)', () => {
   it('matches the standard check vector', () => {
