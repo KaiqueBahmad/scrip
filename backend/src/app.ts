@@ -52,6 +52,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<PseudoP
     },
   );
 
+  // The admin panel is served from its own origin and calls this API directly, so every
+  // request is cross-origin. A simulated sandbox has nothing to protect here.
+  // Methods are listed explicitly: the default preflight reply omits PATCH and DELETE,
+  // which would block webhook edits, token revocation and KYC document removal.
+  app.enableCors({
+    origin: true,
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['authorization', 'content-type'],
+  });
+
   // The precise size limit is enforced in KycService against the live config; this is just
   // a hard ceiling so a huge upload can't be buffered before that check runs.
   await app.register(fastifyMultipart, {
