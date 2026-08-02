@@ -29,6 +29,7 @@ export function App() {
 
   return (
     <Routes>
+      <Route path="/documentacao" element={<Documentation />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/transacoes" replace />} />
         <Route path="/transacoes" element={<Transactions />} />
@@ -36,7 +37,6 @@ export function App() {
         <Route path="/minha-loja" element={<MyStore />} />
         <Route path="/tokens" element={<Tokens />} />
         <Route path="/webhooks" element={<Webhooks />} />
-        <Route path="/documentacao" element={<Documentation />} />
         <Route path="/configuracoes" element={<Settings />} />
         <Route path="*" element={<Navigate to="/transacoes" replace />} />
       </Route>
