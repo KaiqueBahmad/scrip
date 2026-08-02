@@ -18,8 +18,7 @@ async function bootstrap(): Promise<void> {
 
     log.info(
       {
-        panel: `http://${config.host}:${config.port}`,
-        api: `http://${config.host}:${config.port}/v1`,
+        url: `http://${config.host}:${config.port}`,
         database: config.databasePath,
       },
       'pseudopay is up',

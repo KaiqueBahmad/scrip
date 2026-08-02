@@ -5,6 +5,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { AppModule } from './app.module';
 import { loadConfig, type PseudoPayConfig } from './config';
 import type { Db } from './db/index';
+import { NestLoggerAdapter } from './lib/logger';
 import type { Scheduler } from './lib/scheduler';
 
 export interface CreateAppOptions {
@@ -32,19 +33,23 @@ export type PseudoPayApp = NestFastifyApplication;
 export async function createApp(options: CreateAppOptions = {}): Promise<PseudoPayApp> {
   const config = loadConfig(options.config ?? {});
   const logging = options.logger ?? true;
+  const log = logging ? new NestLoggerAdapter() : undefined;
 
   const adapter = new FastifyAdapter({
-    logger: logging,
+    logger: false,
     // Keeps ids in logs aligned with the ones the API returns.
     genReqId: () => Math.random().toString(36).slice(2, 10),
   });
 
   const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule.forRoot({ ...options, config, log: adapter.getInstance().log }),
+    AppModule.forRoot({ ...options, config, log }),
     adapter,
     // Without this Nest aborts the process on a wiring error instead of throwing, which
     // hides the cause completely when logging is off.
-    { logger: logging && ['error', 'warn', 'log'], abortOnError: false },
+    {
+      logger: log ?? false,
+      abortOnError: false,
+    },
   );
 
   // The precise size limit is enforced in KycService against the live config; this is just
