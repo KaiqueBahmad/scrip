@@ -173,7 +173,7 @@ export async function seedMerchantAndToken(
   };
 }
 
-/** POST /v1/api/pix/charges, returning the parsed body. */
+/** POST /v1/api/payments/pix/charges, returning the parsed body. */
 export async function createCharge(
   harness: TestHarness,
   bearer: Record<string, string>,
@@ -181,7 +181,7 @@ export async function createCharge(
 ) {
   const response = await harness.app.inject({
     method: 'POST',
-    url: '/v1/api/pix/charges',
+    url: '/v1/api/payments/pix/charges',
     headers: bearer,
     payload: { amount: 15000, ...body },
   });

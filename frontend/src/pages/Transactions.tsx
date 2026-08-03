@@ -28,7 +28,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'canceled', label: 'Canceladas' },
 ];
 
-const CURL_EXAMPLE = `curl -X POST http://localhost:4242/v1/api/pix/charges \\
+const CURL_EXAMPLE = `curl -X POST http://localhost:4242/v1/api/payments/pix/charges \\
   -H "Authorization: Bearer {seu_jwt}" \\
   -H "Content-Type: application/json" \\
   -d '{"amount": 15000, "payer_document": "11111111111"}'`;

@@ -48,7 +48,7 @@ export class ApiController {
   // ------------------------------------------------------------------ charges
 
   /** Replays instead of charging twice when an Idempotency-Key repeats — see the interceptor. */
-  @Post('pix/charges')
+  @Post('payments/pix/charges')
   @UseInterceptors(IdempotencyInterceptor)
   createCharge(@Auth() auth: ApiAuth, @Body() body: CreateChargeBody = {}) {
     return serializeCharge(
@@ -63,7 +63,7 @@ export class ApiController {
     );
   }
 
-  @Get('pix/charges')
+  @Get('payments/pix/charges')
   listCharges(@Auth() auth: ApiAuth, @Query() query: ChargeQuery = {}) {
     return {
       object: 'list',
@@ -75,12 +75,12 @@ export class ApiController {
     };
   }
 
-  @Get('pix/charges/:id')
+  @Get('payments/pix/charges/:id')
   getCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.get(id, { merchantId: auth.merchantId }));
   }
 
-  @Get('pix/charges/:id/events')
+  @Get('payments/pix/charges/:id/events')
   listChargeEvents(@Auth() auth: ApiAuth, @Param('id') id: string) {
     const charge = this.charges.get(id, { merchantId: auth.merchantId });
 
@@ -90,7 +90,7 @@ export class ApiController {
     };
   }
 
-  @Post('pix/charges/:id/cancel')
+  @Post('payments/pix/charges/:id/cancel')
   @HttpCode(HttpStatus.OK)
   cancelCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.cancel(id, { merchantId: auth.merchantId }));
@@ -98,7 +98,7 @@ export class ApiController {
 
   // ------------------------------------------------------------------ refunds
 
-  @Post('pix/charges/:id/refunds')
+  @Post('payments/pix/charges/:id/refunds')
   createRefund(
     @Auth() auth: ApiAuth,
     @Param('id') id: string,
@@ -114,7 +114,7 @@ export class ApiController {
     );
   }
 
-  @Get('pix/charges/:id/refunds')
+  @Get('payments/pix/charges/:id/refunds')
   listRefunds(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return {
       object: 'list',

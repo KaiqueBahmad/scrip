@@ -100,7 +100,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'create-charge',
     method: 'POST',
-    path: '/pix/charges',
+    path: '/payments/pix/charges',
     description: 'Cria uma cobrança PIX.',
     body: [
       { name: 'amount', type: 'integer', required: true, description: 'Valor da cobrança, em centavos.' },
@@ -115,7 +115,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'list-charges',
     method: 'GET',
-    path: '/pix/charges',
+    path: '/payments/pix/charges',
     description: 'Lista as cobranças da loja.',
     query: [
       { name: 'status', type: 'ChargeStatus', description: 'Filtra por situação da cobrança.' },
@@ -131,7 +131,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'get-charge',
     method: 'GET',
-    path: '/pix/charges/:id',
+    path: '/payments/pix/charges/:id',
     description: 'Consulta uma cobrança.',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'pix_charge' },
@@ -140,7 +140,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'charge-events',
     method: 'GET',
-    path: '/pix/charges/:id/events',
+    path: '/payments/pix/charges/:id/events',
     description: 'Lista o histórico de status.',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'charge_event' },
@@ -149,7 +149,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'cancel-charge',
     method: 'POST',
-    path: '/pix/charges/:id/cancel',
+    path: '/payments/pix/charges/:id/cancel',
     description: 'Cancela uma cobrança.',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'pix_charge' },
@@ -158,7 +158,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'create-refund',
     method: 'POST',
-    path: '/pix/charges/:id/refunds',
+    path: '/payments/pix/charges/:id/refunds',
     description: 'Solicita o reembolso.',
     pathParams: CHARGE_ID_PARAM,
     body: [
@@ -171,7 +171,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   {
     id: 'list-refunds',
     method: 'GET',
-    path: '/pix/charges/:id/refunds',
+    path: '/payments/pix/charges/:id/refunds',
     description: 'Lista os reembolsos da cobrança.',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'pix_refund' },
