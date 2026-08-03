@@ -139,7 +139,7 @@ export function Transactions() {
                     {formatDateTime(charge.created_at)}
                   </Td>
                   <Td className="text-xs whitespace-nowrap text-[var(--text-muted)]">
-                    {charge.status === 'pending' ? relativeToNow(charge.qr_code_expires_at) : '—'}
+                    {charge.status === 'pending' ? relativeToNow(charge.pix.qr_code_expires_at) : '—'}
                   </Td>
                 </tr>
               ))}

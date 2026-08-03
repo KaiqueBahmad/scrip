@@ -30,9 +30,17 @@ export type ChargeStatus =
   | 'partially_refunded'
   | 'refunded';
 
+export interface ApiChargePixDetails {
+  qr_code: string;
+  qr_code_txid: string;
+  qr_code_expires_at: string;
+  e2e_id: string | null;
+}
+
 export interface ApiCharge {
   id: string;
   merchant_id: string;
+  payment_method: 'pix';
   status: ChargeStatus;
   amount: number;
   amount_refunded: number;
@@ -40,10 +48,7 @@ export interface ApiCharge {
   payer_name: string | null;
   description: string | null;
   metadata: Record<string, unknown>;
-  qr_code: string;
-  qr_code_txid: string;
-  qr_code_expires_at: string;
-  e2e_id: string | null;
+  pix: ApiChargePixDetails;
   paid_at: string | null;
   expired_at: string | null;
   canceled_at: string | null;

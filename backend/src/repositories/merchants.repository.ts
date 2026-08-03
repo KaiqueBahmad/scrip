@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import type { Db } from '../db/index';
-import { merchants, pixCharges } from '../db/schema';
+import { charges, merchants } from '../db/schema';
 import type { ChargeStatus, MerchantRow } from './types';
 
 /** The columns `update` is allowed to move; identity and KYC are written elsewhere. */
@@ -64,13 +64,13 @@ export class MerchantRepository {
   sumCharges(merchantId: string, statuses: readonly ChargeStatus[]): ChargeTotals {
     const row = this.db
       .select({
-        amount: sql<number>`COALESCE(SUM(${pixCharges.amount}), 0)`,
-        refunded_amount: sql<number>`COALESCE(SUM(${pixCharges.refunded_amount}), 0)`,
+        amount: sql<number>`COALESCE(SUM(${charges.amount}), 0)`,
+        refunded_amount: sql<number>`COALESCE(SUM(${charges.refunded_amount}), 0)`,
         count: sql<number>`COUNT(*)`,
       })
-      .from(pixCharges)
+      .from(charges)
       .where(
-        and(eq(pixCharges.merchant_id, merchantId), inArray(pixCharges.status, [...statuses])),
+        and(eq(charges.merchant_id, merchantId), inArray(charges.status, [...statuses])),
       )
       .get();
 

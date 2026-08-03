@@ -9,14 +9,18 @@
 import type {
   apiTokens,
   chargeEvents,
+  charges,
   kycDocuments,
   merchants,
-  pixCharges,
+  pixChargeDetails,
   pixRefunds,
   webhookDeliveries,
 } from '../db/schema';
 
 export type KycStatus = 'pending' | 'approved' | 'rejected';
+
+/** Only 'pix' for now — the column exists so a second method can be added without a schema rewrite. */
+export type PaymentMethod = 'pix';
 
 export type ChargeStatus =
   | 'pending'
@@ -32,7 +36,17 @@ export type MerchantRow = typeof merchants.$inferSelect;
 
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 
-export type ChargeRow = typeof pixCharges.$inferSelect;
+/** The generic charge row, as stored — no payment-method-specific fields. */
+export type ChargeTableRow = typeof charges.$inferSelect;
+
+export type PixChargeDetailRow = typeof pixChargeDetails.$inferSelect;
+
+/**
+ * A charge joined with its payment-method details. Every charge is PIX for now, so the join
+ * is unconditional; once a second method exists this becomes a discriminated union instead.
+ */
+export type ChargeRow = ChargeTableRow &
+  Pick<PixChargeDetailRow, 'qr_code' | 'qr_code_txid' | 'qr_code_expires_at' | 'e2e_id'>;
 
 export type RefundRow = typeof pixRefunds.$inferSelect;
 

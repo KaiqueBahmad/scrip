@@ -68,11 +68,12 @@ describe('charge creation', () => {
 
     assert.equal(status, 201);
     assert.equal(body.status, 'pending');
+    assert.equal(body.payment_method, 'pix');
     assert.equal(body.amount, 15000);
     assert.equal(body.amount_refunded, 0);
-    assert.ok(isValidBrCode(body.qr_code));
+    assert.ok(isValidBrCode(body.pix.qr_code));
     assert.deepEqual(body.metadata, { order_id: 'abc-123' });
-    assert.equal(body.e2e_id, null, 'no e2e id before settlement');
+    assert.equal(body.pix.e2e_id, null, 'no e2e id before settlement');
   });
 
   it('rejects a non-positive or fractional amount', async () => {
@@ -206,7 +207,7 @@ describe('cancel and refund', () => {
 
     const canceled = await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/cancel`,
+      url: `/v1/api/payments/charges/${charge.id}/cancel`,
       headers: bearer,
     });
 
@@ -232,7 +233,7 @@ describe('cancel and refund', () => {
 
     const partial = await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/payments/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 5000 },
     });
@@ -245,7 +246,7 @@ describe('cancel and refund', () => {
     // Omitting the amount refunds whatever is left.
     const rest = await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/payments/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: {},
     });
@@ -271,7 +272,7 @@ describe('cancel and refund', () => {
 
     const tooMuch = await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/payments/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 15001 },
     });
@@ -287,7 +288,7 @@ describe('cancel and refund', () => {
 
     const response = await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/payments/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 100 },
     });

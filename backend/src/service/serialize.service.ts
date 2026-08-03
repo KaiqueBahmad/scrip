@@ -15,8 +15,9 @@ import type {
 export function serializeCharge(row: ChargeRow) {
   return {
     id: row.id,
-    object: 'pix_charge' as const,
+    object: 'charge' as const,
     merchant_id: row.merchant_id,
+    payment_method: row.payment_method,
     status: row.status,
     amount: row.amount,
     amount_refunded: row.refunded_amount,
@@ -24,10 +25,14 @@ export function serializeCharge(row: ChargeRow) {
     payer_name: row.payer_name,
     description: row.description,
     metadata: parseJsonColumn<Record<string, unknown>>(row.metadata, {}),
-    qr_code: row.qr_code,
-    qr_code_txid: row.qr_code_txid,
-    qr_code_expires_at: row.qr_code_expires_at,
-    e2e_id: row.e2e_id,
+    // Only 'pix' exists today, so this is unconditional — a second method would key this
+    // object by row.payment_method instead of hardcoding 'pix'.
+    pix: {
+      qr_code: row.qr_code,
+      qr_code_txid: row.qr_code_txid,
+      qr_code_expires_at: row.qr_code_expires_at,
+      e2e_id: row.e2e_id,
+    },
     paid_at: row.paid_at,
     expired_at: row.expired_at,
     canceled_at: row.canceled_at,

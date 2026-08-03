@@ -8,7 +8,12 @@ import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
 import type { Scheduler } from '../lib/scheduler';
-import { ChargeRepository, MerchantRepository, type ChargePatch } from '../repositories';
+import {
+  ChargeRepository,
+  MerchantRepository,
+  type ChargePatch,
+  type PixDetailsPatch,
+} from '../repositories';
 import type { ChargeEventRow, ChargeRow, ChargeStatus, Scope } from '../repositories/types';
 import { serializeCharge } from './serialize.service';
 import { planConfirmation } from './testDocuments.service';
@@ -127,6 +132,7 @@ export class ChargeService implements OnApplicationBootstrap {
     const row: ChargeRow = {
       id,
       merchant_id: merchant.id,
+      payment_method: 'pix',
       amount: input.amount,
       status: 'pending',
       payer_document: input.payerDocument ?? null,
@@ -204,9 +210,10 @@ export class ChargeService implements OnApplicationBootstrap {
     const updated = this.transition(
       charge,
       'paid',
-      { paid_at: at, e2e_id: e2eId, updated_at: at },
+      { paid_at: at, updated_at: at },
       reason,
       at,
+      { e2e_id: e2eId },
     );
 
     this.clearTimers(chargeId);
@@ -325,6 +332,7 @@ export class ChargeService implements OnApplicationBootstrap {
     patch: ChargePatch,
     reason: string,
     at: string,
+    pixPatch?: PixDetailsPatch,
   ): ChargeRow {
     this.assertTransition(charge, to);
 
@@ -332,6 +340,7 @@ export class ChargeService implements OnApplicationBootstrap {
       charge.id,
       { ...patch, status: to },
       this.event(charge.id, charge.status, to, reason, at),
+      pixPatch,
     );
 
     return this.get(charge.id);

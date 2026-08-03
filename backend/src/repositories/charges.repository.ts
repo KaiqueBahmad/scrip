@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, gte, lte, type SQL } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import type { Db } from '../db/index';
-import { chargeEvents, pixCharges } from '../db/schema';
+import { chargeEvents, charges, pixChargeDetails } from '../db/schema';
 import type { ChargeEventRow, ChargeRow, ChargeStatus } from './types';
 
 export interface ChargeQuery {
@@ -17,8 +17,19 @@ export interface ChargeQuery {
   offset?: number;
 }
 
-/** The subset of columns a status transition writes. */
-export type ChargePatch = Partial<typeof pixCharges.$inferInsert>;
+/** The subset of generic columns a status transition writes. */
+export type ChargePatch = Partial<typeof charges.$inferInsert>;
+
+/** The subset of PIX-only columns a status transition writes (currently just e2e_id). */
+export type PixDetailsPatch = Partial<typeof pixChargeDetails.$inferInsert>;
+
+const chargeWithPixColumns = {
+  ...getTableColumns(charges),
+  qr_code: pixChargeDetails.qr_code,
+  qr_code_txid: pixChargeDetails.qr_code_txid,
+  qr_code_expires_at: pixChargeDetails.qr_code_expires_at,
+  e2e_id: pixChargeDetails.e2e_id,
+};
 
 /**
  * The WHERE shared by `list` and `count`. `and` drops the undefined branches, so an absent
@@ -26,10 +37,10 @@ export type ChargePatch = Partial<typeof pixCharges.$inferInsert>;
  */
 function chargeFilters(query: ChargeQuery, options: { dateRange: boolean }): SQL | undefined {
   return and(
-    query.merchantId ? eq(pixCharges.merchant_id, query.merchantId) : undefined,
-    query.status ? eq(pixCharges.status, query.status) : undefined,
-    options.dateRange && query.from ? gte(pixCharges.created_at, query.from) : undefined,
-    options.dateRange && query.to ? lte(pixCharges.created_at, query.to) : undefined,
+    query.merchantId ? eq(charges.merchant_id, query.merchantId) : undefined,
+    query.status ? eq(charges.status, query.status) : undefined,
+    options.dateRange && query.from ? gte(charges.created_at, query.from) : undefined,
+    options.dateRange && query.to ? lte(charges.created_at, query.to) : undefined,
   );
 }
 
@@ -37,32 +48,56 @@ function chargeFilters(query: ChargeQuery, options: { dateRange: boolean }): SQL
 export class ChargeRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
-  /** A charge and the event that opened it are written together or not at all. */
+  /** A charge, its PIX details and the event that opened it are written together or not at all. */
   insert(row: ChargeRow, event: ChargeEventRow): void {
+    const { qr_code, qr_code_txid, qr_code_expires_at, e2e_id, ...chargeFields } = row;
+
     this.db.transaction((tx) => {
-      tx.insert(pixCharges).values(row).run();
+      tx.insert(charges).values(chargeFields).run();
+      tx.insert(pixChargeDetails)
+        .values({ charge_id: row.id, qr_code, qr_code_txid, qr_code_expires_at, e2e_id })
+        .run();
       tx.insert(chargeEvents).values(event).run();
     });
   }
 
-  /** Same deal for every later transition: the row moves and the log grows atomically. */
-  updateWithEvent(chargeId: string, patch: ChargePatch, event: ChargeEventRow): void {
+  /** Same deal for every later transition: the row(s) move and the log grows atomically. */
+  updateWithEvent(
+    chargeId: string,
+    patch: ChargePatch,
+    event: ChargeEventRow,
+    pixPatch?: PixDetailsPatch,
+  ): void {
     this.db.transaction((tx) => {
-      tx.update(pixCharges).set(patch).where(eq(pixCharges.id, chargeId)).run();
+      if (Object.keys(patch).length > 0) {
+        tx.update(charges).set(patch).where(eq(charges.id, chargeId)).run();
+      }
+      if (pixPatch && Object.keys(pixPatch).length > 0) {
+        tx.update(pixChargeDetails)
+          .set(pixPatch)
+          .where(eq(pixChargeDetails.charge_id, chargeId))
+          .run();
+      }
       tx.insert(chargeEvents).values(event).run();
     });
   }
 
   findById(chargeId: string): ChargeRow | undefined {
-    return this.db.select().from(pixCharges).where(eq(pixCharges.id, chargeId)).get();
+    return this.db
+      .select(chargeWithPixColumns)
+      .from(charges)
+      .innerJoin(pixChargeDetails, eq(pixChargeDetails.charge_id, charges.id))
+      .where(eq(charges.id, chargeId))
+      .get();
   }
 
   list(query: ChargeQuery = {}): ChargeRow[] {
     return this.db
-      .select()
-      .from(pixCharges)
+      .select(chargeWithPixColumns)
+      .from(charges)
+      .innerJoin(pixChargeDetails, eq(pixChargeDetails.charge_id, charges.id))
       .where(chargeFilters(query, { dateRange: true }))
-      .orderBy(desc(pixCharges.created_at), desc(pixCharges.id))
+      .orderBy(desc(charges.created_at), desc(charges.id))
       .limit(Math.min(query.limit ?? 50, 200))
       .offset(query.offset ?? 0)
       .all();
@@ -73,7 +108,7 @@ export class ChargeRepository {
   count(query: ChargeQuery = {}): number {
     const row = this.db
       .select({ total: count() })
-      .from(pixCharges)
+      .from(charges)
       .where(chargeFilters(query, { dateRange: false }))
       .get();
 
@@ -81,7 +116,12 @@ export class ChargeRepository {
   }
 
   listByStatus(status: ChargeStatus): ChargeRow[] {
-    return this.db.select().from(pixCharges).where(eq(pixCharges.status, status)).all();
+    return this.db
+      .select(chargeWithPixColumns)
+      .from(charges)
+      .innerJoin(pixChargeDetails, eq(pixChargeDetails.charge_id, charges.id))
+      .where(eq(charges.status, status))
+      .all();
   }
 
   listEvents(chargeId: string): ChargeEventRow[] {
@@ -95,9 +135,9 @@ export class ChargeRepository {
 
   findPayerDocument(chargeId: string): string | null | undefined {
     return this.db
-      .select({ payer_document: pixCharges.payer_document })
-      .from(pixCharges)
-      .where(eq(pixCharges.id, chargeId))
+      .select({ payer_document: charges.payer_document })
+      .from(charges)
+      .where(eq(charges.id, chargeId))
       .get()?.payer_document;
   }
 }

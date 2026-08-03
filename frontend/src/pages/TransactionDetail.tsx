@@ -191,16 +191,16 @@ export function TransactionDetail() {
             <Detail label="nome do pagador">{charge.payer_name ?? '—'}</Detail>
             <Detail label="descrição">{charge.description ?? '—'}</Detail>
             <Detail label="txid">
-              <Copyable value={charge.qr_code_txid} label="txid" />
+              <Copyable value={charge.pix.qr_code_txid} label="txid" />
             </Detail>
             <Detail label="e2e id">
-              {charge.e2e_id ? <Copyable value={charge.e2e_id} label="e2e id" /> : '—'}
+              {charge.pix.e2e_id ? <Copyable value={charge.pix.e2e_id} label="e2e id" /> : '—'}
             </Detail>
             <Detail label="criada em">{formatDateTime(charge.created_at)}</Detail>
             <Detail label="expira em">
-              {formatDateTime(charge.qr_code_expires_at)}
+              {formatDateTime(charge.pix.qr_code_expires_at)}
               {charge.status === 'pending' ? (
-                <span className="text-[var(--text-muted)]"> · {relativeToNow(charge.qr_code_expires_at)}</span>
+                <span className="text-[var(--text-muted)]"> · {relativeToNow(charge.pix.qr_code_expires_at)}</span>
               ) : null}
             </Detail>
             <Detail label="paga em">{formatDateTime(charge.paid_at)}</Detail>
@@ -308,12 +308,12 @@ export function TransactionDetail() {
           <Panel>
             <PanelHeader title="QR code" hint="Payload no formato BR Code." />
             <div className="p-4">
-              <QrPreview payload={charge.qr_code} />
+              <QrPreview payload={charge.pix.qr_code} />
               <div className="mt-3">
                 <p className="eyebrow mb-1">pix copia e cola</p>
                 <div className="rounded-[var(--radius-panel)] border bg-[var(--surface)] p-2">
                   <Copyable
-                    value={charge.qr_code}
+                    value={charge.pix.qr_code}
                     truncate={{ head: 34, tail: 12 }}
                     label="BR Code"
                     className="w-full"

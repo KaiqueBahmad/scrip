@@ -171,7 +171,7 @@ describe('webhook delivery', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/api/payments/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/payments/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: {},
     });

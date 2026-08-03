@@ -67,7 +67,7 @@ export class MerchantService {
   /**
    * Balance is derived from the charges rather than stored, so it can never drift out of
    * sync with the ledger it describes — every refund and every settlement is already
-   * recorded on pix_charges.
+   * recorded on charges.
    */
   balanceFor(merchantId: string): MerchantBalance {
     const totals = this.merchants.sumCharges(merchantId, SETTLED_STATUSES);

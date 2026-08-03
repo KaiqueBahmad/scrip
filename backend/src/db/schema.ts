@@ -15,7 +15,7 @@
 import { sql } from 'drizzle-orm';
 import { blob, check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { ChargeStatus, DeliveryStatus, KycStatus } from '../repositories/types';
+import type { ChargeStatus, DeliveryStatus, KycStatus, PaymentMethod } from '../repositories/types';
 
 export const merchants = sqliteTable(
   'merchants',
@@ -55,23 +55,25 @@ export const apiTokens = sqliteTable(
   (table) => [index('idx_tokens_merchant').on(table.merchant_id)],
 );
 
-export const pixCharges = sqliteTable(
-  'pix_charges',
+/**
+ * Fields common to a charge regardless of payment method. Anything that only makes sense
+ * for one method (PIX's QR code, for instance) lives in that method's own details table —
+ * see pixChargeDetails.
+ */
+export const charges = sqliteTable(
+  'charges',
   {
     id: text().primaryKey(),
     merchant_id: text()
       .notNull()
       .references(() => merchants.id, { onDelete: 'cascade' }),
+    payment_method: text().$type<PaymentMethod>().notNull().default('pix'),
     amount: integer().notNull(),
     status: text().$type<ChargeStatus>().notNull().default('pending'),
     payer_document: text(),
     payer_name: text(),
     description: text(),
     metadata: text().notNull().default('{}'),
-    qr_code: text().notNull(),
-    qr_code_txid: text().notNull(),
-    qr_code_expires_at: text().notNull(),
-    e2e_id: text(),
     refunded_amount: integer().notNull().default(0),
     paid_at: text(),
     expired_at: text(),
@@ -82,14 +84,26 @@ export const pixCharges = sqliteTable(
   (table) => [
     index('idx_charges_merchant_created').on(table.merchant_id, sql`${table.created_at} DESC`),
     index('idx_charges_status').on(table.status),
-    check('pix_charges_amount', sql`${table.amount} > 0`),
-    check('pix_charges_refunded_amount', sql`${table.refunded_amount} >= 0`),
+    check('charges_amount', sql`${table.amount} > 0`),
+    check('charges_refunded_amount', sql`${table.refunded_amount} >= 0`),
     check(
-      'pix_charges_status',
+      'charges_status',
       sql`${table.status} IN ('pending', 'paid', 'expired', 'canceled', 'partially_refunded', 'refunded')`,
     ),
+    check('charges_payment_method', sql`${table.payment_method} IN ('pix')`),
   ],
 );
+
+/** PIX-only fields, one row per charge whose payment_method is 'pix'. */
+export const pixChargeDetails = sqliteTable('pix_charge_details', {
+  charge_id: text()
+    .primaryKey()
+    .references(() => charges.id, { onDelete: 'cascade' }),
+  qr_code: text().notNull(),
+  qr_code_txid: text().notNull(),
+  qr_code_expires_at: text().notNull(),
+  e2e_id: text(),
+});
 
 export const pixRefunds = sqliteTable(
   'pix_refunds',
@@ -97,7 +111,7 @@ export const pixRefunds = sqliteTable(
     id: text().primaryKey(),
     charge_id: text()
       .notNull()
-      .references(() => pixCharges.id, { onDelete: 'cascade' }),
+      .references(() => charges.id, { onDelete: 'cascade' }),
     merchant_id: text()
       .notNull()
       .references(() => merchants.id, { onDelete: 'cascade' }),
@@ -124,7 +138,7 @@ export const chargeEvents = sqliteTable(
     id: text().primaryKey(),
     charge_id: text()
       .notNull()
-      .references(() => pixCharges.id, { onDelete: 'cascade' }),
+      .references(() => charges.id, { onDelete: 'cascade' }),
     from_status: text().$type<ChargeStatus>(),
     to_status: text().$type<ChargeStatus>().notNull(),
     reason: text(),
@@ -174,7 +188,7 @@ export const webhookDeliveries = sqliteTable(
     merchant_id: text()
       .notNull()
       .references(() => merchants.id, { onDelete: 'cascade' }),
-    charge_id: text().references(() => pixCharges.id, { onDelete: 'set null' }),
+    charge_id: text().references(() => charges.id, { onDelete: 'set null' }),
     event: text().notNull(),
     url: text().notNull(),
     payload: text().notNull(),
@@ -233,7 +247,8 @@ export const TABLES_CHILD_FIRST = [
   webhookDeliveries,
   chargeEvents,
   pixRefunds,
-  pixCharges,
+  pixChargeDetails,
+  charges,
   kycDocuments,
   apiTokens,
   merchants,

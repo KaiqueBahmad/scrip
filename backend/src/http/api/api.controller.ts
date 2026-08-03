@@ -63,7 +63,7 @@ export class ApiController {
     );
   }
 
-  @Get('payments/pix/charges')
+  @Get('payments/charges')
   listCharges(@Auth() auth: ApiAuth, @Query() query: ChargeQuery = {}) {
     return {
       object: 'list',
@@ -75,12 +75,12 @@ export class ApiController {
     };
   }
 
-  @Get('payments/pix/charges/:id')
+  @Get('payments/charges/:id')
   getCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.get(id, { merchantId: auth.merchantId }));
   }
 
-  @Get('payments/pix/charges/:id/events')
+  @Get('payments/charges/:id/events')
   listChargeEvents(@Auth() auth: ApiAuth, @Param('id') id: string) {
     const charge = this.charges.get(id, { merchantId: auth.merchantId });
 
@@ -90,7 +90,7 @@ export class ApiController {
     };
   }
 
-  @Post('payments/pix/charges/:id/cancel')
+  @Post('payments/charges/:id/cancel')
   @HttpCode(HttpStatus.OK)
   cancelCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.cancel(id, { merchantId: auth.merchantId }));
@@ -98,7 +98,7 @@ export class ApiController {
 
   // ------------------------------------------------------------------ refunds
 
-  @Post('payments/pix/charges/:id/refunds')
+  @Post('payments/charges/:id/refunds')
   createRefund(
     @Auth() auth: ApiAuth,
     @Param('id') id: string,
@@ -114,7 +114,7 @@ export class ApiController {
     );
   }
 
-  @Get('payments/pix/charges/:id/refunds')
+  @Get('payments/charges/:id/refunds')
   listRefunds(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return {
       object: 'list',

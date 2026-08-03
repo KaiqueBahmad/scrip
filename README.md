@@ -95,10 +95,10 @@ curl -X POST http://localhost:4242/v1/api/payments/pix/charges \
   }'
 ```
 
-A resposta traz `qr_code` e `qr_code_expires_at` — repasse o `qr_code` pro seu frontend renderizar. O acompanhamento do status fica no seu backend, que é quem tem o token:
+A resposta traz `pix.qr_code` e `pix.qr_code_expires_at` — repasse o `qr_code` pro seu frontend renderizar. O acompanhamento do status fica no seu backend, que é quem tem o token:
 
 ```bash
-curl http://localhost:4242/v1/api/payments/pix/charges/ch_a1b2c3 \
+curl http://localhost:4242/v1/api/payments/charges/ch_a1b2c3 \
   -H "Authorization: Bearer {seu_jwt}"
 ```
 
@@ -230,10 +230,10 @@ O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima f
 | Método e rota |
 |---|
 | `POST /v1/api/payments/pix/charges` (aceita `Idempotency-Key`) |
-| `GET /v1/api/payments/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
-| `GET /v1/api/payments/pix/charges/{id}` · `/events` · `/refunds` |
-| `POST /v1/api/payments/pix/charges/{id}/cancel` |
-| `POST /v1/api/payments/pix/charges/{id}/refunds` — `amount` opcional |
+| `GET /v1/api/payments/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
+| `GET /v1/api/payments/charges/{id}` · `/events` · `/refunds` |
+| `POST /v1/api/payments/charges/{id}/cancel` |
+| `POST /v1/api/payments/charges/{id}/refunds` — `amount` opcional |
 | `GET`/`PATCH /v1/api/merchants/me` |
 
 Qualquer token válido e não revogado alcança todas as rotas acima — não há permissões por rota. Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
