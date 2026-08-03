@@ -1,11 +1,12 @@
-import { ArrowLeft, Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { PageHeader } from '../components/Layout';
-import { Alert, Button, Field, Input, Panel, Select, Table, Td, Textarea, Th } from '../components/ui/primitives';
+import { Alert, Button, CONTROL_CLASS, Field, Input, Panel, Select, Table, Td, Textarea, Th } from '../components/ui/primitives';
 import { api, ApiError, type ApiToken } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
+import { cn } from '../lib/utils';
 
 interface FieldDoc {
   name: string;
@@ -333,6 +334,182 @@ function buildQueryString(fields: FieldDoc[] | undefined, values: Record<string,
   return search ? `?${search}` : '';
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
+}
+
+interface DateTimeParts {
+  year: number;
+  month: number; // 0-11
+  day: number;
+  hour: number;
+  minute: number;
+}
+
+/** Same string shape `<input type="datetime-local">` produces — kept so buildQueryString/toIsoFromLocal don't care which widget filled it in. */
+function parseDateTimeValue(value: string): DateTimeParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]), hour: Number(match[4]), minute: Number(match[5]) };
+}
+
+function formatDateTimeValue(parts: DateTimeParts): string {
+  return `${parts.year}-${pad2(parts.month + 1)}-${pad2(parts.day)}T${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** 2023-01-01 is a Sunday — an arbitrary anchor so weekday 0..6 maps to short pt-BR labels (D, S, T, Q, Q, S, S). */
+const WEEKDAY_LABELS = Array.from({ length: 7 }, (_, i) =>
+  new Intl.DateTimeFormat('pt-BR', { weekday: 'narrow' }).format(new Date(2023, 0, 1 + i)),
+);
+
+function monthLabel(year: number, month: number): string {
+  const label = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(year, month, 1));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * Hand-rolled instead of a native `<input type="datetime-local">`: the browser renders that
+ * widget's value in the OS locale's date order, which on most machines here isn't Y-M-D. This
+ * component always displays and edits "YYYY-MM-DD HH:mm", independent of locale.
+ */
+function DateTimePicker({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  const parts = parseDateTimeValue(value);
+  const today = new Date();
+  const [open, setOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(parts?.year ?? today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(parts?.month ?? today.getMonth());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const openPicker = () => {
+    if (parts) { setViewYear(parts.year); setViewMonth(parts.month); }
+    setOpen(true);
+  };
+
+  const changeMonth = (delta: number) => {
+    const raw = viewMonth + delta;
+    setViewMonth(((raw % 12) + 12) % 12);
+    setViewYear(viewYear + Math.floor(raw / 12));
+  };
+
+  const selectDay = (day: number) => {
+    onChange(formatDateTimeValue({ year: viewYear, month: viewMonth, day, hour: parts?.hour ?? 0, minute: parts?.minute ?? 0 }));
+  };
+
+  const setTime = (hour: number, minute: number) => {
+    const base = parts ?? { year: viewYear, month: viewMonth, day: today.getDate(), hour: 0, minute: 0 };
+    onChange(formatDateTimeValue({ ...base, hour, minute }));
+  };
+
+  const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+  const totalDays = daysInMonth(viewYear, viewMonth);
+  const cells: (number | null)[] = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        id={id}
+        onClick={() => (open ? setOpen(false) : openPicker())}
+        className={cn(CONTROL_CLASS, 'text-left font-mono', !parts && 'text-[var(--text-muted)]')}
+      >
+        {parts ? formatDateTimeValue(parts).replace('T', ' ') : 'aaaa-mm-dd hh:mm'}
+      </button>
+      {open ? (
+        <div className="absolute z-20 mt-1 w-64 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3 text-xs">
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" onClick={() => changeMonth(-1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="mês anterior">
+              <ChevronLeft className="size-3.5" />
+            </button>
+            <span className="font-medium">{monthLabel(viewYear, viewMonth)}</span>
+            <button type="button" onClick={() => changeMonth(1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="próximo mês">
+              <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-[var(--text-muted)]">
+            {WEEKDAY_LABELS.map((label, i) => <span key={i}>{label}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-0.5">
+            {cells.map((day, i) => {
+              const isSelected = !!parts && day === parts.day && viewMonth === parts.month && viewYear === parts.year;
+              const isToday = day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={day === null}
+                  onClick={() => day !== null && selectDay(day)}
+                  className={cn(
+                    'h-6 rounded text-[11px]',
+                    day === null ? 'invisible' : 'hover:bg-[var(--hairline-soft)]',
+                    isSelected ? 'bg-trace text-white hover:bg-trace' : '',
+                    !isSelected && isToday ? 'font-semibold text-trace' : '',
+                  )}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2">
+            <div className="flex items-center gap-1 font-mono">
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={parts ? pad2(parts.hour) : '00'}
+                onChange={(event) => setTime(clamp(Number(event.target.value), 0, 23), parts?.minute ?? 0)}
+                className="h-7 w-11 rounded border bg-[var(--surface)] px-1 text-center"
+                aria-label="hora"
+              />
+              <span>:</span>
+              <input
+                type="number"
+                min={0}
+                max={59}
+                value={parts ? pad2(parts.minute) : '00'}
+                onChange={(event) => setTime(parts?.hour ?? 0, clamp(Number(event.target.value), 0, 59))}
+                className="h-7 w-11 rounded border bg-[var(--surface)] px-1 text-center"
+                aria-label="minuto"
+              />
+            </div>
+            <button type="button" onClick={() => onChange('')} className="text-[var(--text-muted)] hover:text-[var(--text)]">
+              limpar
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
   const [chargeId, setChargeId] = useState('');
   const [queryValues, setQueryValues] = useState<Record<string, string>>(() =>
@@ -368,13 +545,20 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
           <div className="grid gap-3 sm:grid-cols-2">
             {route.query.map((field) => (
               <Field key={field.name} label={field.name} htmlFor={`${route.id}-query-${field.name}`} hint={field.description}>
-                <Input
-                  id={`${route.id}-query-${field.name}`}
-                  type={field.input === 'datetime' ? 'datetime-local' : 'text'}
-                  value={queryValues[field.name] ?? ''}
-                  onChange={(event) => setQueryValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                  placeholder={field.input === 'datetime' ? undefined : field.type}
-                />
+                {field.input === 'datetime' ? (
+                  <DateTimePicker
+                    id={`${route.id}-query-${field.name}`}
+                    value={queryValues[field.name] ?? ''}
+                    onChange={(next) => setQueryValues((prev) => ({ ...prev, [field.name]: next }))}
+                  />
+                ) : (
+                  <Input
+                    id={`${route.id}-query-${field.name}`}
+                    value={queryValues[field.name] ?? ''}
+                    onChange={(event) => setQueryValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
+                    placeholder={field.type}
+                  />
+                )}
               </Field>
             ))}
           </div>

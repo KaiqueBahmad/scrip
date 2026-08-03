@@ -116,7 +116,7 @@ export function Field({
   );
 }
 
-const CONTROL_CLASS =
+export const CONTROL_CLASS =
   'h-10 w-full rounded-[var(--radius-panel)] border bg-[var(--surface)] px-3 text-sm ' +
   'placeholder:text-[var(--text-muted)] disabled:opacity-50';
 
