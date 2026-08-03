@@ -135,6 +135,7 @@ export const pt = {
     payerLabel: 'pagador',
     payerNameLabel: 'nome do pagador',
     descriptionLabel: 'descrição',
+    callbackUrlLabel: 'callback url',
     txidLabel: 'txid',
     e2eIdLabel: 'e2e id',
     createdLabel: 'criada em',
@@ -390,6 +391,7 @@ export const pt = {
         payer_name: 'Nome do pagador, se informado.',
         description: 'Descrição livre da cobrança.',
         metadata: 'Dados livres definidos na criação.',
+        callback_url: 'URL que recebe os webhooks desta cobrança. Quando definida, substitui o webhook_url da loja só para os eventos dela.',
         pix: 'Detalhes específicos do método PIX.',
         pixQrCode: 'Payload "copia e cola" do QR Code PIX.',
         pixQrCodeTxid: 'TXID do QR Code.',
@@ -440,6 +442,7 @@ export const pt = {
         payer_name: 'Nome do pagador.',
         description_field: 'Descrição livre da cobrança.',
         metadata: 'Dados livres, devolvidos como estão.',
+        callback_url: 'Substitui o webhook_url da loja para os eventos desta cobrança. Omitido usa o webhook_url da loja.',
         exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Pedido de teste",\n  "metadata": { "order_id": "abc-123" }\n}',
       },
       listCharges: {

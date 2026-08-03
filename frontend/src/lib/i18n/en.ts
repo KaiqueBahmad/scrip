@@ -135,6 +135,7 @@ export const en = {
     payerLabel: 'payer',
     payerNameLabel: 'payer name',
     descriptionLabel: 'description',
+    callbackUrlLabel: 'callback url',
     txidLabel: 'txid',
     e2eIdLabel: 'e2e id',
     createdLabel: 'created at',
@@ -390,6 +391,7 @@ export const en = {
         payer_name: "The payer's name, if provided.",
         description: 'Free-form description of the charge.',
         metadata: 'Free-form data set at creation.',
+        callback_url: "URL that receives this charge's webhooks. When set, it replaces the store's webhook_url for this charge's events only.",
         pix: 'PIX-specific details.',
         pixQrCode: 'PIX QR Code "copy and paste" payload.',
         pixQrCodeTxid: "The QR Code's TXID.",
@@ -440,6 +442,7 @@ export const en = {
         payer_name: "The payer's name.",
         description_field: 'Free-form description of the charge.',
         metadata: 'Free-form data, returned as-is.',
+        callback_url: "Replaces the store's webhook_url for this charge's events. Omit to use the store's webhook_url.",
         exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Test order",\n  "metadata": { "order_id": "abc-123" }\n}',
       },
       listCharges: {

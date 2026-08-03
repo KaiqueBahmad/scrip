@@ -48,6 +48,7 @@ export interface ApiCharge {
   payer_name: string | null;
   description: string | null;
   metadata: Record<string, unknown>;
+  callback_url: string | null;
   pix: ApiChargePixDetails;
   paid_at: string | null;
   expired_at: string | null;

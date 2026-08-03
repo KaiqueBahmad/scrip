@@ -74,6 +74,9 @@ export const charges = sqliteTable(
     payer_name: text(),
     description: text(),
     metadata: text().notNull().default('{}'),
+    // Per-charge override: when set, this charge's webhooks go here instead of the
+    // merchant's own webhook_url. Null means "use the merchant's".
+    callback_url: text(),
     refunded_amount: integer().notNull().default(0),
     paid_at: text(),
     expired_at: text(),

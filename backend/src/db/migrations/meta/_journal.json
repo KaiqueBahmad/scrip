@@ -29,6 +29,13 @@
       "when": 1785810000000,
       "tag": "0003_extract_pix_charge_details",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785820000000,
+      "tag": "0004_add_charge_callback_url",
+      "breakpoints": true
     }
   ]
 }

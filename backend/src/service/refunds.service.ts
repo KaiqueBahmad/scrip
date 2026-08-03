@@ -83,6 +83,7 @@ export class RefundService {
       merchantId: charge.merchant_id,
       event: 'pix.charge.refunded',
       chargeId: charge.id,
+      callbackUrl: updatedCharge.callback_url,
       data: { charge: serializeCharge(updatedCharge), refund: serializeRefund(refund) },
     });
 

@@ -132,6 +132,35 @@ describe('webhook delivery', () => {
     assert.equal(harness.app.services.webhooks.listForMerchant(merchant.id).length, 0);
   });
 
+  it("routes a charge's webhooks to its callback_url instead of the merchant's webhook_url", async () => {
+    harness = await createHarness();
+    const { bearer } = await seedMerchantAndToken(harness);
+    await createCharge(harness, bearer, {
+      payer_document: '22222222222',
+      callback_url: 'https://charge-specific.test/hooks',
+    });
+
+    await harness.scheduler.advance(2000);
+
+    assert.equal(harness.calls.length, 1);
+    assert.equal(harness.calls[0]!.url, 'https://charge-specific.test/hooks');
+  });
+
+  it('delivers to callback_url even when the merchant has no webhook_url of its own', async () => {
+    harness = await createHarness();
+    const { bearer, merchant } = await seedMerchantAndToken(harness, { webhookUrl: null });
+    await createCharge(harness, bearer, {
+      payer_document: '22222222222',
+      callback_url: 'https://charge-specific.test/hooks',
+    });
+
+    await harness.scheduler.advance(2000);
+
+    assert.equal(harness.calls.length, 1);
+    assert.equal(harness.calls[0]!.url, 'https://charge-specific.test/hooks');
+    assert.equal(harness.app.services.webhooks.listForMerchant(merchant.id).length, 1);
+  });
+
   it('re-sends a failed delivery on manual retry', async () => {
     let failing = true;
     harness = await createHarness({ respond: () => (failing ? 500 : 200) });

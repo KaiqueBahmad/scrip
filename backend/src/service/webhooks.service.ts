@@ -19,6 +19,8 @@ export interface EnqueueInput {
   event: WebhookEvent;
   data: Record<string, unknown>;
   chargeId?: string | null;
+  /** Overrides the merchant's webhook_url — set from the charge's own callback_url, if any. */
+  callbackUrl?: string | null;
 }
 
 /**
@@ -40,15 +42,18 @@ export class WebhookDispatcher {
 
   /**
    * Records a delivery and schedules the first attempt after `webhookDelayMs`.
-   * Returns null when the merchant has no webhook_url configured.
+   * `callbackUrl`, when set, takes over from the merchant's own webhook_url — so a charge
+   * can route its events elsewhere without touching the merchant's default. Returns null
+   * when neither resolves to a URL.
    */
   enqueue(input: EnqueueInput): WebhookDeliveryRow | null {
     const merchant = this.merchants.findWebhookConfig(input.merchantId);
+    const url = input.callbackUrl ?? merchant?.webhook_url;
 
-    if (!merchant?.webhook_url) {
+    if (!url) {
       this.log.debug(
         { merchant_id: input.merchantId, event: input.event },
-        'webhook skipped: merchant has no webhook_url',
+        'webhook skipped: no callback_url or merchant webhook_url configured',
       );
       return null;
     }
@@ -72,7 +77,7 @@ export class WebhookDispatcher {
       merchant_id: input.merchantId,
       charge_id: input.chargeId ?? null,
       event: input.event,
-      url: merchant.webhook_url,
+      url,
       payload: body,
       attempt: 0,
       max_attempts: config.webhookMaxRetries,

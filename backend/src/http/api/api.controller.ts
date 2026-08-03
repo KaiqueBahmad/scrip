@@ -59,6 +59,7 @@ export class ApiController {
         payerName: body.payer_name ?? null,
         description: body.description ?? null,
         metadata: body.metadata ?? null,
+        callbackUrl: body.callback_url ?? null,
       }),
     );
   }

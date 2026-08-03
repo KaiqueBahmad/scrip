@@ -7,6 +7,8 @@ export interface CreateChargeBody {
   payer_name?: string | null;
   description?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Overrides the merchant's webhook_url for this charge's events only. */
+  callback_url?: string | null;
 }
 
 export interface SimulateChargeBody {

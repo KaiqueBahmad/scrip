@@ -196,6 +196,11 @@ export function TransactionDetail() {
             <Detail label={t('transactionDetail.payerLabel')}>{maskDocument(charge.payer_document)}</Detail>
             <Detail label={t('transactionDetail.payerNameLabel')}>{charge.payer_name ?? '—'}</Detail>
             <Detail label={t('transactionDetail.descriptionLabel')}>{charge.description ?? '—'}</Detail>
+            {charge.callback_url ? (
+              <Detail label={t('transactionDetail.callbackUrlLabel')}>
+                <Copyable value={charge.callback_url} truncate={{ head: 24, tail: 10 }} label={t('transactionDetail.callbackUrlLabel')} />
+              </Detail>
+            ) : null}
             <Detail label={t('transactionDetail.txidLabel')}>
               <Copyable value={charge.pix.qr_code_txid} label={t('transactionDetail.txidLabel')} />
             </Detail>

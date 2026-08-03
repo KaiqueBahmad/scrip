@@ -25,6 +25,7 @@ export function serializeCharge(row: ChargeRow) {
     payer_name: row.payer_name,
     description: row.description,
     metadata: parseJsonColumn<Record<string, unknown>>(row.metadata, {}),
+    callback_url: row.callback_url,
     // Only 'pix' exists today, so this is unconditional — a second method would key this
     // object by row.payment_method instead of hardcoding 'pix'.
     pix: {

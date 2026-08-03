@@ -46,6 +46,8 @@ export interface CreateChargeInput {
   payerName?: string | null;
   description?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Overrides the merchant's webhook_url for this charge's events only. */
+  callbackUrl?: string | null;
 }
 
 export interface ListChargesFilters {
@@ -139,6 +141,7 @@ export class ChargeService implements OnApplicationBootstrap {
       payer_name: input.payerName ?? null,
       description: input.description ?? null,
       metadata: JSON.stringify(input.metadata ?? {}),
+      callback_url: input.callbackUrl ?? null,
       qr_code: qrCode,
       qr_code_txid: txid,
       qr_code_expires_at: expiresAt,
@@ -157,6 +160,7 @@ export class ChargeService implements OnApplicationBootstrap {
       merchantId: merchant.id,
       event: 'pix.charge.created',
       chargeId: id,
+      callbackUrl: row.callback_url,
       data: { charge: serializeCharge(row) },
     });
 
@@ -222,6 +226,7 @@ export class ChargeService implements OnApplicationBootstrap {
       merchantId: updated.merchant_id,
       event: 'pix.charge.paid',
       chargeId,
+      callbackUrl: updated.callback_url,
       data: { charge: serializeCharge(updated) },
     });
 
@@ -248,6 +253,7 @@ export class ChargeService implements OnApplicationBootstrap {
       merchantId: updated.merchant_id,
       event: 'pix.charge.expired',
       chargeId,
+      callbackUrl: updated.callback_url,
       data: { charge: serializeCharge(updated) },
     });
 
