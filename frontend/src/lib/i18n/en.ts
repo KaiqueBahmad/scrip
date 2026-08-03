@@ -25,7 +25,7 @@ export const en = {
     switchStore: 'switch store',
   },
   selectMerchant: {
-    subtitle: 'simulated pix gateway · development environment',
+    subtitle: 'simulated gateway · development environment',
     language: 'Language',
     chooseStoreTitle: 'Choose a store',
     chooseStoreHint: 'The panel has no password. Whichever store you pick acts.',

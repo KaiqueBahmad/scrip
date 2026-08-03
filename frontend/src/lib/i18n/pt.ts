@@ -25,7 +25,7 @@ export const pt = {
     switchStore: 'trocar de loja',
   },
   selectMerchant: {
-    subtitle: 'gateway pix simulado · ambiente de desenvolvimento',
+    subtitle: 'gateway simulado · ambiente de desenvolvimento',
     language: 'Idioma',
     chooseStoreTitle: 'Escolha uma loja',
     chooseStoreHint: 'O painel não tem senha. A loja escolhida é quem faz as ações.',

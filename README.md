@@ -6,7 +6,7 @@ Um gateway de pagamento **PIX** simulado, self-hosted, para desenvolvimento e te
 
 ## O que é
 
-O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração de QR code, confirmação assíncrona, expiração, estorno, webhooks assinados, KYC de merchant — sem depender de nenhum provedor externo. Ideal para:
+O PseudoPay reproduz o comportamento de um gateway de verdade — geração de QR code, confirmação assíncrona, expiração, estorno, webhooks assinados, KYC de merchant — sem depender de nenhum provedor externo. Ideal para:
 
 - Testar integrações de checkout sem depender de sandbox de terceiros
 - Rodar cenários determinísticos em CI (forçar pagamento, forçar expiração)
