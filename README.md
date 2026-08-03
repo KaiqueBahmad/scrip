@@ -1,149 +1,108 @@
 # Scrip
 
-Um gateway de pagamento **PIX** simulado, self-hosted, para desenvolvimento e testes de integração — no mesmo espírito de ferramentas como MinIO (S3) ou LocalStack (AWS), mas para o ciclo de vida de um gateway de pagamento.
+A self-hosted, simulated **PIX** payment gateway for development and integration testing — in the spirit of MinIO (S3) or LocalStack (AWS), but for a payment gateway's lifecycle.
 
 ---
 
-## O que é
+## What it is
 
-O Scrip reproduz o comportamento de um gateway de verdade — geração de QR code, confirmação assíncrona, expiração, estorno, webhooks assinados, KYC de merchant — sem depender de nenhum provedor externo. Ideal para:
+Scrip reproduces the behavior of a real PIX gateway — QR code generation, async confirmation, expiration, refunds, withdrawals, signed webhooks, merchant KYC — with no external provider. Useful for:
 
-- Testar integrações de checkout sem depender de sandbox de terceiros
-- Rodar cenários determinísticos em CI (forçar pagamento, forçar expiração)
-- Testar idempotência, retry e validação de assinatura de webhook
-- Demonstrar/desenvolver fluxos de KYC e aprovação de merchant localmente
+- Testing checkout integrations without a third-party sandbox
+- Deterministic CI scenarios (force a payment, force an expiration)
+- Testing idempotency, retry, and webhook signature verification
+- Building/demoing KYC and merchant approval flows locally
 
-## Escopo
+## Scope
 
-- **Somente PIX** nesta versão. Cartão, boleto e outros métodos ficam fora do escopo (arquitetura já preparada para extensão futura).
-- **Duas superfícies de API**, fisicamente separadas por rota mesmo quando a lógica é a mesma:
-  - `/v1/api/*` — consumida pelo backend do merchant, com JWT
-  - `/v1/panel/*` — consumida pelo painel, com HTTP Basic
-- **Sem fila de verdade** — assincronia (confirmação de pagamento, expiração de QR code, retry de webhook) é simulada com `setTimeout` in-process.
-- **Sem storage externo** — documentos de KYC são salvos como BLOB direto no SQLite; nenhuma dependência de S3/disco externo.
+- **PIX only** for now. Card, boleto and other methods are out of scope (the architecture already supports adding them).
+- **Two API surfaces**, physically separate even where the logic overlaps:
+  - `/v1/api/*` — called by the merchant's own backend, JWT auth
+  - `/v1/panel/*` — called by the panel, HTTP Basic auth
+- **No real queue** — async work (payment confirmation, QR expiration, webhook retry) is simulated with in-process `setTimeout`.
+- **No external storage** — KYC documents are stored as BLOBs directly in SQLite.
 
 ## Stack
 
-| Camada | Tecnologia |
+| Layer | Tech |
 |---|---|
-| Backend / API | Node.js + TypeScript + Fastify |
-| Banco | SQLite (better-sqlite3) + Drizzle ORM |
-| Painel | Vite + React + TypeScript + react-router-dom |
-| Estilo | Tailwind + shadcn/ui |
-| Auth do painel | HTTP Basic (merchant id + senha vazia) |
-| Auth da API de Integração | JWT emitido pelo próprio merchant no painel |
-| Assincronia | `setTimeout` in-process (sem Redis/BullMQ) |
-| Upload de KYC | BLOB no SQLite |
+| Backend / API | Node.js + TypeScript + Fastify (NestJS) |
+| Database | SQLite (better-sqlite3) + Drizzle ORM |
+| Panel | Vite + React + TypeScript + react-router-dom |
+| Styling | Tailwind |
+| Panel auth | HTTP Basic (merchant id + empty password) |
+| API auth | JWT, issued by the merchant itself from the panel |
+| Async | in-process `setTimeout` (no Redis/BullMQ) |
+| KYC uploads | BLOB in SQLite |
 
-## Instalação e uso
+## Setup
 
-O repositório tem dois projetos npm independentes: `backend/` (API Fastify) e `frontend/` (painel Vite + React).
+Two independent npm projects: `backend/` (Fastify API) and `frontend/` (Vite + React panel).
 
 ```bash
-npm --prefix backend install   # dependências da API
-npm --prefix frontend install  # dependências do painel
+npm --prefix backend install
+npm --prefix frontend install
 
 cd backend
-npm run build               # compila a API
-npm start                   # sobe a API (Fastify)
-npm run dev                 # API com reload
-npm run reset               # limpa o banco, mantém o schema
-npm run db:generate         # regenera as migrations depois de mudar src/db/schema.ts
-npm test                    # suíte de testes
+npm run build       # compile
+npm start           # run
+npm run dev          # run with reload
+npm run reset        # wipe the database, keep the schema
+npm run db:generate  # regenerate migrations after changing src/db/schema.ts
+npm test
 ```
 
-> A CLI `npx scrip <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`: `openDb` aplica as migrations do Drizzle a cada boot.
+The database is created automatically on first run — `openDb` applies Drizzle migrations on every boot, so there's no separate `init` step. The server listens on `http://localhost:4242` by default. Settings live in `backend/scrip.config.json` (or `SCRIP_*` env vars, e.g. `SCRIP_PORT=5000`), read once at boot.
 
-Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `scrip.config.json` (ou variáveis de ambiente com prefixo `SCRIP_`, ex.: `SCRIP_PORT=5000`, `SCRIP_APPROVAL_RATE=1`) e são lidas uma vez, no boot.
-
-Para iniciar o painel, use outro terminal:
+Start the panel in another terminal:
 
 ```bash
 npm --prefix frontend run dev
 ```
 
-Ele ficará disponível em `http://localhost:5273` e fará proxy das chamadas `/v1` para a API.
+Available at `http://localhost:5273`.
 
-## Como usar
+## Quickstart
 
-### 1. Acesse o painel
+1. **Open the panel** (`http://localhost:5273`). There's no login screen — **the merchant is the panel's identity**. Pick an existing store or create one; store creation is intentionally unauthenticated, since Basic auth needs an existing merchant to resolve against — this is a dev tool, don't expose it publicly.
+2. **Check the store page** for its balance, `merchant_id` (the Basic auth username), `webhook_url`, `webhook_secret`, and KYC status. Approving/rejecting KYC there is a simulation control — the same idea as forcing a payment — and fires real `kyc.approved`/`kyc.rejected` webhooks.
+3. **Generate a token** on the Tokens screen. Only the store itself can mint one, always scoped to it. A valid token reaches every `/v1/api` route.
+4. **Create a charge**:
+   ```bash
+   curl -X POST http://localhost:4242/v1/api/payments/pix/charges \
+     -H "Authorization: Bearer {your_jwt}" \
+     -H "Content-Type: application/json" \
+     -d '{"amount": 15000, "payer_document": "11111111111", "metadata": {"order_id": "abc-123"}}'
+   ```
+   The response includes `pix.qr_code` and `pix.qr_code_expires_at`.
+5. **Simulate the payment** (useful in tests/CI):
+   ```bash
+   curl -X POST http://localhost:4242/v1/api/payments/pix/charges/ch_a1b2c3/simulate \
+     -H "Authorization: Bearer {your_jwt}" -H "Content-Type: application/json" \
+     -d '{"result": "paid"}'
+   ```
+   This fires `pix.charge.paid` to the configured `webhook_url` and credits the store's balance.
 
-Abra `http://localhost:5273`. Não há tela de login tradicional — **o merchant é a identidade do painel**: você verá a lista de lojas cadastradas, com o saldo de cada uma, e escolhe qual usar na sessão.
+## Balance & withdrawals
 
-Se o banco estiver vazio, a própria tela de seleção cria a primeira loja. A criação é pública (ver [Segurança](#segurança)) justamente porque o Basic Auth resolve um merchant que já existe — sem isso não haveria como entrar num banco novo.
+`available`, `gross_received`, `refunded` and `settled_charges` are all **derived from charges**, never stored — so they can't drift from what actually happened. A store can request a withdrawal of its `available` balance (`/v1/withdrawals`, both surfaces); the amount is reserved the moment it's requested. Since there's no real bank behind it, confirming or denying a withdrawal is a **panel-only** simulation control, same as KYC and payment confirmation. Denying releases the reservation.
 
-Cada sessão vê **apenas a própria loja**: suas cobranças, tokens, webhooks, documentos e saldo. Não existe um perfil de operador que enxergue várias lojas.
+## Test CPFs (deterministic behavior)
 
-### 2. Confira a loja
-
-Na tela **Minha loja** ficam o saldo, o `merchant_id` (que é o usuário do Basic Auth), a `webhook_url`, o `webhook_secret` e o KYC. Como não há revisor externo, aprovar ou recusar o KYC ali é um **controle de simulação da própria loja** — a mesma ideia de forçar um pagamento. A decisão dispara os webhooks `kyc.approved` / `kyc.rejected` de verdade.
-
-### 3. Gere um token de integração
-
-Na tela **Tokens**, gere um JWT. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. Não há permissões: dentro do escopo da loja, o token alcança todas as rotas de `/v1/api`. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
-
-### 4. Crie uma cobrança PIX
-
-```bash
-curl -X POST http://localhost:4242/v1/api/payments/pix/charges \
-  -H "Authorization: Bearer {seu_jwt}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 15000,
-    "payer_document": "11111111111",
-    "metadata": { "order_id": "abc-123" }
-  }'
-```
-
-A resposta traz `pix.qr_code` e `pix.qr_code_expires_at` — repasse o `qr_code` pro seu frontend renderizar. O acompanhamento do status fica no seu backend, que é quem tem o token:
-
-```bash
-curl http://localhost:4242/v1/api/payments/charges/ch_a1b2c3 \
-  -H "Authorization: Bearer {seu_jwt}"
-```
-
-### 5. Simule o pagamento (útil em testes/CI)
-
-```bash
-curl -X POST http://localhost:4242/v1/api/payments/pix/charges/ch_a1b2c3/simulate \
-  -H "Authorization: Bearer {seu_jwt}" \
-  -H "Content-Type: application/json" \
-  -d '{ "result": "paid" }'
-```
-
-Isso dispara o webhook `pix.charge.paid` pro `webhook_url` configurado no merchant, e o valor entra no saldo da loja.
-
-## Saldo
-
-Cada loja tem um saldo, visível em **Minha loja** e na lista de seleção:
-
-| Campo | O que é |
+| `payer_document` | Behavior |
 |---|---|
-| `available` | Saldo líquido: tudo que liquidou, menos o que foi devolvido |
-| `gross_received` | Soma de tudo que já liquidou, antes das devoluções |
-| `refunded` | Soma de todas as devoluções |
-| `settled_charges` | Quantas cobranças entraram no `gross_received` |
-
-O saldo é **derivado das cobranças** (`SUM(amount - refunded_amount)` sobre as que estão `paid`, `partially_refunded` ou `refunded`), não uma coluna guardada. Assim ele nunca dessincroniza do que aconteceu de fato. Cobrança pendente, expirada ou cancelada não entra; uma totalmente devolvida contribui zero, mas segue somando no `gross_received`.
-
-Não há saque: o saldo é um número observável, não uma conta com movimentação própria.
-
-## CPFs de teste (comportamento determinístico)
-
-| `payer_document` | Comportamento |
-|---|---|
-| `11111111111` | Sempre confirma no tempo mínimo configurado |
-| `22222222222` | Nunca confirma (força expiração) |
-| `33333333333` | Confirma, mas o webhook falha propositalmente (testa retry) |
-| Qualquer outro | Segue a taxa de confirmação configurada (`approvalRate`) |
+| `11111111111` | Always confirms, at the configured minimum delay |
+| `22222222222` | Never confirms (forces expiration) |
+| `33333333333` | Confirms, but the webhook deliberately fails (tests retry) |
+| Anything else | Follows the configured `approvalRate` |
 
 ## Webhooks
 
-Eventos disparados: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`, `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`.
+Events: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`, `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`, `withdrawal.confirmed`, `withdrawal.denied`.
 
-Payload assinado via HMAC-SHA256 no header `X-Scrip-Signature`, usando o `webhook_secret` do merchant. Retry automático (até 3 tentativas) se o endpoint não responder `2xx`.
+Signed with HMAC-SHA256 in the `X-Scrip-Signature` header, using the merchant's `webhook_secret`. Retries automatically (up to 3 attempts) on a non-`2xx` response.
 
-O corpo enviado tem sempre esta forma:
+Body shape:
 
 ```json
 {
@@ -154,23 +113,23 @@ O corpo enviado tem sempre esta forma:
 }
 ```
 
-O header segue o formato `t=<unix>,v1=<hmac>`, onde o HMAC-SHA256 é calculado sobre a string `<t>.<corpo bruto>`. Incluir o timestamp na assinatura é o que permite testar proteção contra replay:
+The header is `t=<unix>,v1=<hmac>`, where the HMAC is computed over `<t>.<raw body>`. Verification:
 
 ```js
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-function verificar(corpoBruto, header, segredo) {
+function verify(rawBody, header, secret) {
   const { t, v1 } = Object.fromEntries(header.split(',').map((p) => p.split('=', 2)));
-  const esperado = createHmac('sha256', segredo).update(`${t}.${corpoBruto}`).digest('hex');
-  return v1.length === esperado.length && timingSafeEqual(Buffer.from(v1), Buffer.from(esperado));
+  const expected = createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
+  return v1.length === expected.length && timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
 }
 ```
 
-Cada tentativa também vai com `X-Scrip-Event`, `X-Scrip-Delivery` e `X-Scrip-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/api/webhooks/deliveries/{id}/retry`.
+Each attempt also carries `X-Scrip-Event`, `X-Scrip-Delivery` and `X-Scrip-Attempt`. Every attempt is recorded and can be retried from the panel or `POST /v1/api/webhooks/deliveries/{id}/retry`.
 
-## Configuração
+## Configuration
 
-`backend/scrip.config.json` já vem com todas as chaves nos valores padrão:
+`backend/scrip.config.json` ships with every key at its default:
 
 ```json
 {
@@ -200,97 +159,87 @@ Cada tentativa também vai com `X-Scrip-Event`, `X-Scrip-Delivery` e `X-Scrip-At
 }
 ```
 
-O que cada uma faz:
-
-| Chave | O que faz |
+| Key | What it does |
 |---|---|
-| `port` / `host` | Onde o listener sobe. É um ambiente de dev — não abra por padrão. |
-| `databasePath` | Arquivo SQLite. `:memory:` funciona (os testes usam). |
-| `approvalRate` | Chance de confirmar uma cobrança cujo `payer_document` não é um CPF de teste. |
-| `pixConfirmationDelayMs` | Atraso até uma cobrança se confirmar sozinha. |
-| `pixMinConfirmationDelayMs` | Atraso usado pelo CPF que confirma sempre. |
-| `pixQrCodeExpirationMs` | Validade do QR code antes da cobrança expirar. |
-| `webhookDelayMs` | Espera entre o evento e a primeira tentativa de webhook. |
-| `webhookMaxRetries` | Tentativas por entrega, contando a primeira. |
-| `webhookRetryBackoffMs` | Base do intervalo entre tentativas; cresce a cada tentativa. |
-| `webhookTimeoutMs` | Timeout de cada requisição de webhook. |
-| `jwtSigningSecret` / `jwtDefaultExpiration` | Segredo que assina os tokens de integração e a validade padrão deles. |
-| `kycMaxFileSizeMb` | Tamanho máximo de um documento de KYC. |
-| `requireApprovedKycForCharges` | Se `true`, merchant sem KYC aprovado não cria cobrança. |
-| `pixKey` / `pixReceiverName` / `pixReceiverCity` | Dados do recebedor embutidos no BR Code. |
+| `port` / `host` | Where the listener binds. Dev tool — don't expose by default. |
+| `databasePath` | SQLite file; `:memory:` works (tests use it). |
+| `approvalRate` | Chance a non-test-CPF charge confirms. |
+| `pixConfirmationDelayMs` / `pixMinConfirmationDelayMs` | Auto-confirm delay, and the floor used by the always-confirms test CPF. |
+| `pixQrCodeExpirationMs` | QR code validity before a charge expires. |
+| `webhookDelayMs` / `webhookMaxRetries` / `webhookRetryBackoffMs` / `webhookTimeoutMs` | Webhook delivery timing and retry policy. |
+| `jwtSigningSecret` / `jwtDefaultExpiration` | Signs API tokens; their default validity. |
+| `kycMaxFileSizeMb` | Max size of a KYC upload. |
+| `requireApprovedKycForCharges` | If `true`, blocks charge creation until KYC is approved. |
+| `pixKey` / `pixReceiverName` / `pixReceiverCity` | Receiver details embedded in the generated BR Code. |
 
-O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima funcione numa instalação nova — merchants nascem com `kyc_status: "pending"`. Ligue `requireApprovedKycForCharges` quando quiser testar o caminho de bloqueio (`403 kyc_required`).
+KYC blocking defaults to **off** so the quickstart above works on a fresh install. The file (plus any `SCRIP_*` env var on top) is the only place configuration is edited — nothing is persisted to the database or changed at runtime. The panel's Settings screen is read-only.
 
-`scrip.config.json` (com as variáveis `SCRIP_*` por cima) é o único lugar onde a configuração é editada: nada disso é gravado no banco nem muda em tempo de execução. A tela **Configurações** do painel mostra os valores em uso, só leitura — para mudar um deles, edite o arquivo e reinicie o servidor.
+## API reference
 
-## Referência da API
+**Integration** (`Authorization: Bearer <jwt>`):
 
-**Integração** (`Authorization: Bearer <jwt>`):
-
-| Método e rota |
+| Method & route |
 |---|
-| `POST /v1/api/payments/pix/charges` (aceita `Idempotency-Key`) |
-| `GET /v1/api/payments/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
+| `POST /v1/api/payments/pix/charges` (accepts `Idempotency-Key`) |
+| `GET /v1/api/payments/charges` (filters: `status`, `from`, `to`, `limit`, `offset`) |
 | `GET /v1/api/payments/charges/{id}` · `/events` · `/refunds` |
 | `POST /v1/api/payments/charges/{id}/cancel` |
-| `POST /v1/api/payments/charges/{id}/refunds` — `amount` opcional |
+| `POST /v1/api/payments/charges/{id}/refunds` — `amount` optional |
 | `GET`/`PATCH /v1/api/merchants/me` |
+| `POST`/`GET /v1/api/withdrawals`, `GET /v1/api/withdrawals/{id}` |
 
-Qualquer token válido e não revogado alcança todas as rotas acima — não há permissões por rota. Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
+Any valid, unrevoked token reaches every route above — there are no per-route permissions, and everything is scoped to the token's own store. Requesting another store's resource responds `404`, not `403`, so ids can't be probed. Errors always come back in the same envelope:
 
 ```json
 { "error": { "code": "invalid_state_transition", "message": "...", "details": { "from": "paid", "to": "expired" } } }
 ```
 
-## Limitações conhecidas
+## Known limitations
 
-- Webhooks agendados via `setTimeout` são perdidos se o processo reiniciar (sem persistência de fila)
-- SQLite não é adequado para alta concorrência de escrita
-- O payload do QR code é visualmente similar a um PIX real, mas não é decodificável por um app de banco de verdade
-- `e2e_id` simulado segue formato parecido com o real do Bacen, mas não implementa o algoritmo oficial
+- Webhooks scheduled via `setTimeout` are lost on process restart (no queue persistence)
+- SQLite isn't suited for high write concurrency
+- The QR payload looks like a real PIX one but isn't decodable by an actual banking app
+- The simulated `e2e_id` resembles the real Bacen format but doesn't implement the official algorithm
 
 ## Roadmap
 
-1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/api/*` e `/v1/panel/*`
-2. ✅ Identidade do painel: login por seleção de loja, Basic Auth
-3. ✅ API Tokens: geração/validação/revogação de JWT
+1. ✅ Core: schema, PIX state machine, QR code, `/v1/api/*` and `/v1/panel/*`
+2. ✅ Panel identity: store-selection login, Basic auth
+3. ✅ API tokens: issue/validate/revoke
 4. ✅ Webhooks: dispatcher, HMAC, retry
-5. ✅ KYC: upload (BLOB), aprovação manual, bloqueio de charges
-6. ✅ Painel: transações e saldo da loja
-7. ✅ Painel: KYC e settings
-8. ⬜ CLI e empacotamento — fora do escopo por ora; use os scripts npm
+5. ✅ KYC: upload, manual approval, charge blocking
+6. ✅ Panel: transactions and balance
+7. ✅ Withdrawals: request/confirm/deny, panel + API
+8. ⬜ CLI and packaging — out of scope for now; use the npm scripts
 
-Métodos como cartão e boleto ficam como extensão futura, fora deste roadmap.
+Card, boleto and other methods are a future extension, outside this roadmap.
 
-## Estrutura
+## Structure
 
 ```
 backend/
   src/
-    main.ts        bootstrap: sobe a app e escuta
-    app.ts         createApp(): Nest sobre Fastify e multipart
-    app.module.ts  AppModule.forRoot(): providers, controllers e as costuras de teste
-    http/          api/ e panel/ — superfícies separadas por controller
-    auth/          guards de Basic (sessão da loja) e Bearer (API)
-    common/        exception filter, tokens de injeção e leitura de upload
-    config/        scrip.config.json + SCRIP_*, resolvidos uma vez no boot
-    db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
-    service/       charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
-    dto/           corpos e query strings da API, um arquivo por recurso
-    lib/           pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
-  tests/           node:test com relógio virtual, sem sleep
-  data/            banco SQLite
-frontend/          painel independente em Vite + React
+    main.ts        bootstrap: starts the app and listens
+    app.ts          createApp(): Nest over Fastify + multipart
+    app.module.ts   AppModule.forRoot(): providers, controllers, test seams
+    http/           api/ and panel/ — surfaces split by controller
+    auth/           Basic (store session) and Bearer (API) guards
+    common/         exception filter, injection tokens, upload handling
+    config/         scrip.config.json + SCRIP_*, resolved once at boot
+    db/             schema.ts (single source of truth), migrations/, openDb, reset
+    service/        charges (state machine), refunds, webhooks, kyc, tokens, merchants, withdrawals
+    dto/            request bodies and query strings, one file per resource
+    lib/            pix (BR Code + CRC16), jwt, hmac, scheduler, ids, errors
+  tests/            node:test with a virtual clock, no real sleeping
+  data/             SQLite database
+frontend/           independent Vite + React panel
 ```
 
-O backend é uma aplicação NestJS rodando sobre o adapter Fastify. As regras de negócio ficam
-em `service/` como serviços injetáveis que não conhecem HTTP; os controllers em `api/` só
-traduzem requisição e resposta. Autenticação são dois guards, e todo erro vira resposta em um
-único `AppExceptionFilter`.
+The backend is a NestJS app on the Fastify adapter. Business rules live in `service/` as injectable services with no knowledge of HTTP; controllers only translate requests and responses. Two guards handle auth; every error becomes a response through one `AppExceptionFilter`.
 
-Toda assincronia passa por `backend/src/lib/scheduler.ts`, que encapsula o `setTimeout`. Isso permite cancelar timers no shutdown e, nos testes, avançar o tempo manualmente em vez de esperar de verdade.
+All async work goes through `backend/src/lib/scheduler.ts`, which wraps `setTimeout` — letting timers be canceled on shutdown, and tests advance time manually instead of actually waiting.
 
-## Máquina de estados
+## State machine
 
 ```
 pending ──► paid ──► partially_refunded ──► refunded
@@ -299,4 +248,4 @@ pending ──► paid ──► partially_refunded ──► refunded
    └──► canceled
 ```
 
-`expired`, `canceled` e `refunded` são terminais. Qualquer transição fora deste diagrama responde `409 invalid_state_transition`, e toda transição fica registrada em `charge_events` — que é o que o painel desenha na visão de ciclo de vida.
+`expired`, `canceled` and `refunded` are terminal. Any transition outside this diagram responds `409 invalid_state_transition`, and every transition is recorded in `charge_events` — what the panel draws as the lifecycle view.
