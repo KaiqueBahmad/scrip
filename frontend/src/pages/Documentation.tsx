@@ -12,6 +12,8 @@ interface FieldDoc {
   type: string;
   required?: boolean;
   description: string;
+  /** Playground input widget for query fields. Plain text unless set. */
+  input?: 'datetime';
 }
 
 /** Response object shapes, keyed by the `object` value the API returns. Shared across routes so each is documented once. */
@@ -116,8 +118,8 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     description: 'Lista as cobranças da loja.',
     query: [
       { name: 'status', type: 'ChargeStatus', description: 'Filtra por situação da cobrança.' },
-      { name: 'from', type: 'string (ISO 8601)', description: 'Data inicial do filtro por criação.' },
-      { name: 'to', type: 'string (ISO 8601)', description: 'Data final do filtro por criação.' },
+      { name: 'from', type: 'string (ISO 8601)', description: 'Data inicial do filtro por criação.', input: 'datetime' },
+      { name: 'to', type: 'string (ISO 8601)', description: 'Data final do filtro por criação.', input: 'datetime' },
       { name: 'limit', type: 'integer', description: 'Quantidade máxima de itens.' },
       { name: 'offset', type: 'integer', description: 'Quantidade de itens a pular, para paginação.' },
     ],
@@ -313,11 +315,19 @@ function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefi
   );
 }
 
+/** `<input type="datetime-local">` yields local wall-clock time with no offset; the API expects `created_at`-style UTC ISO strings, so convert on the way out. */
+function toIsoFromLocal(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
 /** Drops blank values so an untouched field doesn't show up as `?limit=`. */
-function buildQueryString(values: Record<string, string>): string {
+function buildQueryString(fields: FieldDoc[] | undefined, values: Record<string, string>): string {
   const params = new URLSearchParams();
-  for (const [name, value] of Object.entries(values)) {
-    if (value.trim()) params.set(name, value.trim());
+  for (const field of fields ?? []) {
+    const raw = values[field.name]?.trim();
+    if (!raw) continue;
+    params.set(field.name, field.input === 'datetime' ? toIsoFromLocal(raw) : raw);
   }
   const search = params.toString();
   return search ? `?${search}` : '';
@@ -333,7 +343,7 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const resolvedPath = route.path.replace(':id', chargeId || 'ch_example');
-  const queryString = buildQueryString(queryValues);
+  const queryString = buildQueryString(route.query, queryValues);
 
   const execute = async () => {
     if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
@@ -360,9 +370,10 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
               <Field key={field.name} label={field.name} htmlFor={`${route.id}-query-${field.name}`} hint={field.description}>
                 <Input
                   id={`${route.id}-query-${field.name}`}
+                  type={field.input === 'datetime' ? 'datetime-local' : 'text'}
                   value={queryValues[field.name] ?? ''}
                   onChange={(event) => setQueryValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                  placeholder={field.type}
+                  placeholder={field.input === 'datetime' ? undefined : field.type}
                 />
               </Field>
             ))}
