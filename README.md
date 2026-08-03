@@ -52,7 +52,7 @@ npm run db:generate  # regenerate migrations after changing src/db/schema.ts
 npm test
 ```
 
-The database is created automatically on first run — `openDb` applies Drizzle migrations on every boot, so there's no separate `init` step. The server listens on `http://localhost:4242` by default. Settings live in `backend/scrip.config.json` (or `SCRIP_*` env vars, e.g. `SCRIP_PORT=5000`), read once at boot.
+The database is created automatically on first run — `openDb` applies Drizzle migrations on every boot, so there's no separate `init` step. The server listens on `http://localhost:8081` by default. Settings live in `backend/scrip.config.json` (or `SCRIP_*` env vars, e.g. `SCRIP_PORT=5000`), read once at boot.
 
 Start the panel in another terminal:
 
@@ -60,16 +60,16 @@ Start the panel in another terminal:
 npm --prefix frontend run dev
 ```
 
-Available at `http://localhost:5273`.
+Available at `http://localhost:8080`.
 
 ## Quickstart
 
-1. **Open the panel** (`http://localhost:5273`). There's no login screen — **the merchant is the panel's identity**. Pick an existing store or create one; store creation is intentionally unauthenticated, since Basic auth needs an existing merchant to resolve against — this is a dev tool, don't expose it publicly.
+1. **Open the panel** (`http://localhost:8080`). There's no login screen — **the merchant is the panel's identity**. Pick an existing store or create one; store creation is intentionally unauthenticated, since Basic auth needs an existing merchant to resolve against — this is a dev tool, don't expose it publicly.
 2. **Check the store page** for its balance, `merchant_id` (the Basic auth username), `webhook_url`, `webhook_secret`, and KYC status. Approving/rejecting KYC there is a simulation control — the same idea as forcing a payment — and fires real `kyc.approved`/`kyc.rejected` webhooks.
 3. **Generate a token** on the Tokens screen. Only the store itself can mint one, always scoped to it. A valid token reaches every `/v1/api` route.
 4. **Create a charge**:
    ```bash
-   curl -X POST http://localhost:4242/v1/api/payments/pix/charges \
+   curl -X POST http://localhost:8081/v1/api/payments/pix/charges \
      -H "Authorization: Bearer {your_jwt}" \
      -H "Content-Type: application/json" \
      -d '{"amount": 15000, "payer_document": "11111111111", "metadata": {"order_id": "abc-123"}}'
@@ -77,7 +77,7 @@ Available at `http://localhost:5273`.
    The response includes `pix.qr_code` and `pix.qr_code_expires_at`.
 5. **Simulate the payment** (useful in tests/CI):
    ```bash
-   curl -X POST http://localhost:4242/v1/api/payments/pix/charges/ch_a1b2c3/simulate \
+   curl -X POST http://localhost:8081/v1/api/payments/pix/charges/ch_a1b2c3/simulate \
      -H "Authorization: Bearer {your_jwt}" -H "Content-Type: application/json" \
      -d '{"result": "paid"}'
    ```
@@ -133,7 +133,7 @@ Each attempt also carries `X-Scrip-Event`, `X-Scrip-Delivery` and `X-Scrip-Attem
 
 ```json
 {
-  "port": 4242,
+  "port": 8081,
   "host": "127.0.0.1",
   "databasePath": "data/scrip.sqlite",
 

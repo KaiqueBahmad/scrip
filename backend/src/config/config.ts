@@ -54,7 +54,7 @@ export interface ScripConfig {
 }
 
 export const CONFIG_DEFAULTS: ScripConfig = {
-  port: 4242,
+  port: 8081,
   host: '127.0.0.1',
   databasePath: 'data/scrip.sqlite',
 

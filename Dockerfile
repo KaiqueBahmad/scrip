@@ -40,7 +40,7 @@ RUN npm ci --omit=dev --no-audit --no-fund && test -d node_modules/better-sqlite
 FROM backend-base AS backend
 ENV NODE_ENV=production \
     SCRIP_HOST=0.0.0.0 \
-    SCRIP_PORT=4242 \
+    SCRIP_PORT=8081 \
     SCRIP_DATABASE_PATH=data/scrip.sqlite
 
 RUN groupadd --system --gid 1001 scrip \
@@ -54,11 +54,11 @@ RUN mkdir -p data && chown -R scrip:scrip /app
 
 USER scrip
 
-EXPOSE 4242
+EXPOSE 8081
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.SCRIP_PORT||4242)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.SCRIP_PORT||8081)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/main.js"]
 
@@ -78,7 +78,7 @@ COPY frontend/src ./src
 
 # Vite only bakes VITE_* vars into the bundle at build time, so it must be a build arg,
 # not a runtime env var — the browser fetches the API directly, there's no server-side proxy.
-ARG VITE_API_BASE_URL=http://localhost:4242
+ARG VITE_API_BASE_URL=http://localhost:8081
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 RUN npm run build

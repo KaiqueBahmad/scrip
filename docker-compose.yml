@@ -4,10 +4,10 @@ services:
       context: .
       target: backend
     ports:
-      - "4242:4242"
+      - "8081:8081"
     environment:
       SCRIP_HOST: 0.0.0.0
-      SCRIP_PORT: 4242
+      SCRIP_PORT: 8081
       SCRIP_DATABASE_PATH: data/scrip.sqlite
       SCRIP_JWT_SIGNING_SECRET: change-me
     volumes:
@@ -19,9 +19,9 @@ services:
       context: .
       target: frontend
       args:
-        VITE_API_BASE_URL: http://localhost:4242
+        VITE_API_BASE_URL: http://localhost:8081
     ports:
-      - "5273:80"
+      - "8080:80"
     depends_on:
       - backend
     restart: unless-stopped

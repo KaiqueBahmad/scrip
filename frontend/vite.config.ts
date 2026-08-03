@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       // No proxy: the browser calls VITE_API_BASE_URL directly, dev and prod alike.
-      port: Number(env.VITE_DEV_PORT || 5273),
+      port: Number(env.VITE_DEV_PORT || 8080),
     },
   };
 });

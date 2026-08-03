@@ -19,7 +19,7 @@ import { api, type ChargeStatus } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { formatMoney, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
 
-const CURL_EXAMPLE = `curl -X POST http://localhost:4242/v1/api/payments/pix/charges \\
+const CURL_EXAMPLE = `curl -X POST http://localhost:8081/v1/api/payments/pix/charges \\
   -H "Authorization: Bearer {your_jwt}" \\
   -H "Content-Type: application/json" \\
   -d '{"amount": 15000, "payer_document": "11111111111"}'`;

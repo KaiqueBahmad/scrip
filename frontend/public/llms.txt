@@ -8,7 +8,7 @@ Scrip reproduces the behavior of a real PIX gateway - QR code generation, asynch
 confirmation, expiration, refunds, signed webhooks, merchant KYC - with no external provider.
 Two physically separate route surfaces share the same underlying data: `/v1/api/*` (Bearer
 JWT, called by the merchant's own backend) and `/v1/panel/*` (HTTP Basic, the admin panel).
-The API base URL defaults to `http://localhost:4242` in development and is whatever
+The API base URL defaults to `http://localhost:8081` in development and is whatever
 `VITE_API_BASE_URL` / the deployment's origin is otherwise.
 
 ## Integration API (`/v1/api`, `Authorization: Bearer <jwt>`)
