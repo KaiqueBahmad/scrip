@@ -9,6 +9,7 @@ import type {
   MerchantRow,
   RefundRow,
   WebhookDeliveryRow,
+  WithdrawalRow,
 } from '../repositories/types';
 
 /** Row -> JSON, shared by the panel and the API surface. */
@@ -52,6 +53,21 @@ export function serializeRefund(row: RefundRow) {
     reason: row.reason,
     e2e_id: row.e2e_id,
     created_at: row.created_at,
+  };
+}
+
+export function serializeWithdrawal(row: WithdrawalRow) {
+  return {
+    id: row.id,
+    object: 'withdrawal' as const,
+    merchant_id: row.merchant_id,
+    amount: row.amount,
+    status: row.status,
+    reason: row.reason,
+    confirmed_at: row.confirmed_at,
+    denied_at: row.denied_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 

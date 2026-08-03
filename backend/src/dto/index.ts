@@ -17,3 +17,4 @@ export * from './merchants.dto';
 export * from './refunds.dto';
 export * from './tokens.dto';
 export * from './webhooks.dto';
+export * from './withdrawals.dto';

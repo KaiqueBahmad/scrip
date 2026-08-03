@@ -24,6 +24,7 @@ export const ID_PREFIXES = {
   kycDocument: 'kyc',
   webhookDelivery: 'whd',
   chargeEvent: 'evt',
+  withdrawal: 'wd',
 } as const;
 
 export type EntityKind = keyof typeof ID_PREFIXES;

@@ -36,6 +36,13 @@
       "when": 1785820000000,
       "tag": "0004_add_charge_callback_url",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785830000000,
+      "tag": "0005_add_withdrawals",
+      "breakpoints": true
     }
   ]
 }

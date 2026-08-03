@@ -3,12 +3,14 @@ import { APP_FILTER } from '@nestjs/core';
 
 import { HealthController } from './http/health.controller';
 import { ApiController } from './http/api/api.controller';
+import { ApiWithdrawalsController } from './http/api/withdrawals.controller';
 import { PanelChargesController } from './http/panel/charges.controller';
 import { PanelKycController } from './http/panel/kyc.controller';
 import { SessionController } from './http/panel/session.controller';
 import { PanelSettingsController } from './http/panel/settings.controller';
 import { PanelTokensController } from './http/panel/tokens.controller';
 import { PanelWebhooksController } from './http/panel/webhooks.controller';
+import { PanelWithdrawalsController } from './http/panel/withdrawals.controller';
 import { ApiGuard } from './auth/api.guard';
 import { MerchantGuard } from './auth/merchant.guard';
 import { AppExceptionFilter } from './common/app-exception.filter';
@@ -22,6 +24,7 @@ import { MerchantService } from './service/merchants.service';
 import { RefundService } from './service/refunds.service';
 import { TokenService } from './service/tokens.service';
 import { WebhookDispatcher } from './service/webhooks.service';
+import { WithdrawalService } from './service/withdrawals.service';
 import { silentLogger, type Logger } from './lib/logger';
 import { TimeoutScheduler, type Scheduler } from './lib/scheduler';
 import {
@@ -32,6 +35,7 @@ import {
   RefundRepository,
   TokenRepository,
   WebhookDeliveryRepository,
+  WithdrawalRepository,
 } from './repositories';
 
 export interface AppModuleOptions {
@@ -63,12 +67,14 @@ export class AppModule {
       controllers: [
         HealthController,
         ApiController,
+        ApiWithdrawalsController,
         SessionController,
         PanelTokensController,
         PanelChargesController,
         PanelKycController,
         PanelWebhooksController,
         PanelSettingsController,
+        PanelWithdrawalsController,
       ],
       providers: [
         { provide: DB, useValue: db },
@@ -97,6 +103,7 @@ export class AppModule {
         KycRepository,
         WebhookDeliveryRepository,
         IdempotencyRepository,
+        WithdrawalRepository,
         // Business rules, which reach the database only through the repositories above.
         WebhookDispatcher,
         ChargeService,
@@ -106,6 +113,7 @@ export class AppModule {
         KycService,
         IdempotencyStore,
         SettingsService,
+        WithdrawalService,
         ApiGuard,
         MerchantGuard,
         { provide: APP_FILTER, useClass: AppExceptionFilter },

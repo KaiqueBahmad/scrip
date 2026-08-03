@@ -11,6 +11,7 @@ import { Tokens } from './pages/Tokens';
 import { TransactionDetail } from './pages/TransactionDetail';
 import { Transactions } from './pages/Transactions';
 import { Webhooks } from './pages/Webhooks';
+import { Withdrawals } from './pages/Withdrawals';
 
 export function App() {
   const { merchant, loading } = useSession();
@@ -37,6 +38,7 @@ export function App() {
         <Route path="/transacoes" element={<Transactions />} />
         <Route path="/transacoes/:id" element={<TransactionDetail />} />
         <Route path="/minha-loja" element={<MyStore />} />
+        <Route path="/saques" element={<Withdrawals />} />
         <Route path="/tokens" element={<Tokens />} />
         <Route path="/webhooks" element={<Webhooks />} />
         <Route path="/configuracoes" element={<Settings />} />

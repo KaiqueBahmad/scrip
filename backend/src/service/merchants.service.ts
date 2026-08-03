@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId, newWebhookSecret } from '../lib/ids';
-import { MerchantRepository } from '../repositories';
+import { MerchantRepository, WithdrawalRepository } from '../repositories';
 import type { ChargeStatus, MerchantRow } from '../repositories/types';
 import { serializeMerchant } from './serialize.service';
 
@@ -39,7 +39,7 @@ function assertValidWebhookUrl(url: string | null | undefined): void {
 }
 
 export interface MerchantBalance {
-  /** Liquid balance in centavos: everything settled, minus what was given back. */
+  /** Liquid balance in centavos: settled, minus refunds, minus pending/confirmed withdrawals. */
   available: number;
   /** Sum of every charge that ever settled, before refunds. */
   gross_received: number;
@@ -47,6 +47,8 @@ export interface MerchantBalance {
   refunded: number;
   /** How many charges contributed to `gross_received`. */
   settled_charges: number;
+  /** Sum of confirmed withdrawals — informational; already reflected in `available`. */
+  withdrawn: number;
 }
 
 /** Only these statuses ever moved money; a fully refunded charge contributes zero. */
@@ -54,7 +56,10 @@ const SETTLED_STATUSES: readonly ChargeStatus[] = ['paid', 'partially_refunded',
 
 @Injectable()
 export class MerchantService {
-  constructor(private readonly merchants: MerchantRepository) {}
+  constructor(
+    private readonly merchants: MerchantRepository,
+    private readonly withdrawals: WithdrawalRepository,
+  ) {}
 
   /**
    * A store as its own session sees it: the full record — secret included, because you are
@@ -65,18 +70,22 @@ export class MerchantService {
   }
 
   /**
-   * Balance is derived from the charges rather than stored, so it can never drift out of
-   * sync with the ledger it describes — every refund and every settlement is already
-   * recorded on charges.
+   * Balance is derived from the charges and withdrawals rather than stored, so it can never
+   * drift out of sync with the ledger it describes — every refund, settlement and withdrawal
+   * is already recorded on its own table. A withdrawal counts against `available` from the
+   * moment it's requested (not just once confirmed), so the same balance can't be withdrawn
+   * twice while a request is still pending.
    */
   balanceFor(merchantId: string): MerchantBalance {
     const totals = this.merchants.sumCharges(merchantId, SETTLED_STATUSES);
+    const held = this.withdrawals.sumHeld(merchantId);
 
     return {
-      available: totals.amount - totals.refunded_amount,
+      available: totals.amount - totals.refunded_amount - held,
       gross_received: totals.amount,
       refunded: totals.refunded_amount,
       settled_charges: totals.count,
+      withdrawn: this.withdrawals.sumConfirmed(merchantId),
     };
   }
 

@@ -20,6 +20,7 @@ import {
   Th,
 } from '../components/ui/primitives';
 import { api, ApiError, type ChargeDetail } from '../lib/api';
+import { useSession } from '../lib/session';
 import { useAsync } from '../lib/useAsync';
 import { formatMoney, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
 
@@ -65,6 +66,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 export function TransactionDetail() {
   const { t } = useTranslation();
+  const { refreshSession } = useSession();
   const { id = '' } = useParams();
   const [action, setAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export function TransactionDetail() {
     setError(null);
     try {
       await fn();
-      await detail.reload();
+      await Promise.all([detail.reload(), refreshSession()]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.actionFailed'));
     } finally {

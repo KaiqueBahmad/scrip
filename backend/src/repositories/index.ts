@@ -20,3 +20,4 @@ export * from './refunds.repository';
 export * from './tokens.repository';
 export * from './types';
 export * from './webhooks.repository';
+export * from './withdrawals.repository';

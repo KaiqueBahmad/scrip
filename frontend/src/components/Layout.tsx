@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   ArrowUpRight,
+  Banknote,
   BookOpen,
   KeyRound,
   Settings2,
@@ -23,6 +24,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/transacoes', labelKey: 'nav.transactions', icon: ArrowLeftRight },
   { to: '/minha-loja', labelKey: 'nav.myStore', icon: Store },
+  { to: '/saques', labelKey: 'nav.withdrawals', icon: Banknote },
   { to: '/tokens', labelKey: 'nav.tokens', icon: KeyRound },
   { to: '/webhooks', labelKey: 'nav.webhooks', icon: Webhook },
   { to: '/configuracoes', labelKey: 'nav.settings', icon: Settings2 },

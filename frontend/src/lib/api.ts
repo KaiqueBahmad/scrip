@@ -1,11 +1,13 @@
 /** Typed client for /v1/panel. Basic auth credentials come from the selected merchant. */
 
 export interface ApiBalance {
-  /** Liquid balance in centavos. */
+  /** Liquid balance in centavos: settled, minus refunds, minus pending/confirmed withdrawals. */
   available: number;
   gross_received: number;
   refunded: number;
   settled_charges: number;
+  /** Sum of confirmed withdrawals — informational; already reflected in `available`. */
+  withdrawn: number;
 }
 
 export interface ApiMerchant {
@@ -116,6 +118,20 @@ export interface ApiKycDocument {
   size: number;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+}
+
+export type WithdrawalStatus = 'pending' | 'confirmed' | 'denied';
+
+export interface ApiWithdrawal {
+  id: string;
+  merchant_id: string;
+  amount: number;
+  status: WithdrawalStatus;
+  reason: string | null;
+  confirmed_at: string | null;
+  denied_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ApiSettings {
@@ -336,4 +352,16 @@ export const api = {
 
   // settings
   settings: () => request<ApiSettings>('GET', '/settings'),
+
+  // withdrawals — always scoped to the session's merchant
+  withdrawals: (query: Record<string, string> = {}) => {
+    const search = new URLSearchParams(query).toString();
+    return request<ListResponse<ApiWithdrawal>>('GET', `/withdrawals${search ? `?${search}` : ''}`);
+  },
+  createWithdrawal: (body: { amount: number }) =>
+    request<ApiWithdrawal>('POST', '/withdrawals', { body }),
+  /** Confirming/denying is a simulation control, like forcing a payment — panel only. */
+  confirmWithdrawal: (id: string) => request<ApiWithdrawal>('POST', `/withdrawals/${id}/confirm`),
+  denyWithdrawal: (id: string, reason: string | null) =>
+    request<ApiWithdrawal>('POST', `/withdrawals/${id}/deny`, { body: { reason } }),
 };

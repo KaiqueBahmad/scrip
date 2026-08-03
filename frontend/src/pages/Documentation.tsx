@@ -74,6 +74,18 @@ const MODELS = {
     { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.merchant.created_at' },
     { name: 'updated_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.merchant.updated_at' },
   ],
+  withdrawal: [
+    { name: 'id', type: 'string', descriptionKey: 'documentation.models.withdrawal.id' },
+    { name: 'object', type: '"withdrawal"', descriptionKey: 'documentation.models.withdrawal.object' },
+    { name: 'merchant_id', type: 'string', descriptionKey: 'documentation.models.withdrawal.merchant_id' },
+    { name: 'amount', type: 'integer', descriptionKey: 'documentation.models.withdrawal.amount' },
+    { name: 'status', type: "'pending' | 'confirmed' | 'denied'", descriptionKey: 'documentation.models.withdrawal.status' },
+    { name: 'reason', type: 'string | null', descriptionKey: 'documentation.models.withdrawal.reason' },
+    { name: 'confirmed_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.withdrawal.confirmed_at' },
+    { name: 'denied_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.withdrawal.denied_at' },
+    { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.withdrawal.created_at' },
+    { name: 'updated_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.withdrawal.updated_at' },
+  ],
 } satisfies Record<string, FieldDoc[]>;
 
 type ModelName = keyof typeof MODELS;
@@ -100,6 +112,10 @@ interface RouteDoc {
 
 const CHARGE_ID_PARAM: FieldDoc[] = [
   { name: 'id', type: 'string', required: true, descriptionKey: 'documentation.chargeIdParamDescription' },
+];
+
+const WITHDRAWAL_ID_PARAM: FieldDoc[] = [
+  { name: 'id', type: 'string', required: true, descriptionKey: 'documentation.withdrawalIdParamDescription' },
 ];
 
 const INTEGRATION_ROUTES: RouteDoc[] = [
@@ -207,6 +223,40 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     response: { kind: 'object', model: 'merchant' },
     exampleBody: '{\n  "name": "Minha loja",\n  "webhook_url": "https://example.test/webhook"\n}',
   },
+  {
+    id: 'create-withdrawal',
+    method: 'POST',
+    path: '/withdrawals',
+    descriptionKey: 'documentation.routes.createWithdrawal.description',
+    body: [
+      { name: 'amount', type: 'integer', required: true, descriptionKey: 'documentation.routes.createWithdrawal.amount' },
+    ],
+    response: { kind: 'object', model: 'withdrawal' },
+    exampleBody: '{\n  "amount": 10000\n}',
+  },
+  {
+    id: 'list-withdrawals',
+    method: 'GET',
+    path: '/withdrawals',
+    descriptionKey: 'documentation.routes.listWithdrawals.description',
+    query: [
+      { name: 'status', type: "'pending' | 'confirmed' | 'denied'", descriptionKey: 'documentation.routes.listWithdrawals.status' },
+      { name: 'limit', type: 'integer', descriptionKey: 'documentation.routes.listWithdrawals.limit' },
+      { name: 'offset', type: 'integer', descriptionKey: 'documentation.routes.listWithdrawals.offset' },
+    ],
+    response: { kind: 'list', model: 'withdrawal', extra: [{ name: 'total', type: 'integer', descriptionKey: 'documentation.routes.listWithdrawals.total' }] },
+    exampleBody: '',
+    queryDefaults: { limit: '20' },
+  },
+  {
+    id: 'get-withdrawal',
+    method: 'GET',
+    path: '/withdrawals/:id',
+    descriptionKey: 'documentation.routes.getWithdrawal.description',
+    pathParams: WITHDRAWAL_ID_PARAM,
+    response: { kind: 'object', model: 'withdrawal' },
+    exampleBody: '',
+  },
 ];
 
 /**
@@ -270,6 +320,13 @@ const NAV_TREE: NavNode[] = [
     id: 'store',
     labelKey: 'documentation.nav.store',
     routeIds: ['get-merchant', 'update-merchant'],
+  },
+  {
+    kind: 'routes',
+    id: 'withdrawals',
+    labelKey: 'documentation.nav.withdrawals',
+    descriptionKey: 'documentation.nav.withdrawalsDescription',
+    routeIds: ['create-withdrawal', 'list-withdrawals', 'get-withdrawal'],
   },
 ];
 

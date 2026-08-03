@@ -15,6 +15,7 @@ import type {
   pixChargeDetails,
   pixRefunds,
   webhookDeliveries,
+  withdrawals,
 } from '../db/schema';
 
 export type KycStatus = 'pending' | 'approved' | 'rejected';
@@ -57,6 +58,10 @@ export type KycDocumentRow = Omit<typeof kycDocuments.$inferSelect, 'content'>;
 
 export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
 
+export type WithdrawalStatus = 'pending' | 'confirmed' | 'denied';
+
+export type WithdrawalRow = typeof withdrawals.$inferSelect;
+
 /** Webhook event names. */
 export const WEBHOOK_EVENTS = [
   'pix.charge.created',
@@ -65,6 +70,8 @@ export const WEBHOOK_EVENTS = [
   'pix.charge.refunded',
   'kyc.approved',
   'kyc.rejected',
+  'withdrawal.confirmed',
+  'withdrawal.denied',
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];

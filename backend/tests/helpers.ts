@@ -11,6 +11,7 @@ import { KycService } from '../src/service/kyc.service';
 import { MerchantService } from '../src/service/merchants.service';
 import { TokenService } from '../src/service/tokens.service';
 import { WebhookDispatcher } from '../src/service/webhooks.service';
+import { WithdrawalService } from '../src/service/withdrawals.service';
 import { ManualScheduler } from '../src/lib/scheduler';
 
 export interface RecordedRequest {
@@ -57,6 +58,7 @@ export interface TestServices {
   charges: ChargeService;
   kyc: KycService;
   webhooks: WebhookDispatcher;
+  withdrawals: WithdrawalService;
 }
 
 export interface TestApp {
@@ -80,6 +82,7 @@ function servicesOf(app: PseudoPayApp): TestServices {
     charges: app.get(ChargeService),
     kyc: app.get(KycService),
     webhooks: app.get(WebhookDispatcher),
+    withdrawals: app.get(WithdrawalService),
   };
 }
 

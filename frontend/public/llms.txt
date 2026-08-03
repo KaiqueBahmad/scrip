@@ -27,10 +27,20 @@ The API base URL defaults to `http://localhost:4242` in development and is whate
 - GET /v1/api/merchants/me: Looks up the authenticated store's data (webhook_secret included).
 - PATCH /v1/api/merchants/me: Updates the store's name, webhook_url, or rotates its
   webhook_secret.
+- POST /v1/api/withdrawals: Requests a payout of the store's available balance. Body: amount
+  (required, integer cents, can't exceed available). The amount is reserved against
+  `available` immediately, before it's confirmed.
+- GET /v1/api/withdrawals: Lists the store's withdrawals. Query: status (pending, confirmed,
+  denied), limit, offset.
+- GET /v1/api/withdrawals/{id}: Looks up one withdrawal.
 
 A charge response has `payment_method: "pix"` at the top level and PIX-only fields (qr_code,
 qr_code_txid, qr_code_expires_at, e2e_id) nested under a `pix` object - future payment methods
 would nest their own fields the same way instead of adding to the flat charge shape.
+
+There is no real bank behind a withdrawal, so confirming or denying one is a panel-only
+action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not exposed on
+/v1/api. Confirming keeps the amount debited; denying releases it back to `available`.
 
 ## Concepts
 
@@ -40,12 +50,15 @@ would nest their own fields the same way instead of adding to the flat charge sh
   original response instead of creating a second charge; the same key with a different body
   is rejected.
 - Webhooks: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`,
-  `pix.charge.refunded`, `kyc.approved`, `kyc.rejected` - signed with HMAC over
-  `<timestamp>.<body>`, sent as `X-PseudoPay-Signature: t=<unix>,v1=<hmac>`.
+  `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`, `withdrawal.confirmed`,
+  `withdrawal.denied` - signed with HMAC over `<timestamp>.<body>`, sent as
+  `X-PseudoPay-Signature: t=<unix>,v1=<hmac>`.
 - Errors: every failure is `{ "error": { "code", "message", "details"? } }`, with a stable
   machine-readable `code`.
 - Simulated time: pending charges auto-confirm or expire on a delay driven by config, or can
   be forced from the panel for deterministic tests.
+- Balance: `available` = settled charges - refunds - pending/confirmed withdrawals;
+  `withdrawn` is the confirmed-only total, already reflected in `available`.
 
 ## Optional
 

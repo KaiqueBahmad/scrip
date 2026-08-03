@@ -28,6 +28,8 @@ const EVENTS = [
   'pix.charge.refunded',
   'kyc.approved',
   'kyc.rejected',
+  'withdrawal.confirmed',
+  'withdrawal.denied',
 ];
 
 /** Delivery log with the signature and payload visible — the point of the whole feature. */

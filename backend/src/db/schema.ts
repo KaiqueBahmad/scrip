@@ -15,7 +15,13 @@
 import { sql } from 'drizzle-orm';
 import { blob, check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { ChargeStatus, DeliveryStatus, KycStatus, PaymentMethod } from '../repositories/types';
+import type {
+  ChargeStatus,
+  DeliveryStatus,
+  KycStatus,
+  PaymentMethod,
+  WithdrawalStatus,
+} from '../repositories/types';
 
 export const merchants = sqliteTable(
   'merchants',
@@ -219,6 +225,33 @@ export const webhookDeliveries = sqliteTable(
 );
 
 /**
+ * A merchant pulling money out of its own available balance. Creating one reserves the
+ * amount (it counts against `available` immediately); confirming keeps it reserved,
+ * denying releases it back — see MerchantService.balanceFor.
+ */
+export const withdrawals = sqliteTable(
+  'withdrawals',
+  {
+    id: text().primaryKey(),
+    merchant_id: text()
+      .notNull()
+      .references(() => merchants.id, { onDelete: 'cascade' }),
+    amount: integer().notNull(),
+    status: text().$type<WithdrawalStatus>().notNull().default('pending'),
+    reason: text(),
+    confirmed_at: text(),
+    denied_at: text(),
+    created_at: text().notNull(),
+    updated_at: text().notNull(),
+  },
+  (table) => [
+    index('idx_withdrawals_merchant_created').on(table.merchant_id, sql`${table.created_at} DESC`),
+    check('withdrawals_amount', sql`${table.amount} > 0`),
+    check('withdrawals_status', sql`${table.status} IN ('pending', 'confirmed', 'denied')`),
+  ],
+);
+
+/**
  * Replay cache for Idempotency-Key on charge creation. The real table is WITHOUT ROWID,
  * which Drizzle has no way to express — it changes storage, not semantics, so it only lives
  * in schema.sql.
@@ -254,5 +287,6 @@ export const TABLES_CHILD_FIRST = [
   charges,
   kycDocuments,
   apiTokens,
+  withdrawals,
   merchants,
 ] as const;

@@ -123,7 +123,7 @@ export function MyStore() {
 
       <Panel className="mb-4">
         <PanelHeader title={t('myStore.balanceTitle')} hint={t('myStore.balanceHint')} />
-        <div className="grid divide-y divide-[var(--hairline-soft)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="grid divide-y divide-[var(--hairline-soft)] sm:grid-cols-4 sm:divide-x sm:divide-y-0">
           <BalanceFigure
             label={t('myStore.available')}
             value={formatMoney(balance?.available ?? 0)}
@@ -132,6 +132,7 @@ export function MyStore() {
           />
           <BalanceFigure label={t('myStore.grossReceived')} value={formatMoney(balance?.gross_received ?? 0)} />
           <BalanceFigure label={t('myStore.refundedLabel')} value={formatMoney(balance?.refunded ?? 0)} />
+          <BalanceFigure label={t('myStore.withdrawnLabel')} value={formatMoney(balance?.withdrawn ?? 0)} />
         </div>
       </Panel>
 
