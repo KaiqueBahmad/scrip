@@ -142,9 +142,9 @@ export class WebhookDispatcher {
         headers: {
           'content-type': 'application/json',
           [SIGNATURE_HEADER]: header,
-          'x-pseudopay-event': delivery.event,
-          'x-pseudopay-delivery': delivery.id,
-          'x-pseudopay-attempt': String(attempt),
+          'x-scrip-event': delivery.event,
+          'x-scrip-delivery': delivery.id,
+          'x-scrip-attempt': String(attempt),
         },
         body: delivery.payload,
         signal: AbortSignal.timeout(config.webhookTimeoutMs),

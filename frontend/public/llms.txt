@@ -1,10 +1,10 @@
-# PseudoPay
+# Scrip
 
 > Self-hosted, simulated PIX payment gateway for development and CI - in the spirit of MinIO
 > (S3) or LocalStack (AWS), but for a payment gateway's lifecycle. Not a production system:
 > it does not process real payments or connect to the Central Bank/SPI.
 
-PseudoPay reproduces the behavior of a real PIX gateway - QR code generation, asynchronous
+Scrip reproduces the behavior of a real PIX gateway - QR code generation, asynchronous
 confirmation, expiration, refunds, signed webhooks, merchant KYC - with no external provider.
 Two physically separate route surfaces share the same underlying data: `/v1/api/*` (Bearer
 JWT, called by the merchant's own backend) and `/v1/panel/*` (HTTP Basic, the admin panel).
@@ -52,7 +52,7 @@ action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not expo
 - Webhooks: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`,
   `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`, `withdrawal.confirmed`,
   `withdrawal.denied` - signed with HMAC over `<timestamp>.<body>`, sent as
-  `X-PseudoPay-Signature: t=<unix>,v1=<hmac>`.
+  `X-Scrip-Signature: t=<unix>,v1=<hmac>`.
 - Errors: every failure is `{ "error": { "code", "message", "details"? } }`, with a stable
   machine-readable `code`.
 - Simulated time: pending charges auto-confirm or expire on a delay driven by config, or can

@@ -3,14 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
-import { loadConfig, type PseudoPayConfig } from './config';
+import { loadConfig, type ScripConfig } from './config';
 import type { Db } from './db/index';
 import { NestLoggerAdapter } from './lib/logger';
 import type { Scheduler } from './lib/scheduler';
 
 export interface CreateAppOptions {
-  /** Overrides layered on top of pseudopay.config.json and PSEUDOPAY_* env vars. */
-  config?: Partial<PseudoPayConfig>;
+  /** Overrides layered on top of scrip.config.json and SCRIP_* env vars. */
+  config?: Partial<ScripConfig>;
   /** Pass an already-open database (tests use `:memory:`). */
   db?: Db;
   /** Pass a ManualScheduler to drive simulated time by hand. */
@@ -23,10 +23,10 @@ export interface CreateAppOptions {
   logger?: boolean;
 }
 
-export type PseudoPayApp = NestFastifyApplication;
+export type ScripApp = NestFastifyApplication;
 
 /* Builds the application without listening, so tests can drive it through `app.inject`. */
-export async function createApp(options: CreateAppOptions = {}): Promise<PseudoPayApp> {
+export async function createApp(options: CreateAppOptions = {}): Promise<ScripApp> {
   const config = loadConfig(options.config ?? {});
   const logging = options.logger ?? true;
   const log = logging ? new NestLoggerAdapter() : undefined;

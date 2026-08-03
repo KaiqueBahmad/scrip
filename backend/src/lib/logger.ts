@@ -22,7 +22,7 @@ export class NestLoggerAdapter implements LoggerService, Logger {
   // ConsoleLogger writes directly. Nest's Logger facade delegates to the
   // globally configured logger, which would recurse once this adapter is
   // registered as that logger.
-  private readonly logger = new ConsoleLogger('PseudoPay');
+  private readonly logger = new ConsoleLogger('Scrip');
 
   log(message: unknown, context?: string): void {
     this.logger.log(this.format(message), context);

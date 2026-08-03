@@ -2,9 +2,9 @@ import 'reflect-metadata';
 
 import type { InjectOptions, LightMyRequestResponse } from 'fastify';
 
-import { createApp, type PseudoPayApp } from '../src/app';
+import { createApp, type ScripApp } from '../src/app';
 import { DB } from '../src/common/injection-tokens';
-import { ConfigStore, type PseudoPayConfig } from '../src/config';
+import { ConfigStore, type ScripConfig } from '../src/config';
 import { openDb, type Db } from '../src/db/index';
 import { ChargeService } from '../src/service/charges.service';
 import { KycService } from '../src/service/kyc.service';
@@ -73,7 +73,7 @@ export interface TestHarness {
   close: () => Promise<void>;
 }
 
-function servicesOf(app: PseudoPayApp): TestServices {
+function servicesOf(app: ScripApp): TestServices {
   return {
     db: app.get<Db>(DB),
     config: app.get(ConfigStore),
@@ -92,7 +92,7 @@ function servicesOf(app: PseudoPayApp): TestServices {
  */
 export async function createHarness(
   options: {
-    config?: Partial<PseudoPayConfig>;
+    config?: Partial<ScripConfig>;
     respond?: (call: number, url: string) => number | Error;
     random?: () => number;
   } = {},

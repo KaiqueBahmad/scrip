@@ -286,7 +286,7 @@ export const en = {
     title: 'Settings',
     description: 'Read-only. The values below come from {{source}} and control how the simulation behaves.',
     valuesInUse: 'Values in use',
-    valuesHint: 'To change, edit {{source}} (or a PSEUDOPAY_* variable) and restart the server.',
+    valuesHint: 'To change, edit {{source}} (or a SCRIP_* variable) and restart the server.',
     on: 'On',
     off: 'Off',
     footer: 'This server has no real access control: any panel session can do anything. Do not expose an instance publicly.',

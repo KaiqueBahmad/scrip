@@ -286,7 +286,7 @@ export const pt = {
     title: 'Configurações',
     description: 'Somente leitura. Os valores abaixo vêm de {{source}} e controlam como a simulação se comporta.',
     valuesInUse: 'Valores em uso',
-    valuesHint: 'Para mudar, edite {{source}} (ou uma variável PSEUDOPAY_*) e reinicie o servidor.',
+    valuesHint: 'Para mudar, edite {{source}} (ou uma variável SCRIP_*) e reinicie o servidor.',
     on: 'Ligado',
     off: 'Desligado',
     footer: 'Este servidor não tem controle de acesso real: qualquer sessão do painel pode fazer qualquer coisa. Não exponha uma instância publicamente.',

@@ -1,4 +1,4 @@
-# PseudoPay
+# Scrip
 
 Um gateway de pagamento **PIX** simulado, self-hosted, para desenvolvimento e testes de integração — no mesmo espírito de ferramentas como MinIO (S3) ou LocalStack (AWS), mas para o ciclo de vida de um gateway de pagamento.
 
@@ -6,7 +6,7 @@ Um gateway de pagamento **PIX** simulado, self-hosted, para desenvolvimento e te
 
 ## O que é
 
-O PseudoPay reproduz o comportamento de um gateway de verdade — geração de QR code, confirmação assíncrona, expiração, estorno, webhooks assinados, KYC de merchant — sem depender de nenhum provedor externo. Ideal para:
+O Scrip reproduz o comportamento de um gateway de verdade — geração de QR code, confirmação assíncrona, expiração, estorno, webhooks assinados, KYC de merchant — sem depender de nenhum provedor externo. Ideal para:
 
 - Testar integrações de checkout sem depender de sandbox de terceiros
 - Rodar cenários determinísticos em CI (forçar pagamento, forçar expiração)
@@ -52,9 +52,9 @@ npm run db:generate         # regenera as migrations depois de mudar src/db/sche
 npm test                    # suíte de testes
 ```
 
-> A CLI `npx pseudopay <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`: `openDb` aplica as migrations do Drizzle a cada boot.
+> A CLI `npx scrip <comando>` (fase 8 do roadmap) ainda não existe — os scripts npm acima cumprem o mesmo papel. O banco é criado sozinho na primeira execução, então não há passo de `init`: `openDb` aplica as migrations do Drizzle a cada boot.
 
-Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `pseudopay.config.json` (ou variáveis de ambiente com prefixo `PSEUDOPAY_`, ex.: `PSEUDOPAY_PORT=5000`, `PSEUDOPAY_APPROVAL_RATE=1`) e são lidas uma vez, no boot.
+Por padrão o servidor sobe em `http://localhost:4242`. Configurações ficam em `scrip.config.json` (ou variáveis de ambiente com prefixo `SCRIP_`, ex.: `SCRIP_PORT=5000`, `SCRIP_APPROVAL_RATE=1`) e são lidas uma vez, no boot.
 
 Para iniciar o painel, use outro terminal:
 
@@ -141,7 +141,7 @@ Não há saque: o saldo é um número observável, não uma conta com movimenta�
 
 Eventos disparados: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`, `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`.
 
-Payload assinado via HMAC-SHA256 no header `X-PseudoPay-Signature`, usando o `webhook_secret` do merchant. Retry automático (até 3 tentativas) se o endpoint não responder `2xx`.
+Payload assinado via HMAC-SHA256 no header `X-Scrip-Signature`, usando o `webhook_secret` do merchant. Retry automático (até 3 tentativas) se o endpoint não responder `2xx`.
 
 O corpo enviado tem sempre esta forma:
 
@@ -166,17 +166,17 @@ function verificar(corpoBruto, header, segredo) {
 }
 ```
 
-Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-PseudoPay-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/api/webhooks/deliveries/{id}/retry`.
+Cada tentativa também vai com `X-Scrip-Event`, `X-Scrip-Delivery` e `X-Scrip-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/api/webhooks/deliveries/{id}/retry`.
 
 ## Configuração
 
-`backend/pseudopay.config.json` já vem com todas as chaves nos valores padrão:
+`backend/scrip.config.json` já vem com todas as chaves nos valores padrão:
 
 ```json
 {
   "port": 4242,
   "host": "127.0.0.1",
-  "databasePath": "data/pseudopay.sqlite",
+  "databasePath": "data/scrip.sqlite",
 
   "approvalRate": 0.85,
   "pixConfirmationDelayMs": 4000,
@@ -194,8 +194,8 @@ Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-
   "kycMaxFileSizeMb": 5,
   "requireApprovedKycForCharges": false,
 
-  "pixKey": "pseudopay@localhost",
-  "pixReceiverName": "PSEUDOPAY",
+  "pixKey": "scrip@localhost",
+  "pixReceiverName": "SCRIP",
   "pixReceiverCity": "SAO PAULO"
 }
 ```
@@ -221,7 +221,7 @@ O que cada uma faz:
 
 O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima funcione numa instalação nova — merchants nascem com `kyc_status: "pending"`. Ligue `requireApprovedKycForCharges` quando quiser testar o caminho de bloqueio (`403 kyc_required`).
 
-`pseudopay.config.json` (com as variáveis `PSEUDOPAY_*` por cima) é o único lugar onde a configuração é editada: nada disso é gravado no banco nem muda em tempo de execução. A tela **Configurações** do painel mostra os valores em uso, só leitura — para mudar um deles, edite o arquivo e reinicie o servidor.
+`scrip.config.json` (com as variáveis `SCRIP_*` por cima) é o único lugar onde a configuração é editada: nada disso é gravado no banco nem muda em tempo de execução. A tela **Configurações** do painel mostra os valores em uso, só leitura — para mudar um deles, edite o arquivo e reinicie o servidor.
 
 ## Referência da API
 
@@ -273,7 +273,7 @@ backend/
     http/          api/ e panel/ — superfícies separadas por controller
     auth/          guards de Basic (sessão da loja) e Bearer (API)
     common/        exception filter, tokens de injeção e leitura de upload
-    config/        pseudopay.config.json + PSEUDOPAY_*, resolvidos uma vez no boot
+    config/        scrip.config.json + SCRIP_*, resolvidos uma vez no boot
     db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset
     service/       charges (máquina de estados), refunds, webhooks, kyc, tokens, merchants, types
     dto/           corpos e query strings da API, um arquivo por recurso

@@ -48,7 +48,7 @@ export class AppExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       this.log.error({ err: exception }, 'unhandled error');
       void reply.status(status).send({
-        error: { code: 'internal_error', message: 'Something went wrong on the PseudoPay side' },
+        error: { code: 'internal_error', message: 'Something went wrong on the Scrip side' },
       });
       return;
     }

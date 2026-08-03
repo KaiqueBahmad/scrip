@@ -1,5 +1,5 @@
 /**
- * All of PseudoPay's asynchrony (payment confirmation, QR expiration, webhook retry) is
+ * All of Scrip's asynchrony (payment confirmation, QR expiration, webhook retry) is
  * simulated in-process with setTimeout. Routing every timer through this
  * interface buys two things: timers can be cancelled on shutdown instead of leaking, and
  * tests can drive virtual time instead of sleeping.
@@ -19,7 +19,7 @@ export interface Scheduler {
 export type TaskErrorHandler = (err: unknown) => void;
 
 const defaultOnError: TaskErrorHandler = (err) => {
-  console.error('[pseudopay] scheduled task failed:', err);
+  console.error('[scrip] scheduled task failed:', err);
 };
 
 /** Production scheduler: real timers, real clock. */

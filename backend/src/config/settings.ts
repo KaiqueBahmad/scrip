@@ -8,7 +8,7 @@ export class SettingsService {
 
   /**
    * Settings are instance-wide, not per store: they control how the simulation behaves.
-   * Read-only — every value comes from pseudopay.config.json (or a PSEUDOPAY_* env var) and
+   * Read-only — every value comes from scrip.config.json (or a SCRIP_* env var) and
    * changing one means editing the file and restarting.
    *
    * The signing secret is redacted — this project is lax about access control

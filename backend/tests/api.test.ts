@@ -325,7 +325,7 @@ describe('panel surface', () => {
     });
 
     assert.equal(read.statusCode, 200);
-    assert.equal(read.json().source, 'pseudopay.config.json');
+    assert.equal(read.json().source, 'scrip.config.json');
     assert.equal(read.json().values.approvalRate, 0.5);
 
     // Config lives in the file only: there is no write route to reach.

@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import { en } from './en';
 import { pt } from './pt';
 
-export const LANG_STORAGE_KEY = 'pseudopay.lang';
+export const LANG_STORAGE_KEY = 'scrip.lang';
 
 function detectLanguage(): 'pt' | 'en' {
   const stored = localStorage.getItem(LANG_STORAGE_KEY);

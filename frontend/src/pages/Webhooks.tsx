@@ -217,7 +217,7 @@ export function Webhooks() {
                   <span className="text-xs text-[var(--text-muted)]">—</span>
                 )}
                 <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                  {t('webhooks.signatureHintPre')} <span className="font-mono">X-PseudoPay-Signature</span>
+                  {t('webhooks.signatureHintPre')} <span className="font-mono">X-Scrip-Signature</span>
                   {t('webhooks.signatureHintMid')}{' '}
                   <span className="font-mono">t=&lt;unix&gt;,v1=&lt;hmac&gt;</span>
                   {t('webhooks.signatureHintPost')}{' '}

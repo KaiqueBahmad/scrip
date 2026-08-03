@@ -15,7 +15,7 @@ import { ApiGuard } from './auth/api.guard';
 import { MerchantGuard } from './auth/merchant.guard';
 import { AppExceptionFilter } from './common/app-exception.filter';
 import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './common/injection-tokens';
-import { ConfigStore, SettingsService, type PseudoPayConfig } from './config';
+import { ConfigStore, SettingsService, type ScripConfig } from './config';
 import { openDb, type Db } from './db/index';
 import { ChargeService } from './service/charges.service';
 import { IdempotencyStore } from './service/idempotency.service';
@@ -40,7 +40,7 @@ import {
 
 export interface AppModuleOptions {
   /** Already resolved by `createApp`, which needs the same values to build the adapter. */
-  config: PseudoPayConfig;
+  config: ScripConfig;
   /** Pass an already-open database (tests use `:memory:`). */
   db?: Db;
   /** Pass a ManualScheduler to drive simulated time by hand. */

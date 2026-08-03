@@ -8,6 +8,6 @@ data/
 *.sqlite-shm
 *.sqlite-wal
 .DS_Store
-backend/pseudopay.config.json
+backend/scrip.config.json
 .env
 !.env.example

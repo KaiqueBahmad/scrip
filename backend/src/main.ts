@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
         url: `http://${config.host}:${config.port}`,
         database: config.databasePath,
       },
-      'pseudopay is up',
+      'scrip is up',
     );
   } catch (err) {
     log.error({ err }, 'failed to start');

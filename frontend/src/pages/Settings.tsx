@@ -36,7 +36,7 @@ export function Settings() {
   const { t } = useTranslation();
   const settings = useAsync(() => api.settings(), []);
 
-  const source = settings.data?.source ?? 'pseudopay.config.json';
+  const source = settings.data?.source ?? 'scrip.config.json';
   const values = settings.data?.values ?? {};
   const entries = Object.entries(values);
 

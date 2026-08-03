@@ -1,7 +1,7 @@
 {
   "port": 4242,
   "host": "127.0.0.1",
-  "databasePath": "data/pseudopay.sqlite",
+  "databasePath": "data/scrip.sqlite",
 
   "approvalRate": 0.85,
   "pixConfirmationDelayMs": 4000,
@@ -19,7 +19,7 @@
   "kycMaxFileSizeMb": 5,
   "requireApprovedKycForCharges": false,
 
-  "pixKey": "pseudopay@localhost",
-  "pixReceiverName": "PSEUDOPAY",
+  "pixKey": "scrip@localhost",
+  "pixReceiverName": "SCRIP",
   "pixReceiverCity": "SAO PAULO"
 }

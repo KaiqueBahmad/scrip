@@ -3,14 +3,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 /**
  * Webhook payload signing.
  *
- * HMAC-SHA256 goes in `X-PseudoPay-Signature`, using the Stripe-style scheme:
+ * HMAC-SHA256 goes in `X-Scrip-Signature`, using the Stripe-style scheme:
  *
- *   X-PseudoPay-Signature: t=1717171717,v1=<hex hmac-sha256 of "<t>.<rawBody>">
+ *   X-Scrip-Signature: t=1717171717,v1=<hex hmac-sha256 of "<t>.<rawBody>">
  *
  * Binding the timestamp into the signed string is what makes replay protection possible on
  * the receiving end — which is one of the things this tool exists to let you test.
  */
-export const SIGNATURE_HEADER = 'x-pseudopay-signature';
+export const SIGNATURE_HEADER = 'x-scrip-signature';
 
 /** Signs `<timestamp>.<rawBody>`; returns the hex digest only. */
 export function computeSignature(secret: string, rawBody: string, timestampSeconds: number): string {

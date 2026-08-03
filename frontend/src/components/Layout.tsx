@@ -46,7 +46,7 @@ export function Layout() {
       <nav className="flex flex-col gap-1 bg-ink px-4 py-5 text-white/90 md:sticky md:top-0 md:h-dvh">
         <div className="px-2 pb-5">
           <span className="font-mono text-[15px] font-semibold tracking-[0.16em] text-white">
-            PSEUDO<span className="text-trace">PAY</span>
+            SCR<span className="text-trace">IP</span>
           </span>
         </div>
 

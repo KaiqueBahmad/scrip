@@ -23,8 +23,8 @@ describe('webhook delivery', () => {
     const call = harness.calls[0]!;
 
     assert.equal(call.url, 'https://merchant.test/hooks');
-    assert.equal(call.headers['x-pseudopay-event'], 'pix.charge.created');
-    assert.equal(call.headers['x-pseudopay-attempt'], '1');
+    assert.equal(call.headers['x-scrip-event'], 'pix.charge.created');
+    assert.equal(call.headers['x-scrip-attempt'], '1');
 
     const header = call.headers[SIGNATURE_HEADER]!;
     assert.ok(
@@ -79,7 +79,7 @@ describe('webhook delivery', () => {
 
     assert.equal(harness.calls.length, 3, 'exactly three attempts');
     assert.deepEqual(
-      harness.calls.map((call) => call.headers['x-pseudopay-attempt']),
+      harness.calls.map((call) => call.headers['x-scrip-attempt']),
       ['1', '2', '3'],
     );
 

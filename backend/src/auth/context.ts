@@ -54,7 +54,7 @@ export const MerchantId = createParamDecorator(
   (_data: unknown, context: ExecutionContext): string => requireMerchant(context).id,
 );
 
-export const PUBLIC_ROUTE = 'pseudopay:public';
+export const PUBLIC_ROUTE = 'scrip:public';
 
 /**
  * Opts a route out of the store session. MerchantGuard is applied per controller, so a

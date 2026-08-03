@@ -20,8 +20,8 @@ describe('crc16 (CRC-16/CCITT-FALSE)', () => {
 
   it('is stable and always four uppercase hex digits', () => {
     assert.equal(crc16(''), 'FFFF');
-    assert.match(crc16('pseudopay'), /^[0-9A-F]{4}$/);
-    assert.equal(crc16('pseudopay'), crc16('pseudopay'));
+    assert.match(crc16('scrip'), /^[0-9A-F]{4}$/);
+    assert.equal(crc16('scrip'), crc16('scrip'));
   });
 });
 
@@ -51,8 +51,8 @@ describe('formatAmount', () => {
 
 describe('buildBrCode', () => {
   const input = {
-    pixKey: 'pseudopay@localhost',
-    receiverName: 'PSEUDOPAY',
+    pixKey: 'scrip@localhost',
+    receiverName: 'SCRIP',
     receiverCity: 'SAO PAULO',
     amount: 15000,
     txid: 'ABC123',
@@ -73,12 +73,12 @@ describe('buildBrCode', () => {
     assert.equal(fields['53'], '986', 'BRL');
     assert.equal(fields['54'], '150.00');
     assert.equal(fields['58'], 'BR');
-    assert.equal(fields['59'], 'PSEUDOPAY');
+    assert.equal(fields['59'], 'SCRIP');
     assert.equal(fields['60'], 'SAO PAULO');
 
     assert.deepEqual(parseTlv(fields['26'] ?? ''), {
       '00': 'br.gov.bcb.pix',
-      '01': 'pseudopay@localhost',
+      '01': 'scrip@localhost',
     });
     assert.deepEqual(parseTlv(fields['62'] ?? ''), { '05': 'ABC123' });
   });

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
  * Runtime configuration. The keys documented in the README are the public contract; the
  * rest are additions this implementation needs.
  */
-export interface PseudoPayConfig {
+export interface ScripConfig {
   /** Port the Fastify server listens on. */
   port: number;
   /** Interface to bind. Defaults to loopback — this is a dev tool, not a public service. */
@@ -53,10 +53,10 @@ export interface PseudoPayConfig {
   pixReceiverCity: string;
 }
 
-export const CONFIG_DEFAULTS: PseudoPayConfig = {
+export const CONFIG_DEFAULTS: ScripConfig = {
   port: 4242,
   host: '127.0.0.1',
-  databasePath: 'data/pseudopay.sqlite',
+  databasePath: 'data/scrip.sqlite',
 
   approvalRate: 0.85,
   pixConfirmationDelayMs: 4000,
@@ -74,19 +74,19 @@ export const CONFIG_DEFAULTS: PseudoPayConfig = {
   kycMaxFileSizeMb: 5,
   requireApprovedKycForCharges: false,
 
-  pixKey: 'pseudopay@localhost',
-  pixReceiverName: 'PSEUDOPAY',
+  pixKey: 'scrip@localhost',
+  pixReceiverName: 'SCRIP',
   pixReceiverCity: 'SAO PAULO',
 };
 
-export const CONFIG_FILE = 'pseudopay.config.json';
+export const CONFIG_FILE = 'scrip.config.json';
 
-/** `approvalRate` -> `PSEUDOPAY_APPROVAL_RATE` */
+/** `approvalRate` -> `SCRIP_APPROVAL_RATE` */
 function envNameFor(key: string): string {
-  return `PSEUDOPAY_${key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase()}`;
+  return `SCRIP_${key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase()}`;
 }
 
-function coerce(key: keyof PseudoPayConfig, raw: unknown): unknown {
+function coerce(key: keyof ScripConfig, raw: unknown): unknown {
   const fallback = CONFIG_DEFAULTS[key];
 
   if (typeof fallback === 'number') {
@@ -108,7 +108,7 @@ function coerce(key: keyof PseudoPayConfig, raw: unknown): unknown {
   return String(raw);
 }
 
-function validate(config: PseudoPayConfig): PseudoPayConfig {
+function validate(config: ScripConfig): ScripConfig {
   if (config.approvalRate < 0 || config.approvalRate > 1) {
     throw new Error(`Config "approvalRate" must be between 0 and 1, got ${config.approvalRate}`);
   }
@@ -125,14 +125,14 @@ function validate(config: PseudoPayConfig): PseudoPayConfig {
 }
 
 /**
- * Layers, lowest precedence first: defaults, pseudopay.config.json, PSEUDOPAY_* env vars,
+ * Layers, lowest precedence first: defaults, scrip.config.json, SCRIP_* env vars,
  * then explicit overrides (used by tests).
  */
 export function loadConfig(
-  overrides: Partial<PseudoPayConfig> = {},
+  overrides: Partial<ScripConfig> = {},
   cwd = process.cwd(),
-): PseudoPayConfig {
-  const config: PseudoPayConfig = { ...CONFIG_DEFAULTS };
+): ScripConfig {
+  const config: ScripConfig = { ...CONFIG_DEFAULTS };
 
   let fromFile: Record<string, unknown> = {};
   try {
@@ -142,7 +142,7 @@ export function loadConfig(
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
   }
 
-  for (const key of Object.keys(CONFIG_DEFAULTS) as (keyof PseudoPayConfig)[]) {
+  for (const key of Object.keys(CONFIG_DEFAULTS) as (keyof ScripConfig)[]) {
     if (key in fromFile && fromFile[key] !== undefined && fromFile[key] !== null) {
       Object.assign(config, { [key]: coerce(key, fromFile[key]) });
     }
@@ -155,7 +155,7 @@ export function loadConfig(
 
   const unknownFileKeys = Object.keys(fromFile).filter((k) => !(k in CONFIG_DEFAULTS));
   if (unknownFileKeys.length > 0) {
-    console.warn(`[pseudopay] ignoring unknown config keys: ${unknownFileKeys.join(', ')}`);
+    console.warn(`[scrip] ignoring unknown config keys: ${unknownFileKeys.join(', ')}`);
   }
 
   return validate(Object.assign(config, overrides));
@@ -167,17 +167,17 @@ export function loadConfig(
  * whole app sees one instance.
  */
 export class ConfigStore {
-  readonly #config: PseudoPayConfig;
+  readonly #config: ScripConfig;
 
-  constructor(config: PseudoPayConfig) {
+  constructor(config: ScripConfig) {
     this.#config = config;
   }
 
-  current(): PseudoPayConfig {
+  current(): ScripConfig {
     return this.#config;
   }
 
-  get<K extends keyof PseudoPayConfig>(key: K): PseudoPayConfig[K] {
+  get<K extends keyof ScripConfig>(key: K): ScripConfig[K] {
     return this.#config[key];
   }
 }

@@ -38,7 +38,7 @@ export class MerchantGuard implements CanActivate {
     if (!match?.[1]) {
       http
         .getResponse<FastifyReply>()
-        .header('WWW-Authenticate', 'Basic realm="PseudoPay", charset="UTF-8"');
+        .header('WWW-Authenticate', 'Basic realm="Scrip", charset="UTF-8"');
 
       throw unauthorized(
         'merchant_auth_required',

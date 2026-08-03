@@ -1,7 +1,7 @@
-import type { PseudoPayConfig } from '../config';
+import type { ScripConfig } from '../config';
 
 /**
- * Deterministic test CPFs. These are what make PseudoPay usable in CI:
+ * Deterministic test CPFs. These are what make Scrip usable in CI:
  * the same payer_document always produces the same outcome, no coin flip involved.
  */
 export const TEST_DOCUMENTS = {
@@ -37,7 +37,7 @@ export interface ConfirmationPlan {
  */
 export function planConfirmation(
   payerDocument: string | null | undefined,
-  config: PseudoPayConfig,
+  config: ScripConfig,
   random: () => number = Math.random,
 ): ConfirmationPlan {
   const document = normalizeDocument(payerDocument);

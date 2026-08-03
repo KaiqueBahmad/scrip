@@ -167,7 +167,7 @@ export function MyStore() {
                   id="store-webhook"
                   value={webhookUrl}
                   onChange={(event) => setWebhookUrl(event.target.value)}
-                  placeholder="http://localhost:3000/webhooks/pseudopay"
+                  placeholder="http://localhost:3000/webhooks/scrip"
                 />
               </Field>
             </div>

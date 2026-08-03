@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import { api, setActingMerchant, type ApiMerchant } from './api';
 
-const STORAGE_KEY = 'pseudopay.acting-merchant';
+const STORAGE_KEY = 'scrip.acting-merchant';
 
 interface SessionValue {
   merchant: ApiMerchant | null;

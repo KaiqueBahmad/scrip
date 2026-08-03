@@ -28,7 +28,7 @@ export function signApiToken(input: SignTokenInput): string {
     merchant_id: input.merchantId,
   };
 
-  const options: jwt.SignOptions = { algorithm: 'HS256', issuer: 'pseudopay' };
+  const options: jwt.SignOptions = { algorithm: 'HS256', issuer: 'scrip' };
   if (input.expiresIn) {
     options.expiresIn = input.expiresIn as jwt.SignOptions['expiresIn'];
   }
@@ -41,7 +41,7 @@ export function verifyApiToken(token: string, secret: string): ApiTokenClaims {
   let decoded: unknown;
 
   try {
-    decoded = jwt.verify(token, secret, { algorithms: ['HS256'], issuer: 'pseudopay' });
+    decoded = jwt.verify(token, secret, { algorithms: ['HS256'], issuer: 'scrip' });
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
       throw unauthorized('token_expired', 'API token has expired');
