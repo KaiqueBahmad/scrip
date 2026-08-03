@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/*.log
+.git
+
+backend/data
+backend/*.sqlite
+backend/*.sqlite-shm
+backend/*.sqlite-wal
+backend/tests
+backend/scrip.config.json
+backend/.env
+
+frontend/.vite
+frontend/.env

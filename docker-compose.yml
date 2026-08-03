@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      target: backend
+    ports:
+      - "4242:4242"
+    environment:
+      SCRIP_HOST: 0.0.0.0
+      SCRIP_PORT: 4242
+      SCRIP_DATABASE_PATH: data/scrip.sqlite
+      SCRIP_JWT_SIGNING_SECRET: change-me
+    volumes:
+      - scrip-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:4242
+    ports:
+      - "5273:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  scrip-data:
