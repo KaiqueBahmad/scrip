@@ -31,7 +31,7 @@ export interface PseudoPayConfig {
   /** Per-attempt HTTP timeout. */
   webhookTimeoutMs: number;
 
-  /** Secret used to sign integration JWTs. */
+  /** Secret used to sign API JWTs. */
   jwtSigningSecret: string;
   /** Default `expiresIn` for issued tokens. Empty string issues a token with no `exp`. */
   jwtDefaultExpiration: string;

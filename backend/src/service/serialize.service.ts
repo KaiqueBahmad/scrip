@@ -4,14 +4,14 @@ import type { MerchantBalance } from './merchants.service';
 import type {
   ChargeEventRow,
   ChargeRow,
-  IntegrationTokenRow,
+  ApiTokenRow,
   KycDocumentRow,
   MerchantRow,
   RefundRow,
   WebhookDeliveryRow,
 } from '../repositories/types';
 
-/** Row -> JSON, shared by the panel and the integration surface. */
+/** Row -> JSON, shared by the panel and the API surface. */
 export function serializeCharge(row: ChargeRow) {
   return {
     id: row.id,
@@ -81,10 +81,10 @@ export function serializeMerchant(
   };
 }
 
-export function serializeToken(row: IntegrationTokenRow) {
+export function serializeToken(row: ApiTokenRow) {
   return {
     id: row.id,
-    object: 'integration_token' as const,
+    object: 'api_token' as const,
     merchant_id: row.merchant_id,
     name: row.name,
     token: row.token,

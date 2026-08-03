@@ -13,7 +13,7 @@ import type { Logger } from '../lib/logger';
 import { LOGGER } from './injection-tokens';
 
 /**
- * The single place a failure becomes a response, so both surfaces (/v1/integration and
+ * The single place a failure becomes a response, so both surfaces (/v1/api and
  * /v1/panel) serialize identically:
  *
  *   { "error": { "code": "invalid_state_transition", "message": "...", "details": {...} } }

@@ -302,7 +302,7 @@ function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefi
     <Panel>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-4 py-3">
         <span className="rounded-[var(--radius-panel)] bg-trace-soft px-2 py-0.5 font-mono text-[11px] font-medium text-trace">{route.method}</span>
-        <code className="min-w-0 break-all text-xs">/v1/integration{route.path}</code>
+        <code className="min-w-0 break-all text-xs">/v1/api{route.path}</code>
         <p className="w-full text-[13px] text-[var(--text-muted)]">{route.description}</p>
       </div>
       <div className="grid gap-4 p-4">
@@ -526,7 +526,7 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
     if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
     setRunning(true); setError(null); setResponse(null);
     try {
-      const result = await api.integrationRequest<unknown>(route.method, `${resolvedPath}${queryString}`, token.token, body.trim() ? JSON.parse(body) : undefined);
+      const result = await api.apiRequest<unknown>(route.method, `${resolvedPath}${queryString}`, token.token, body.trim() ? JSON.parse(body) : undefined);
       setResponse(result);
     } catch (err) {
       setError(err instanceof SyntaxError ? 'O payload não contém um JSON válido.' : err instanceof ApiError ? `${err.code}: ${err.message}` : 'Não foi possível executar a chamada');
@@ -569,7 +569,7 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
           </Field>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/integration{resolvedPath}{queryString}</code>
+          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/api{resolvedPath}{queryString}</code>
           <Button variant="primary" disabled={running || !token} onClick={() => void execute()}><Play className="size-3.5" />{running ? 'executando…' : 'executar'}</Button>
         </div>
         {error ? <Alert>{error}</Alert> : null}

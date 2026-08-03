@@ -3,43 +3,43 @@ import { desc, eq } from 'drizzle-orm';
 
 import { DB } from '../common/injection-tokens';
 import type { Db } from '../db/index';
-import { integrationTokens } from '../db/schema';
-import type { IntegrationTokenRow } from './types';
+import { apiTokens } from '../db/schema';
+import type { ApiTokenRow } from './types';
 
 @Injectable()
 export class TokenRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
-  insert(row: IntegrationTokenRow): void {
-    this.db.insert(integrationTokens).values(row).run();
+  insert(row: ApiTokenRow): void {
+    this.db.insert(apiTokens).values(row).run();
   }
 
-  findById(tokenId: string): IntegrationTokenRow | undefined {
+  findById(tokenId: string): ApiTokenRow | undefined {
     return this.db
       .select()
-      .from(integrationTokens)
-      .where(eq(integrationTokens.id, tokenId))
+      .from(apiTokens)
+      .where(eq(apiTokens.id, tokenId))
       .get();
   }
 
-  listByMerchant(merchantId: string): IntegrationTokenRow[] {
+  listByMerchant(merchantId: string): ApiTokenRow[] {
     return this.db
       .select()
-      .from(integrationTokens)
-      .where(eq(integrationTokens.merchant_id, merchantId))
-      .orderBy(desc(integrationTokens.created_at))
+      .from(apiTokens)
+      .where(eq(apiTokens.merchant_id, merchantId))
+      .orderBy(desc(apiTokens.created_at))
       .all();
   }
 
   markRevoked(tokenId: string, at: string): void {
     this.db
-      .update(integrationTokens)
+      .update(apiTokens)
       .set({ revoked_at: at })
-      .where(eq(integrationTokens.id, tokenId))
+      .where(eq(apiTokens.id, tokenId))
       .run();
   }
 
   delete(tokenId: string): void {
-    this.db.delete(integrationTokens).where(eq(integrationTokens.id, tokenId)).run();
+    this.db.delete(apiTokens).where(eq(apiTokens.id, tokenId)).run();
   }
 }

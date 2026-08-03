@@ -4,9 +4,9 @@ import { ConfigStore } from '../config';
 import { nowIso } from '../db/index';
 import { badRequest, notFound } from '../lib/errors';
 import { newId } from '../lib/ids';
-import { decodeExpiry, signIntegrationToken } from '../lib/jwt';
+import { decodeExpiry, signApiToken } from '../lib/jwt';
 import { MerchantRepository, TokenRepository } from '../repositories';
-import type { IntegrationTokenRow, Scope } from '../repositories/types';
+import type { ApiTokenRow, Scope } from '../repositories/types';
 
 export interface IssueTokenInput {
   /** The merchant whose session is issuing this token; it is always the token's scope. */
@@ -17,8 +17,8 @@ export interface IssueTokenInput {
 }
 
 /**
- * Integration tokens. Only a merchant session can mint one, and it is
- * always scoped to that merchant — inside that scope it reaches every integration route.
+ * API tokens. Only a merchant session can mint one, and it is
+ * always scoped to that merchant — inside that scope it reaches every API route.
  * The JWT itself is stored so the panel can show it again at any time.
  */
 @Injectable()
@@ -29,7 +29,7 @@ export class TokenService {
     private readonly config: ConfigStore,
   ) {}
 
-  issue(input: IssueTokenInput): IntegrationTokenRow {
+  issue(input: IssueTokenInput): ApiTokenRow {
     const merchantId = input.merchantId;
 
     if (!merchantId) {
@@ -49,7 +49,7 @@ export class TokenService {
 
     let token: string;
     try {
-      token = signIntegrationToken({
+      token = signApiToken({
         secret: this.config.get('jwtSigningSecret'),
         tokenId: id,
         merchantId,
@@ -64,7 +64,7 @@ export class TokenService {
       );
     }
 
-    const row: IntegrationTokenRow = {
+    const row: ApiTokenRow = {
       id,
       merchant_id: merchantId,
       name: input.name?.trim() || null,
@@ -79,25 +79,25 @@ export class TokenService {
     return row;
   }
 
-  get(tokenId: string, scope: Scope = {}): IntegrationTokenRow {
+  get(tokenId: string, scope: Scope = {}): ApiTokenRow {
     const row = this.find(tokenId);
 
     if (!row || (scope.merchantId && row.merchant_id !== scope.merchantId)) {
-      throw notFound('token_not_found', `No integration token ${tokenId}`);
+      throw notFound('token_not_found', `No API token ${tokenId}`);
     }
 
     return row;
   }
 
-  find(tokenId: string): IntegrationTokenRow | undefined {
+  find(tokenId: string): ApiTokenRow | undefined {
     return this.tokens.findById(tokenId);
   }
 
-  listForMerchant(merchantId: string): IntegrationTokenRow[] {
+  listForMerchant(merchantId: string): ApiTokenRow[] {
     return this.tokens.listByMerchant(merchantId);
   }
 
-  revoke(tokenId: string, scope: Scope = {}): IntegrationTokenRow {
+  revoke(tokenId: string, scope: Scope = {}): ApiTokenRow {
     const token = this.get(tokenId, scope);
     if (token.revoked_at) return token;
 

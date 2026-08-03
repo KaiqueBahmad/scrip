@@ -5,19 +5,19 @@ import { ConfigStore } from '../config';
 import { MerchantService } from '../service/merchants.service';
 import { TokenService } from '../service/tokens.service';
 import { unauthorized } from '../lib/errors';
-import { verifyIntegrationToken } from '../lib/jwt';
+import { verifyApiToken } from '../lib/jwt';
 import { extractBearer } from './context';
 
 /**
- * Integration auth: a Bearer JWT minted by a merchant session in the panel.
+ * API auth: a Bearer JWT minted by a merchant session in the panel.
  *
  * Signature and expiry are checked in the JWT itself; revocation and the merchant's
  * continued existence are checked against the database on every request, so revoking a
  * token takes effect immediately instead of waiting for it to expire. A token that
- * survives those checks reaches every integration route — there is no narrower scope.
+ * survives those checks reaches every API route — there is no narrower scope.
  */
 @Injectable()
-export class IntegrationGuard implements CanActivate {
+export class ApiGuard implements CanActivate {
   constructor(
     private readonly config: ConfigStore,
     private readonly tokens: TokenService,
@@ -30,12 +30,12 @@ export class IntegrationGuard implements CanActivate {
 
     if (!token) {
       throw unauthorized(
-        'integration_auth_required',
-        'Send your integration JWT as "Authorization: Bearer <token>"',
+        'api_auth_required',
+        'Send your API JWT as "Authorization: Bearer <token>"',
       );
     }
 
-    const claims = verifyIntegrationToken(token, this.config.get('jwtSigningSecret'));
+    const claims = verifyApiToken(token, this.config.get('jwtSigningSecret'));
     const row = this.tokens.find(claims.sub);
 
     if (!row) {
@@ -53,7 +53,7 @@ export class IntegrationGuard implements CanActivate {
       );
     }
 
-    request.integration = { tokenId: row.id, merchantId: row.merchant_id };
+    request.api = { tokenId: row.id, merchantId: row.merchant_id };
 
     return true;
   }

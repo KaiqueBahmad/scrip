@@ -7,8 +7,8 @@
  * and this module free of a runtime cycle.
  */
 import type {
+  apiTokens,
   chargeEvents,
-  integrationTokens,
   kycDocuments,
   merchants,
   pixCharges,
@@ -30,7 +30,7 @@ export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
 
 export type MerchantRow = typeof merchants.$inferSelect;
 
-export type IntegrationTokenRow = typeof integrationTokens.$inferSelect;
+export type ApiTokenRow = typeof apiTokens.$inferSelect;
 
 export type ChargeRow = typeof pixCharges.$inferSelect;
 

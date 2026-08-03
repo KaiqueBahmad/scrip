@@ -4,8 +4,8 @@ import type { FastifyRequest } from 'fastify';
 import type { MerchantRow } from '../repositories/types';
 import { unauthorized } from '../lib/errors';
 
-/** Resolved credential for a /v1/integration request. */
-export interface IntegrationAuth {
+/** Resolved credential for a /v1/api request. */
+export interface ApiAuth {
   tokenId: string;
   merchantId: string;
 }
@@ -14,8 +14,8 @@ declare module 'fastify' {
   interface FastifyRequest {
     /** Set by MerchantGuard on /v1/panel routes — the panel identity. */
     merchant?: MerchantRow;
-    /** Set by IntegrationGuard on /v1/integration routes. */
-    integration?: IntegrationAuth;
+    /** Set by ApiGuard on /v1/api routes. */
+    api?: ApiAuth;
   }
 }
 
@@ -27,12 +27,12 @@ export function extractBearer(header: string | undefined): string | undefined {
   return match?.[1]?.trim() || undefined;
 }
 
-/** Injects the credential IntegrationGuard resolved for this request. */
+/** Injects the credential ApiGuard resolved for this request. */
 export const Auth = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): IntegrationAuth => {
-    const auth = context.switchToHttp().getRequest<FastifyRequest>().integration;
+  (_data: unknown, context: ExecutionContext): ApiAuth => {
+    const auth = context.switchToHttp().getRequest<FastifyRequest>().api;
     if (!auth) {
-      throw unauthorized('integration_auth_required', 'No integration token on this request');
+      throw unauthorized('api_auth_required', 'No API token on this request');
     }
     return auth;
   },

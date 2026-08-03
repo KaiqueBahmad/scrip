@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import { AppError } from '../src/lib/errors';
 import { computeSignature, parseSignatureHeader, signPayload, verifySignature } from '../src/lib/hmac';
-import { decodeExpiry, signIntegrationToken, verifyIntegrationToken } from '../src/lib/jwt';
+import { decodeExpiry, signApiToken, verifyApiToken } from '../src/lib/jwt';
 
 describe('webhook signatures', () => {
   const secret = 'whsec_test';
@@ -78,11 +78,11 @@ describe('webhook signatures', () => {
   });
 });
 
-describe('integration tokens', () => {
+describe('API tokens', () => {
   const secret = 'test-secret';
 
-  const sign = (overrides: Partial<Parameters<typeof signIntegrationToken>[0]> = {}) =>
-    signIntegrationToken({
+  const sign = (overrides: Partial<Parameters<typeof signApiToken>[0]> = {}) =>
+    signApiToken({
       secret,
       tokenId: 'tok_1',
       merchantId: 'mch_1',
@@ -90,7 +90,7 @@ describe('integration tokens', () => {
     });
 
   it('round-trips the claims', () => {
-    const claims = verifyIntegrationToken(sign(), secret);
+    const claims = verifyApiToken(sign(), secret);
 
     assert.equal(claims.sub, 'tok_1');
     assert.equal(claims.merchant_id, 'mch_1');
@@ -99,7 +99,7 @@ describe('integration tokens', () => {
   it('omits exp when no expiry is requested', () => {
     const token = sign();
     assert.equal(decodeExpiry(token), null);
-    assert.equal(verifyIntegrationToken(token, secret).exp, undefined);
+    assert.equal(verifyApiToken(token, secret).exp, undefined);
   });
 
   it('sets exp when an expiry is requested', () => {
@@ -111,14 +111,14 @@ describe('integration tokens', () => {
   });
 
   it('rejects a token signed with another secret', () => {
-    const foreign = signIntegrationToken({
+    const foreign = signApiToken({
       secret: 'other-secret',
       tokenId: 'tok_1',
       merchantId: 'mch_1',
     });
 
     assert.throws(
-      () => verifyIntegrationToken(foreign, secret),
+      () => verifyApiToken(foreign, secret),
       (err: unknown) => err instanceof AppError && err.code === 'invalid_token',
     );
   });
@@ -127,7 +127,7 @@ describe('integration tokens', () => {
     const expired = sign({ expiresIn: '-1s' });
 
     assert.throws(
-      () => verifyIntegrationToken(expired, secret),
+      () => verifyApiToken(expired, secret),
       (err: unknown) => err instanceof AppError && err.code === 'token_expired',
     );
   });
@@ -138,7 +138,7 @@ describe('integration tokens', () => {
       JSON.stringify({ sub: 'tok_1', merchant_id: 'mch_evil' }),
     ).toString('base64url');
 
-    assert.throws(() => verifyIntegrationToken(`${header}.${forged}.${signature}`, secret));
+    assert.throws(() => verifyApiToken(`${header}.${forged}.${signature}`, secret));
   });
 });
 

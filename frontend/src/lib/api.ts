@@ -194,8 +194,8 @@ async function request<T>(
   return parsed as T;
 }
 
-/** Calls the integration surface with a token selected from the panel. */
-async function integrationRequest<T>(
+/** Calls the API surface with a token selected from the panel. */
+async function apiRequest<T>(
   method: string,
   path: string,
   token: string,
@@ -204,7 +204,7 @@ async function integrationRequest<T>(
   const headers: Record<string, string> = { authorization: `Bearer ${token}` };
   if (body !== undefined) headers['content-type'] = 'application/json';
 
-  const response = await fetch(`${API_ROOT}/v1/integration${path}`, {
+  const response = await fetch(`${API_ROOT}/v1/api${path}`, {
     method,
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -239,7 +239,7 @@ interface ListResponse<T> {
 }
 
 export const api = {
-  integrationRequest,
+  apiRequest,
 
   // session — the merchant is the panel identity
   sessionMerchants: () => request<ListResponse<ApiMerchant>>('GET', '/session/merchants'),

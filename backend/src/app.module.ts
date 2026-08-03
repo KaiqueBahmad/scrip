@@ -1,15 +1,15 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 
-import { HealthController } from './api/health.controller';
-import { IntegrationController } from './api/integration/integration.controller';
-import { PanelChargesController } from './api/panel/charges.controller';
-import { PanelKycController } from './api/panel/kyc.controller';
-import { SessionController } from './api/panel/session.controller';
-import { PanelSettingsController } from './api/panel/settings.controller';
-import { PanelTokensController } from './api/panel/tokens.controller';
-import { PanelWebhooksController } from './api/panel/webhooks.controller';
-import { IntegrationGuard } from './auth/integration.guard';
+import { HealthController } from './http/health.controller';
+import { ApiController } from './http/api/api.controller';
+import { PanelChargesController } from './http/panel/charges.controller';
+import { PanelKycController } from './http/panel/kyc.controller';
+import { SessionController } from './http/panel/session.controller';
+import { PanelSettingsController } from './http/panel/settings.controller';
+import { PanelTokensController } from './http/panel/tokens.controller';
+import { PanelWebhooksController } from './http/panel/webhooks.controller';
+import { ApiGuard } from './auth/api.guard';
 import { MerchantGuard } from './auth/merchant.guard';
 import { AppExceptionFilter } from './common/app-exception.filter';
 import { DB, FETCH, LOGGER, RANDOM, SCHEDULER } from './common/injection-tokens';
@@ -62,7 +62,7 @@ export class AppModule {
       module: AppModule,
       controllers: [
         HealthController,
-        IntegrationController,
+        ApiController,
         SessionController,
         PanelTokensController,
         PanelChargesController,
@@ -106,7 +106,7 @@ export class AppModule {
         KycService,
         IdempotencyStore,
         SettingsService,
-        IntegrationGuard,
+        ApiGuard,
         MerchantGuard,
         { provide: APP_FILTER, useClass: AppExceptionFilter },
       ],

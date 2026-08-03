@@ -87,7 +87,7 @@ export class WebhookDispatcher {
     return this.deliveries.findById(id)!;
   }
 
-  /** Re-arms a delivery from the panel or the integration API, ignoring prior outcome. */
+  /** Re-arms a delivery from the panel or the API, ignoring prior outcome. */
   retry(deliveryId: string, scope: Scope = {}): WebhookDeliveryRow {
     this.get(deliveryId, scope);
 

@@ -135,7 +135,7 @@ export async function createHarness(
 }
 
 /**
- * Creates a merchant and one of its integration tokens, returning ready-to-use headers.
+ * Creates a merchant and one of its API tokens, returning ready-to-use headers.
  * The merchant is the panel identity now, so `basic` authenticates as the merchant itself.
  */
 export async function seedMerchantAndToken(
@@ -173,7 +173,7 @@ export async function seedMerchantAndToken(
   };
 }
 
-/** POST /v1/integration/pix/charges, returning the parsed body. */
+/** POST /v1/api/pix/charges, returning the parsed body. */
 export async function createCharge(
   harness: TestHarness,
   bearer: Record<string, string>,
@@ -181,7 +181,7 @@ export async function createCharge(
 ) {
   const response = await harness.app.inject({
     method: 'POST',
-    url: '/v1/integration/pix/charges',
+    url: '/v1/api/pix/charges',
     headers: bearer,
     payload: { amount: 15000, ...body },
   });

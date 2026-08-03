@@ -35,8 +35,8 @@ export const merchants = sqliteTable(
   ],
 );
 
-export const integrationTokens = sqliteTable(
-  'integration_tokens',
+export const apiTokens = sqliteTable(
+  'api_tokens',
   {
     id: text().primaryKey(),
     // A token is always minted by, and scoped to, a merchant session. There is no
@@ -235,6 +235,6 @@ export const TABLES_CHILD_FIRST = [
   pixRefunds,
   pixCharges,
   kycDocuments,
-  integrationTokens,
+  apiTokens,
   merchants,
 ] as const;

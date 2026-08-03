@@ -10,18 +10,18 @@ afterEach(async () => {
   harness = null;
 });
 
-describe('integration auth', () => {
+describe('API auth', () => {
   it('rejects a missing, malformed or revoked token', async () => {
     harness = await createHarness();
     const { bearer, token } = await seedMerchantAndToken(harness);
 
-    const missing = await harness.app.inject({ method: 'GET', url: '/v1/integration/pix/charges' });
+    const missing = await harness.app.inject({ method: 'GET', url: '/v1/api/pix/charges' });
     assert.equal(missing.statusCode, 401);
-    assert.equal(missing.json().error.code, 'integration_auth_required');
+    assert.equal(missing.json().error.code, 'api_auth_required');
 
     const malformed = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: { authorization: 'Bearer not-a-jwt' },
     });
     assert.equal(malformed.statusCode, 401);
@@ -31,14 +31,14 @@ describe('integration auth', () => {
 
     const revoked = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: bearer,
     });
     assert.equal(revoked.statusCode, 401);
     assert.equal(revoked.json().error.code, 'token_revoked');
   });
 
-  it('reaches every integration route with a single valid token', async () => {
+  it('reaches every API route with a single valid token', async () => {
     harness = await createHarness();
     const { bearer } = await seedMerchantAndToken(harness);
 
@@ -47,14 +47,14 @@ describe('integration auth', () => {
 
     const read = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: bearer,
     });
     assert.equal(read.statusCode, 200);
 
     const merchant = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/merchants/me',
+      url: '/v1/api/merchants/me',
       headers: bearer,
     });
     assert.equal(merchant.statusCode, 200);
@@ -71,7 +71,7 @@ describe('integration auth', () => {
 
     const foreign = await harness.app.inject({
       method: 'GET',
-      url: `/v1/integration/pix/charges/${charge.id}`,
+      url: `/v1/api/pix/charges/${charge.id}`,
       headers: second.bearer,
     });
 
@@ -80,7 +80,7 @@ describe('integration auth', () => {
 
     const list = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: second.bearer,
     });
     assert.deepEqual(list.json().data, []);
@@ -105,7 +105,7 @@ describe('integration auth', () => {
     // And it really only reaches its own merchant's data.
     const scoped = await harness.app.inject({
       method: 'GET',
-      url: '/v1/integration/merchants/me',
+      url: '/v1/api/merchants/me',
       headers: { authorization: `Bearer ${response.json().token}` },
     });
     assert.equal(scoped.json().id, mine.merchant.id);
@@ -122,13 +122,13 @@ describe('idempotency', () => {
 
     const first = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers,
       payload,
     });
     const second = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers,
       payload,
     });
@@ -147,14 +147,14 @@ describe('idempotency', () => {
 
     await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers,
       payload: { amount: 15000 },
     });
 
     const changed = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers,
       payload: { amount: 9999 },
     });
@@ -171,13 +171,13 @@ describe('idempotency', () => {
 
     const a = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: { ...first.bearer, 'idempotency-key': 'shared' },
       payload,
     });
     const b = await harness.app.inject({
       method: 'POST',
-      url: '/v1/integration/pix/charges',
+      url: '/v1/api/pix/charges',
       headers: { ...second.bearer, 'idempotency-key': 'shared' },
       payload,
     });
@@ -534,7 +534,7 @@ describe('merchant balance', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${paid.id}/refunds`,
+      url: `/v1/api/pix/charges/${paid.id}/refunds`,
       headers: bearer,
       payload: { amount: 7500 },
     });
@@ -571,7 +571,7 @@ describe('merchant balance', () => {
     });
     await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/pix/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: {},
     });

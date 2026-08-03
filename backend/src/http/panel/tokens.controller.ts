@@ -17,8 +17,8 @@ import { TokenService } from '../../service/tokens.service';
 import type { IssueTokenBody } from '../../dto';
 
 /**
- * Only a merchant session can mint an integration JWT, always scoped to itself. The token
- * then reaches every /v1/integration route within that scope.
+ * Only a merchant session can mint an API JWT, always scoped to itself. The token
+ * then reaches every /v1/api route within that scope.
  */
 @Controller('v1/panel/tokens')
 @UseGuards(MerchantGuard)

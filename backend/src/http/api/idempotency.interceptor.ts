@@ -53,11 +53,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     // The credential is what scopes a key, so an unauthenticated request has nothing to
     // replay against.
-    if (!key || !request.integration) return undefined;
+    if (!key || !request.api) return undefined;
 
     return {
       key,
-      merchantId: request.integration.merchantId,
+      merchantId: request.api.merchantId,
       endpoint: `${request.method} ${request.routeOptions.url}`,
       requestBody: request.body ?? {},
     };

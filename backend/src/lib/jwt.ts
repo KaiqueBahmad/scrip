@@ -3,11 +3,11 @@ import jwt from 'jsonwebtoken';
 import { unauthorized } from './errors';
 
 /**
- * Integration tokens — HS256 JWTs a merchant session mints in the panel,
- * scoped to that merchant. A valid token reaches every integration route.
+ * API tokens — HS256 JWTs a merchant session mints in the panel,
+ * scoped to that merchant. A valid token reaches every API route.
  */
-export interface IntegrationTokenClaims {
-  /** Subject is the integration_tokens row id, so revocation can be checked on every call. */
+export interface ApiTokenClaims {
+  /** Subject is the api_tokens row id, so revocation can be checked on every call. */
   sub: string;
   merchant_id: string;
   iat?: number;
@@ -22,7 +22,7 @@ export interface SignTokenInput {
   expiresIn?: string;
 }
 
-export function signIntegrationToken(input: SignTokenInput): string {
+export function signApiToken(input: SignTokenInput): string {
   const payload = {
     sub: input.tokenId,
     merchant_id: input.merchantId,
@@ -37,26 +37,26 @@ export function signIntegrationToken(input: SignTokenInput): string {
 }
 
 /** Verifies signature, algorithm and expiry. Revocation is checked separately, in the DB. */
-export function verifyIntegrationToken(token: string, secret: string): IntegrationTokenClaims {
+export function verifyApiToken(token: string, secret: string): ApiTokenClaims {
   let decoded: unknown;
 
   try {
     decoded = jwt.verify(token, secret, { algorithms: ['HS256'], issuer: 'pseudopay' });
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      throw unauthorized('token_expired', 'Integration token has expired');
+      throw unauthorized('token_expired', 'API token has expired');
     }
-    throw unauthorized('invalid_token', 'Integration token is not valid');
+    throw unauthorized('invalid_token', 'API token is not valid');
   }
 
   if (typeof decoded !== 'object' || decoded === null) {
-    throw unauthorized('invalid_token', 'Integration token payload is malformed');
+    throw unauthorized('invalid_token', 'API token payload is malformed');
   }
 
-  const claims = decoded as Partial<IntegrationTokenClaims>;
+  const claims = decoded as Partial<ApiTokenClaims>;
 
   if (typeof claims.sub !== 'string' || typeof claims.merchant_id !== 'string') {
-    throw unauthorized('invalid_token', 'Integration token is missing required claims');
+    throw unauthorized('invalid_token', 'API token is missing required claims');
   }
 
   return {

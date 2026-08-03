@@ -17,7 +17,7 @@ O PseudoPay reproduz o comportamento de um gateway PIX de verdade — geração 
 
 - **Somente PIX** nesta versão. Cartão, boleto e outros métodos ficam fora do escopo (arquitetura já preparada para extensão futura).
 - **Duas superfícies de API**, fisicamente separadas por rota mesmo quando a lógica é a mesma:
-  - `/v1/integration/*` — consumida pelo backend do merchant, com JWT
+  - `/v1/api/*` — consumida pelo backend do merchant, com JWT
   - `/v1/panel/*` — consumida pelo painel, com HTTP Basic
 - **Sem fila de verdade** — assincronia (confirmação de pagamento, expiração de QR code, retry de webhook) é simulada com `setTimeout` in-process.
 - **Sem storage externo** — documentos de KYC são salvos como BLOB direto no SQLite; nenhuma dependência de S3/disco externo.
@@ -80,12 +80,12 @@ Na tela **Minha loja** ficam o saldo, o `merchant_id` (que é o usuário do Basi
 
 ### 3. Gere um token de integração
 
-Na tela **Tokens**, gere um JWT. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. Não há permissões: dentro do escopo da loja, o token alcança todas as rotas de `/v1/integration`. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
+Na tela **Tokens**, gere um JWT. **Só a loja emite token**, e todo token nasce escopado nela — um `merchant_id` enviado no corpo é ignorado. Não há permissões: dentro do escopo da loja, o token alcança todas as rotas de `/v1/api`. O token fica visível a qualquer momento (não some depois de gerado) — copie e use no seu backend.
 
 ### 4. Crie uma cobrança PIX
 
 ```bash
-curl -X POST http://localhost:4242/v1/integration/pix/charges \
+curl -X POST http://localhost:4242/v1/api/pix/charges \
   -H "Authorization: Bearer {seu_jwt}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -98,14 +98,14 @@ curl -X POST http://localhost:4242/v1/integration/pix/charges \
 A resposta traz `qr_code` e `qr_code_expires_at` — repasse o `qr_code` pro seu frontend renderizar. O acompanhamento do status fica no seu backend, que é quem tem o token:
 
 ```bash
-curl http://localhost:4242/v1/integration/pix/charges/ch_a1b2c3 \
+curl http://localhost:4242/v1/api/pix/charges/ch_a1b2c3 \
   -H "Authorization: Bearer {seu_jwt}"
 ```
 
 ### 5. Simule o pagamento (útil em testes/CI)
 
 ```bash
-curl -X POST http://localhost:4242/v1/integration/pix/charges/ch_a1b2c3/simulate \
+curl -X POST http://localhost:4242/v1/api/pix/charges/ch_a1b2c3/simulate \
   -H "Authorization: Bearer {seu_jwt}" \
   -H "Content-Type: application/json" \
   -d '{ "result": "paid" }'
@@ -166,7 +166,7 @@ function verificar(corpoBruto, header, segredo) {
 }
 ```
 
-Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-PseudoPay-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/integration/webhooks/deliveries/{id}/retry`.
+Cada tentativa também vai com `X-PseudoPay-Event`, `X-PseudoPay-Delivery` e `X-PseudoPay-Attempt`. Todas ficam registradas e podem ser reenviadas pelo painel ou por `POST /v1/api/webhooks/deliveries/{id}/retry`.
 
 ## Configuração
 
@@ -229,12 +229,12 @@ O bloqueio de KYC vem **desligado** por padrão para que o passo a passo acima f
 
 | Método e rota |
 |---|
-| `POST /v1/integration/pix/charges` (aceita `Idempotency-Key`) |
-| `GET /v1/integration/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
-| `GET /v1/integration/pix/charges/{id}` · `/events` · `/refunds` |
-| `POST /v1/integration/pix/charges/{id}/cancel` |
-| `POST /v1/integration/pix/charges/{id}/refunds` — `amount` opcional |
-| `GET`/`PATCH /v1/integration/merchants/me` |
+| `POST /v1/api/pix/charges` (aceita `Idempotency-Key`) |
+| `GET /v1/api/pix/charges` (filtros `status`, `from`, `to`, `limit`, `offset`) |
+| `GET /v1/api/pix/charges/{id}` · `/events` · `/refunds` |
+| `POST /v1/api/pix/charges/{id}/cancel` |
+| `POST /v1/api/pix/charges/{id}/refunds` — `amount` opcional |
+| `GET`/`PATCH /v1/api/merchants/me` |
 
 Qualquer token válido e não revogado alcança todas as rotas acima — não há permissões por rota. Tudo é escopado na loja do token — pedir uma cobrança de outra loja responde `404`, não `403`, para que ids não possam ser sondados. Os erros vêm sempre no mesmo envelope:
 
@@ -251,9 +251,9 @@ Qualquer token válido e não revogado alcança todas as rotas acima — não h�
 
 ## Roadmap
 
-1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/integration/*` e `/v1/panel/*`
+1. ✅ Core: schema, máquina de estados PIX, QR code, rotas `/v1/api/*` e `/v1/panel/*`
 2. ✅ Identidade do painel: login por seleção de loja, Basic Auth
-3. ✅ Integration Tokens: geração/validação/revogação de JWT
+3. ✅ API Tokens: geração/validação/revogação de JWT
 4. ✅ Webhooks: dispatcher, HMAC, retry
 5. ✅ KYC: upload (BLOB), aprovação manual, bloqueio de charges
 6. ✅ Painel: transações e saldo da loja
@@ -270,8 +270,8 @@ backend/
     main.ts        bootstrap: sobe a app e escuta
     app.ts         createApp(): Nest sobre Fastify e multipart
     app.module.ts  AppModule.forRoot(): providers, controllers e as costuras de teste
-    api/           integration/ e panel/ — superfícies separadas por controller
-    auth/          guards de Basic (sessão da loja) e Bearer (integração)
+    http/          api/ e panel/ — superfícies separadas por controller
+    auth/          guards de Basic (sessão da loja) e Bearer (API)
     common/        exception filter, tokens de injeção e leitura de upload
     config/        pseudopay.config.json + PSEUDOPAY_*, resolvidos uma vez no boot
     db/            schema.ts (tabelas Drizzle, fonte única), migrations/, openDb, reset

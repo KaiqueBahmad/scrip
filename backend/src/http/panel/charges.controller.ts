@@ -31,7 +31,7 @@ import { badRequest } from '../../lib/errors';
 
 /**
  * Charges as the panel sees them: scoped to the session's own store, plus the simulation
- * controls the integration API deliberately does not expose.
+ * controls the API deliberately does not expose.
  */
 @Controller('v1/panel/charges')
 @UseGuards(MerchantGuard)

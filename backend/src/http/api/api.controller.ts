@@ -12,8 +12,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 
-import { Auth, type IntegrationAuth } from '../../auth/context';
-import { IntegrationGuard } from '../../auth/integration.guard';
+import { Auth, type ApiAuth } from '../../auth/context';
+import { ApiGuard } from '../../auth/api.guard';
 import { ChargeService } from '../../service/charges.service';
 import { MerchantService } from '../../service/merchants.service';
 import { RefundService } from '../../service/refunds.service';
@@ -34,11 +34,11 @@ import {
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 
 /**
- * Integration API, called by the merchant's own backend with a JWT.
+ * API surface, called by the merchant's own backend with a JWT.
  */
-@Controller('v1/integration')
-@UseGuards(IntegrationGuard)
-export class IntegrationController {
+@Controller('v1/api')
+@UseGuards(ApiGuard)
+export class ApiController {
   constructor(
     private readonly charges: ChargeService,
     private readonly refunds: RefundService,
@@ -50,7 +50,7 @@ export class IntegrationController {
   /** Replays instead of charging twice when an Idempotency-Key repeats — see the interceptor. */
   @Post('pix/charges')
   @UseInterceptors(IdempotencyInterceptor)
-  createCharge(@Auth() auth: IntegrationAuth, @Body() body: CreateChargeBody = {}) {
+  createCharge(@Auth() auth: ApiAuth, @Body() body: CreateChargeBody = {}) {
     return serializeCharge(
       this.charges.create({
         merchantId: auth.merchantId,
@@ -64,7 +64,7 @@ export class IntegrationController {
   }
 
   @Get('pix/charges')
-  listCharges(@Auth() auth: IntegrationAuth, @Query() query: ChargeQuery = {}) {
+  listCharges(@Auth() auth: ApiAuth, @Query() query: ChargeQuery = {}) {
     return {
       object: 'list',
       data: this.charges.list(chargeFilters(auth.merchantId, query)).map(serializeCharge),
@@ -76,12 +76,12 @@ export class IntegrationController {
   }
 
   @Get('pix/charges/:id')
-  getCharge(@Auth() auth: IntegrationAuth, @Param('id') id: string) {
+  getCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.get(id, { merchantId: auth.merchantId }));
   }
 
   @Get('pix/charges/:id/events')
-  listChargeEvents(@Auth() auth: IntegrationAuth, @Param('id') id: string) {
+  listChargeEvents(@Auth() auth: ApiAuth, @Param('id') id: string) {
     const charge = this.charges.get(id, { merchantId: auth.merchantId });
 
     return {
@@ -92,7 +92,7 @@ export class IntegrationController {
 
   @Post('pix/charges/:id/cancel')
   @HttpCode(HttpStatus.OK)
-  cancelCharge(@Auth() auth: IntegrationAuth, @Param('id') id: string) {
+  cancelCharge(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return serializeCharge(this.charges.cancel(id, { merchantId: auth.merchantId }));
   }
 
@@ -100,7 +100,7 @@ export class IntegrationController {
 
   @Post('pix/charges/:id/refunds')
   createRefund(
-    @Auth() auth: IntegrationAuth,
+    @Auth() auth: ApiAuth,
     @Param('id') id: string,
     @Body() body: CreateRefundBody = {},
   ) {
@@ -115,7 +115,7 @@ export class IntegrationController {
   }
 
   @Get('pix/charges/:id/refunds')
-  listRefunds(@Auth() auth: IntegrationAuth, @Param('id') id: string) {
+  listRefunds(@Auth() auth: ApiAuth, @Param('id') id: string) {
     return {
       object: 'list',
       data: this.refunds.list(id, { merchantId: auth.merchantId }).map(serializeRefund),
@@ -129,12 +129,12 @@ export class IntegrationController {
    * it to verify webhook signatures.
    */
   @Get('merchants/me')
-  getMerchant(@Auth() auth: IntegrationAuth) {
+  getMerchant(@Auth() auth: ApiAuth) {
     return serializeMerchant(this.merchants.get(auth.merchantId), true);
   }
 
   @Patch('merchants/me')
-  updateMerchant(@Auth() auth: IntegrationAuth, @Body() body: UpdateMerchantBody = {}) {
+  updateMerchant(@Auth() auth: ApiAuth, @Body() body: UpdateMerchantBody = {}) {
     return serializeMerchant(this.merchants.update(auth.merchantId, toMerchantUpdate(body)), true);
   }
 }

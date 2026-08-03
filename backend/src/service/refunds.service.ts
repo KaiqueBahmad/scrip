@@ -18,7 +18,7 @@ export interface CreateRefundInput {
   /** Integer cents. Omit to refund everything still outstanding. */
   amount?: number | null;
   reason?: string | null;
-  /** Restricts the charge lookup to one merchant on the integration surface. */
+  /** Restricts the charge lookup to one merchant on the API surface. */
   merchantId?: string;
 }
 

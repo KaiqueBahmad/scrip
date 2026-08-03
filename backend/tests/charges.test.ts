@@ -206,7 +206,7 @@ describe('cancel and refund', () => {
 
     const canceled = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/cancel`,
+      url: `/v1/api/pix/charges/${charge.id}/cancel`,
       headers: bearer,
     });
 
@@ -232,7 +232,7 @@ describe('cancel and refund', () => {
 
     const partial = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/pix/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 5000 },
     });
@@ -245,7 +245,7 @@ describe('cancel and refund', () => {
     // Omitting the amount refunds whatever is left.
     const rest = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/pix/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: {},
     });
@@ -271,7 +271,7 @@ describe('cancel and refund', () => {
 
     const tooMuch = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/pix/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 15001 },
     });
@@ -287,7 +287,7 @@ describe('cancel and refund', () => {
 
     const response = await harness.app.inject({
       method: 'POST',
-      url: `/v1/integration/pix/charges/${charge.id}/refunds`,
+      url: `/v1/api/pix/charges/${charge.id}/refunds`,
       headers: bearer,
       payload: { amount: 100 },
     });

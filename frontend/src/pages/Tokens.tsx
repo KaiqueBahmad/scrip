@@ -21,8 +21,8 @@ import { useAsync } from '../lib/useAsync';
 import { cn, formatDateTime } from '../lib/utils';
 
 /**
- * Integration tokens. Only this store can mint them, and each one is
- * scoped to it — within that scope a token reaches every integration route. The JWT stays
+ * API tokens. Only this store can mint them, and each one is
+ * scoped to it — within that scope a token reaches every API route. The JWT stays
  * visible forever instead of being shown once — that is a deliberate convenience of this
  * tool, not an oversight.
  */
@@ -72,7 +72,7 @@ export function Tokens() {
 
         {rows.length === 0 && !tokens.loading ? (
           <EmptyState title="Nenhum token gerado">
-            Gere um token para chamar <span className="font-mono">/v1/integration/*</span> do seu
+            Gere um token para chamar <span className="font-mono">/v1/api/*</span> do seu
             backend.
           </EmptyState>
         ) : (
