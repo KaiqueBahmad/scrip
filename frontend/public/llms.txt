@@ -1,0 +1,53 @@
+# PseudoPay
+
+> Self-hosted, simulated PIX payment gateway for development and CI - in the spirit of MinIO
+> (S3) or LocalStack (AWS), but for a payment gateway's lifecycle. Not a production system:
+> it does not process real payments or connect to the Central Bank/SPI.
+
+PseudoPay reproduces the behavior of a real PIX gateway - QR code generation, asynchronous
+confirmation, expiration, refunds, signed webhooks, merchant KYC - with no external provider.
+Two physically separate route surfaces share the same underlying data: `/v1/api/*` (Bearer
+JWT, called by the merchant's own backend) and `/v1/panel/*` (HTTP Basic, the admin panel).
+The API base URL defaults to `http://localhost:4242` in development and is whatever
+`VITE_API_BASE_URL` / the deployment's origin is otherwise.
+
+## Integration API (`/v1/api`, `Authorization: Bearer <jwt>`)
+
+- POST /v1/api/payments/pix/charges: Creates a PIX charge. Body: amount (required, integer
+  cents), payer_document, payer_name, description, metadata (object), callback_url (overrides
+  the store's webhook_url for this charge's events only). Accepts an `Idempotency-Key` header.
+- GET /v1/api/payments/charges: Lists the store's charges, any payment method. Query: status,
+  from, to (ISO 8601), limit, offset.
+- GET /v1/api/payments/charges/{id}: Looks up one charge.
+- GET /v1/api/payments/charges/{id}/events: Lists a charge's status transition history.
+- POST /v1/api/payments/charges/{id}/cancel: Cancels a pending charge.
+- POST /v1/api/payments/charges/{id}/refunds: Requests a refund. Body: amount (optional,
+  defaults to the full outstanding balance), reason.
+- GET /v1/api/payments/charges/{id}/refunds: Lists a charge's refunds.
+- GET /v1/api/merchants/me: Looks up the authenticated store's data (webhook_secret included).
+- PATCH /v1/api/merchants/me: Updates the store's name, webhook_url, or rotates its
+  webhook_secret.
+
+A charge response has `payment_method: "pix"` at the top level and PIX-only fields (qr_code,
+qr_code_txid, qr_code_expires_at, e2e_id) nested under a `pix` object - future payment methods
+would nest their own fields the same way instead of adding to the flat charge shape.
+
+## Concepts
+
+- Auth: a Bearer JWT is minted from the panel (Tokens screen) and is scoped to one store -
+  there is no cross-store or per-route permission model.
+- Idempotency: repeating `Idempotency-Key` with the same body on charge creation replays the
+  original response instead of creating a second charge; the same key with a different body
+  is rejected.
+- Webhooks: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`,
+  `pix.charge.refunded`, `kyc.approved`, `kyc.rejected` - signed with HMAC over
+  `<timestamp>.<body>`, sent as `X-PseudoPay-Signature: t=<unix>,v1=<hmac>`.
+- Errors: every failure is `{ "error": { "code", "message", "details"? } }`, with a stable
+  machine-readable `code`.
+- Simulated time: pending charges auto-confirm or expire on a delay driven by config, or can
+  be forced from the panel for deterministic tests.
+
+## Optional
+
+- [Full interactive documentation](/documentacao): browsable, per-route request/response
+  schemas and a live playground to execute real calls against the configured API.

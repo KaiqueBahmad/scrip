@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, FileText, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -396,9 +396,19 @@ export function Documentation() {
   return (
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
       <div>
-        <Link to="/transacoes" className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
-          <ArrowLeft className="size-4" /> {t('documentation.backToPanel')}
-        </Link>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <Link to="/transacoes" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
+            <ArrowLeft className="size-4" /> {t('documentation.backToPanel')}
+          </Link>
+          <a
+            href="/llms.txt"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            <FileText className="size-4" /> llms.txt
+          </a>
+        </div>
         <PageHeader
           eyebrow={t('documentation.eyebrow')}
           title={t('documentation.title')}
