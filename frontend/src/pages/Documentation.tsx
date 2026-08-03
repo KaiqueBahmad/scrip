@@ -313,7 +313,7 @@ function NavTree({
               onClick={() => onSelect(node.id)}
               style={{ paddingLeft: `${depth * 0.75 + 0.5}rem` }}
               className={cn(
-                'flex w-full items-center justify-between gap-2 rounded-[var(--radius-panel)] py-1.5 pr-2 text-left text-[13px]',
+                'flex w-full items-center justify-between gap-2 rounded-[var(--radius-panel)] py-2 pr-2 text-left text-sm',
                 selectedId === node.id
                   ? 'bg-trace-soft font-medium text-trace'
                   : node.kind === 'wip'
@@ -323,7 +323,7 @@ function NavTree({
             >
               <span>{node.label}</span>
               {node.kind === 'wip' ? (
-                <span className="rounded-[var(--radius-panel)] border px-1.5 py-0.5 font-mono text-[9px] tracking-wide text-[var(--text-muted)]">WIP</span>
+                <span className="rounded-[var(--radius-panel)] border px-2 py-0.5 font-mono text-[10px] tracking-wide text-[var(--text-muted)]">WIP</span>
               ) : null}
             </button>
           )}
@@ -352,9 +352,9 @@ function NavGroupItem({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         style={{ paddingLeft: `${depth * 0.75 + 0.5}rem` }}
-        className="flex w-full items-center gap-1.5 rounded-[var(--radius-panel)] py-1.5 pr-2 text-left text-[13px] font-medium text-[var(--text)] hover:bg-[var(--hairline-soft)]"
+        className="flex w-full items-center gap-1.5 rounded-[var(--radius-panel)] py-2 pr-2 text-left text-sm font-medium text-[var(--text)] hover:bg-[var(--hairline-soft)]"
       >
-        <ChevronDown className={cn('size-3.5 shrink-0 text-[var(--text-muted)] transition-transform', !open && '-rotate-90')} />
+        <ChevronDown className={cn('size-4 shrink-0 text-[var(--text-muted)] transition-transform', !open && '-rotate-90')} />
         {node.label}
       </button>
       {open ? <NavTree nodes={node.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} /> : null}
@@ -384,9 +384,9 @@ export function Documentation() {
 
   return (
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
-      <div className="mx-auto max-w-5xl">
-        <Link to="/transacoes" className="mb-6 inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">
-          <ArrowLeft className="size-3.5" /> voltar ao painel
+      <div>
+        <Link to="/transacoes" className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
+          <ArrowLeft className="size-4" /> voltar ao painel
         </Link>
         <PageHeader
           eyebrow="integração"
@@ -409,21 +409,21 @@ export function Documentation() {
           <div className="mb-4"><Alert tone="flag">Nenhum token ativo encontrado. <Link className="underline" to="/tokens">Gerar token</Link> para usar os playgrounds.</Alert></div>
         ) : null}
         <div className="flex flex-col gap-6 md:flex-row md:items-start">
-          <nav className="shrink-0 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-2 md:w-56">
+          <nav className="shrink-0 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3 md:w-64">
             <NavTree nodes={NAV_TREE} depth={0} selectedId={selectedId} onSelect={setSelectedId} />
           </nav>
           <div className="grid min-w-0 flex-1 gap-3">
             {selected?.kind === 'wip' ? (
               <Panel>
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">
-                  <span className="rounded-[var(--radius-panel)] border px-1.5 py-0.5 font-mono text-[10px] tracking-wide">WIP</span>
+                  <span className="rounded-[var(--radius-panel)] border px-2 py-1 font-mono text-xs tracking-wide">WIP</span>
                   <p className="mt-3">{selected.label} ainda não está implementado nesta versão.</p>
                 </div>
               </Panel>
             ) : (
               <>
                 {selected?.kind === 'routes' && selected.description ? (
-                  <p className="text-[13px] text-[var(--text-muted)]">{selected.description}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{selected.description}</p>
                 ) : null}
                 {routes.map((route) => <RouteCard key={route.id} route={route} token={token} />)}
               </>
@@ -443,20 +443,20 @@ function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
         <Table>
           <thead>
             <tr>
-              <Th className="px-3 py-1.5">campo</Th>
-              <Th className="px-3 py-1.5">tipo</Th>
-              <Th className="px-3 py-1.5">descrição</Th>
+              <Th className="px-4 py-2">campo</Th>
+              <Th className="px-4 py-2">tipo</Th>
+              <Th className="px-4 py-2">descrição</Th>
             </tr>
           </thead>
           <tbody>
             {fields.map((field) => (
               <tr key={field.name}>
-                <Td className="px-3 py-1.5 font-mono text-xs">
+                <Td className="px-4 py-2 font-mono text-sm">
                   {field.name}
                   {field.required ? <span className="text-trace"> *</span> : null}
                 </Td>
-                <Td className="px-3 py-1.5 font-mono text-xs text-[var(--text-muted)]">{field.type}</Td>
-                <Td className="px-3 py-1.5 text-xs text-[var(--text-muted)]">{field.description}</Td>
+                <Td className="px-4 py-2 font-mono text-sm text-[var(--text-muted)]">{field.type}</Td>
+                <Td className="px-4 py-2 text-sm text-[var(--text-muted)]">{field.description}</Td>
               </tr>
             ))}
           </tbody>
@@ -488,18 +488,20 @@ function ResponseTables({ response }: { response: ResponseDoc }) {
 function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
   return (
     <Panel>
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-4 py-3">
-        <span className="rounded-[var(--radius-panel)] bg-trace-soft px-2 py-0.5 font-mono text-[11px] font-medium text-trace">{route.method}</span>
-        <code className="min-w-0 break-all text-xs">/v1/api{route.path}</code>
-        <p className="w-full text-[13px] text-[var(--text-muted)]">{route.description}</p>
+      <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-5 py-4">
+        <span className="rounded-[var(--radius-panel)] bg-trace-soft px-2 py-1 font-mono text-xs font-medium text-trace">{route.method}</span>
+        <code className="min-w-0 break-all text-sm">/v1/api{route.path}</code>
+        <p className="w-full text-sm text-[var(--text-muted)]">{route.description}</p>
       </div>
-      <div className="grid gap-4 p-4">
-        {route.pathParams ? <FieldTable title="parâmetros de rota" fields={route.pathParams} /> : null}
-        {route.query ? <FieldTable title="query string" fields={route.query} /> : null}
-        {route.body ? <FieldTable title="corpo (JSON)" fields={route.body} /> : null}
-        <ResponseTables response={route.response} />
+      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_400px] xl:items-start">
+        <div className="grid min-w-0 gap-4">
+          {route.pathParams ? <FieldTable title="parâmetros de rota" fields={route.pathParams} /> : null}
+          {route.query ? <FieldTable title="query string" fields={route.query} /> : null}
+          {route.body ? <FieldTable title="corpo (JSON)" fields={route.body} /> : null}
+          <ResponseTables response={route.response} />
+        </div>
+        <RoutePlayground route={route} token={token} />
       </div>
-      <RoutePlayground route={route} token={token} />
     </Panel>
   );
 }
@@ -631,17 +633,17 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
         {parts ? formatDateTimeValue(parts).replace('T', ' ') : 'aaaa-mm-dd hh:mm'}
       </button>
       {open ? (
-        <div className="absolute z-20 mt-1 w-64 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3 text-xs">
+        <div className="absolute z-20 mt-1 w-72 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3.5 text-sm">
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => changeMonth(-1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="mês anterior">
-              <ChevronLeft className="size-3.5" />
+              <ChevronLeft className="size-4" />
             </button>
             <span className="font-medium">{monthLabel(viewYear, viewMonth)}</span>
             <button type="button" onClick={() => changeMonth(1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="próximo mês">
-              <ChevronRight className="size-3.5" />
+              <ChevronRight className="size-4" />
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-[var(--text-muted)]">
+          <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-[var(--text-muted)]">
             {WEEKDAY_LABELS.map((label, i) => <span key={i}>{label}</span>)}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-0.5">
@@ -655,7 +657,7 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
                   disabled={day === null}
                   onClick={() => day !== null && selectDay(day)}
                   className={cn(
-                    'h-6 rounded text-[11px]',
+                    'h-7 rounded text-xs',
                     day === null ? 'invisible' : 'hover:bg-[var(--hairline-soft)]',
                     isSelected ? 'bg-trace text-white hover:bg-trace' : '',
                     !isSelected && isToday ? 'font-semibold text-trace' : '',
@@ -674,7 +676,7 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
                 max={23}
                 value={parts ? pad2(parts.hour) : '00'}
                 onChange={(event) => setTime(clamp(Number(event.target.value), 0, 23), parts?.minute ?? 0)}
-                className="h-7 w-11 rounded border bg-[var(--surface)] px-1 text-center"
+                className="h-8 w-12 rounded border bg-[var(--surface)] px-1 text-center"
                 aria-label="hora"
               />
               <span>:</span>
@@ -684,7 +686,7 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
                 max={59}
                 value={parts ? pad2(parts.minute) : '00'}
                 onChange={(event) => setTime(parts?.hour ?? 0, clamp(Number(event.target.value), 0, 59))}
-                className="h-7 w-11 rounded border bg-[var(--surface)] px-1 text-center"
+                className="h-8 w-12 rounded border bg-[var(--surface)] px-1 text-center"
                 aria-label="minuto"
               />
             </div>
@@ -722,8 +724,9 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
   };
 
   return (
-    <div className="border-t bg-[var(--hairline-soft)]/30 p-4">
-      <div className="mt-3 grid gap-4">
+    <div className="min-w-0 rounded-[var(--radius-panel)] border bg-[var(--hairline-soft)]/30 p-5 xl:sticky xl:top-4">
+      <p className="eyebrow mb-3">testar rota</p>
+      <div className="grid gap-4">
         {route.path.includes(':id') ? (
           <Field label="ID da cobrança" htmlFor={`${route.id}-charge-id`} hint="Cole o id de uma cobrança existente.">
             <Input id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)} placeholder="ch_example" />
@@ -757,11 +760,11 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
           </Field>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <code className="min-w-0 break-all text-xs text-[var(--text-muted)]">/v1/api{resolvedPath}{queryString}</code>
-          <Button variant="primary" disabled={running || !token} onClick={() => void execute()}><Play className="size-3.5" />{running ? 'executando…' : 'executar'}</Button>
+          <code className="min-w-0 break-all text-sm text-[var(--text-muted)]">/v1/api{resolvedPath}{queryString}</code>
+          <Button variant="primary" size="md" disabled={running || !token} onClick={() => void execute()}><Play className="size-4" />{running ? 'executando…' : 'executar'}</Button>
         </div>
         {error ? <Alert>{error}</Alert> : null}
-        {response !== null ? <div className="min-w-0"><p className="eyebrow mb-1.5">resposta</p><pre className="max-h-96 max-w-full overflow-y-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-[var(--text-muted)]" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{JSON.stringify(response, null, 2)}</pre></div> : null}
+        {response !== null ? <div className="min-w-0"><p className="eyebrow mb-1.5">resposta</p><pre className="max-h-96 max-w-full overflow-y-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-3.5 font-mono text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-muted)]" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{JSON.stringify(response, null, 2)}</pre></div> : null}
       </div>
     </div>
   );
