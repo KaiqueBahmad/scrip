@@ -52,7 +52,6 @@ export function Transactions() {
   return (
     <>
       <PageHeader
-        eyebrow={t('transactions.eyebrow')}
         title={t('transactions.title')}
         description={t('transactions.description')}
         actions={

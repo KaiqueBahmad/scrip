@@ -46,9 +46,6 @@ export function Layout() {
           <span className="font-mono text-[15px] font-semibold tracking-[0.16em] text-white">
             PSEUDO<span className="text-trace">PAY</span>
           </span>
-          <p className="mt-0.5 font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
-            {t('nav.subtitle')}
-          </p>
         </div>
 
         <ul className="flex flex-1 flex-col gap-0.5">

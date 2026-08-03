@@ -14,7 +14,6 @@ export const pt = {
     actionFailed: 'A ação falhou',
   },
   nav: {
-    subtitle: 'gateway pix simulado',
     transactions: 'Transações',
     myStore: 'Minha loja',
     tokens: 'Tokens',
@@ -93,7 +92,6 @@ export const pt = {
     hide: 'ocultar',
   },
   transactions: {
-    eyebrow: 'ciclo de vida pix',
     title: 'Transações',
     description: 'Cobranças desta loja, criadas pela API de integração. Pendentes confirmam ou expiram sozinhas conforme a configuração.',
     totalCount: '{{count}} no total',

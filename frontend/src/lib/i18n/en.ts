@@ -14,7 +14,6 @@ export const en = {
     actionFailed: 'The action failed',
   },
   nav: {
-    subtitle: 'simulated pix gateway',
     transactions: 'Transactions',
     myStore: 'My store',
     tokens: 'Tokens',
@@ -93,7 +92,6 @@ export const en = {
     hide: 'hide',
   },
   transactions: {
-    eyebrow: 'pix lifecycle',
     title: 'Transactions',
     description: 'Charges for this store, created through the API. Pending ones confirm or expire on their own, per the configuration.',
     totalCount: '{{count}} total',
