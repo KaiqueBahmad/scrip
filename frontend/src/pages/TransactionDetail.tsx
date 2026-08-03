@@ -91,7 +91,7 @@ export function TransactionDetail() {
   if (detail.error) {
     return (
       <>
-        <Link to="/transacoes" className="eyebrow mb-3 inline-flex items-center gap-1.5">
+        <Link to="/transactions" className="eyebrow mb-3 inline-flex items-center gap-1.5">
           <ArrowLeft className="size-3" /> {t('common.back')}
         </Link>
         <Alert>{detail.error}</Alert>
@@ -109,7 +109,7 @@ export function TransactionDetail() {
 
   return (
     <>
-      <Link to="/transacoes" className="eyebrow mb-3 inline-flex items-center gap-1.5">
+      <Link to="/transactions" className="eyebrow mb-3 inline-flex items-center gap-1.5">
         <ArrowLeft className="size-3" /> {t('transactionDetail.back')}
       </Link>
 
@@ -189,7 +189,7 @@ export function TransactionDetail() {
             <PanelHeader title={t('transactionDetail.chargeDataTitle')} />
             <Detail label={t('transactionDetail.merchantLabel')}>
               <Link
-                to="/comerciantes"
+                to="/merchants"
                 className="tnum text-trace hover:underline"
               >
                 {charge.merchant_id}

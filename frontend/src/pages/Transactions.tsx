@@ -117,7 +117,7 @@ export function Transactions() {
                 <tr key={charge.id} className="hover:bg-[var(--hairline-soft)]">
                   <Td>
                     <Link
-                      to={`/transacoes/${charge.id}`}
+                      to={`/transactions/${charge.id}`}
                       className="tnum text-xs text-trace hover:underline"
                     >
                       {charge.id}

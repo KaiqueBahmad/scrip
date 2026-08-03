@@ -151,7 +151,7 @@ export function Webhooks() {
                   <Td className="text-xs">
                     {delivery.charge_id ? (
                       <Link
-                        to={`/transacoes/${delivery.charge_id}`}
+                        to={`/transactions/${delivery.charge_id}`}
                         className="tnum text-trace hover:underline"
                         onClick={(clickEvent) => clickEvent.stopPropagation()}
                       >

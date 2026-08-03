@@ -32,17 +32,17 @@ export function App() {
 
   return (
     <Routes>
-      <Route path="/documentacao" element={<Documentation />} />
+      <Route path="/documentation" element={<Documentation />} />
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/transacoes" replace />} />
-        <Route path="/transacoes" element={<Transactions />} />
-        <Route path="/transacoes/:id" element={<TransactionDetail />} />
-        <Route path="/minha-loja" element={<MyStore />} />
-        <Route path="/saques" element={<Withdrawals />} />
+        <Route path="/" element={<Navigate to="/transactions" replace />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/transactions/:id" element={<TransactionDetail />} />
+        <Route path="/my-store" element={<MyStore />} />
+        <Route path="/withdrawals" element={<Withdrawals />} />
         <Route path="/tokens" element={<Tokens />} />
         <Route path="/webhooks" element={<Webhooks />} />
-        <Route path="/configuracoes" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/transacoes" replace />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<Navigate to="/transactions" replace />} />
       </Route>
     </Routes>
   );

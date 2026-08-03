@@ -454,7 +454,7 @@ export function Documentation() {
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
       <div>
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <Link to="/transacoes" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
+          <Link to="/transactions" className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
             <ArrowLeft className="size-4" /> {t('documentation.backToPanel')}
           </Link>
           <a

@@ -22,12 +22,12 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { to: '/transacoes', labelKey: 'nav.transactions', icon: ArrowLeftRight },
-  { to: '/minha-loja', labelKey: 'nav.myStore', icon: Store },
-  { to: '/saques', labelKey: 'nav.withdrawals', icon: Banknote },
+  { to: '/transactions', labelKey: 'nav.transactions', icon: ArrowLeftRight },
+  { to: '/my-store', labelKey: 'nav.myStore', icon: Store },
+  { to: '/withdrawals', labelKey: 'nav.withdrawals', icon: Banknote },
   { to: '/tokens', labelKey: 'nav.tokens', icon: KeyRound },
   { to: '/webhooks', labelKey: 'nav.webhooks', icon: Webhook },
-  { to: '/configuracoes', labelKey: 'nav.settings', icon: Settings2 },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings2 },
 ];
 
 /**
@@ -85,7 +85,7 @@ export function Layout() {
 
         <div className="mt-4 pt-3">
           <NavLink
-            to="/documentacao"
+            to="/documentation"
             className={cn(
               'flex items-center gap-3 rounded-[var(--radius-panel)] px-2.5 py-2 text-[15px]',
               'transition-colors',
