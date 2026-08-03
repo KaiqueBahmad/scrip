@@ -201,18 +201,7 @@ Any valid, unrevoked token reaches every route above — there are no per-route 
 - The QR payload looks like a real PIX one but isn't decodable by an actual banking app
 - The simulated `e2e_id` resembles the real Bacen format but doesn't implement the official algorithm
 
-## Roadmap
-
-1. ✅ Core: schema, PIX state machine, QR code, `/v1/api/*` and `/v1/panel/*`
-2. ✅ Panel identity: store-selection login, Basic auth
-3. ✅ API tokens: issue/validate/revoke
-4. ✅ Webhooks: dispatcher, HMAC, retry
-5. ✅ KYC: upload, manual approval, charge blocking
-6. ✅ Panel: transactions and balance
-7. ✅ Withdrawals: request/confirm/deny, panel + API
-8. ⬜ CLI and packaging — out of scope for now; use the npm scripts
-
-Card, boleto and other methods are a future extension, outside this roadmap.
+Card, boleto and other methods are a future extension.
 
 ## Structure
 
