@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { Copyable } from '../components/Copyable';
@@ -16,25 +17,26 @@ import {
 } from '../components/ui/primitives';
 import { api, type ChargeStatus } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { formatBRL, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
-
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Todos os status' },
-  { value: 'pending', label: 'Pendentes' },
-  { value: 'paid', label: 'Pagas' },
-  { value: 'partially_refunded', label: 'Devolvidas em parte' },
-  { value: 'refunded', label: 'Devolvidas' },
-  { value: 'expired', label: 'Expiradas' },
-  { value: 'canceled', label: 'Canceladas' },
-];
+import { formatMoney, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
 
 const CURL_EXAMPLE = `curl -X POST http://localhost:4242/v1/api/payments/pix/charges \\
-  -H "Authorization: Bearer {seu_jwt}" \\
+  -H "Authorization: Bearer {your_jwt}" \\
   -H "Content-Type: application/json" \\
   -d '{"amount": 15000, "payer_document": "11111111111"}'`;
 
 export function Transactions() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState('');
+
+  const STATUS_OPTIONS: { value: string; label: string }[] = [
+    { value: '', label: t('transactions.filterAll') },
+    { value: 'pending', label: t('transactions.filterPending') },
+    { value: 'paid', label: t('transactions.filterPaid') },
+    { value: 'partially_refunded', label: t('transactions.filterPartial') },
+    { value: 'refunded', label: t('transactions.filterRefunded') },
+    { value: 'expired', label: t('transactions.filterExpired') },
+    { value: 'canceled', label: t('transactions.filterCanceled') },
+  ];
 
   // Scoped to the session's store by the server; pending charges settle on a timer, so the
   // list refreshes itself.
@@ -50,22 +52,23 @@ export function Transactions() {
   return (
     <>
       <PageHeader
-        eyebrow="ciclo de vida pix"
-        title="Transações"
-        description="Cobranças desta loja, criadas pela API de integração. Pendentes confirmam ou expiram sozinhas conforme a configuração."
+        eyebrow={t('transactions.eyebrow')}
+        title={t('transactions.title')}
+        description={t('transactions.description')}
         actions={
           <span className="eyebrow">
-            {charges.data?.total ?? 0} no total · {pending} pendentes
+            {t('transactions.totalCount', { count: charges.data?.total ?? 0 })} ·{' '}
+            {t('transactions.pendingCount', { count: pending })}
           </span>
         }
       />
 
       <Panel>
         <PanelHeader
-          title="Cobranças"
+          title={t('transactions.cardTitle')}
           actions={
             <Select
-              aria-label="Filtrar por status"
+              aria-label={t('transactions.filterStatusAriaLabel')}
               className="h-7 text-xs"
               value={status}
               onChange={(event) => setStatus(event.target.value as ChargeStatus | '')}
@@ -86,11 +89,11 @@ export function Transactions() {
         ) : null}
 
         {rows.length === 0 && !charges.loading ? (
-          <EmptyState title="Nenhuma cobrança ainda">
+          <EmptyState title={t('transactions.emptyTitle')}>
             <p className="mb-2">
-              Crie a primeira pela API de integração com um token gerado em{' '}
+              {t('transactions.emptyBodyIntro')}{' '}
               <Link to="/tokens" className="text-trace underline">
-                Tokens
+                {t('transactions.emptyBodyTokensLink')}
               </Link>
               :
             </p>
@@ -102,12 +105,12 @@ export function Transactions() {
           <Table>
             <thead>
               <tr>
-                <Th>Cobrança</Th>
-                <Th className="text-right">Valor</Th>
-                <Th>Status</Th>
-                <Th>Pagador</Th>
-                <Th>Criada</Th>
-                <Th>Expira</Th>
+                <Th>{t('transactions.colCharge')}</Th>
+                <Th className="text-right">{t('transactions.colAmount')}</Th>
+                <Th>{t('transactions.colStatus')}</Th>
+                <Th>{t('transactions.colPayer')}</Th>
+                <Th>{t('transactions.colCreated')}</Th>
+                <Th>{t('transactions.colExpires')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -122,10 +125,10 @@ export function Transactions() {
                     </Link>
                   </Td>
                   <Td className="tnum text-right whitespace-nowrap">
-                    {formatBRL(charge.amount)}
+                    {formatMoney(charge.amount)}
                     {charge.amount_refunded > 0 ? (
                       <span className="block text-[11px] text-[var(--text-muted)]">
-                        −{formatBRL(charge.amount_refunded)} devolvido
+                        −{formatMoney(charge.amount_refunded)} {t('transactions.refundedSuffix')}
                       </span>
                     ) : null}
                   </Td>
@@ -150,10 +153,10 @@ export function Transactions() {
 
       {rows.length > 0 ? (
         <p className="mt-3 text-[11px] text-[var(--text-muted)]">
-          Dica: os CPFs <Copyable value="11111111111" className="text-trace" /> (confirma
-          sempre), <Copyable value="22222222222" className="text-trace" /> (nunca confirma) e{' '}
-          <Copyable value="33333333333" className="text-trace" /> (webhook falha) têm
-          comportamento fixo.
+          {t('transactions.tipIntro')} <Copyable value="11111111111" className="text-trace" />{' '}
+          {t('transactions.tipAlwaysConfirms')}{' '}
+          <Copyable value="22222222222" className="text-trace" /> {t('transactions.tipNeverConfirms')}{' '}
+          <Copyable value="33333333333" className="text-trace" /> {t('transactions.tipWebhookFails')}
         </p>
       ) : null}
     </>

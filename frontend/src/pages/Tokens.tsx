@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Copyable } from '../components/Copyable';
 import { PageHeader } from '../components/Layout';
@@ -27,6 +28,7 @@ import { cn, formatDateTime } from '../lib/utils';
  * tool, not an oversight.
  */
 export function Tokens() {
+  const { t } = useTranslation();
   const { merchant } = useSession();
   const tokens = useAsync(() => api.tokens(), []);
 
@@ -41,19 +43,19 @@ export function Tokens() {
       await fn();
       await tokens.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'A ação falhou');
+      setError(err instanceof ApiError ? err.message : t('common.actionFailed'));
     }
   };
 
   return (
     <>
       <PageHeader
-        eyebrow="api de integração"
-        title="Tokens"
-        description="Só esta loja pode emitir tokens, e todo token nasce escopado nela. Use no header Authorization do seu backend."
+        eyebrow={t('tokens.eyebrow')}
+        title={t('tokens.title')}
+        description={t('tokens.description')}
         actions={
           <Button variant="primary" onClick={() => setCreating(true)}>
-            Gerar token
+            {t('tokens.generateToken')}
           </Button>
         }
       />
@@ -66,22 +68,21 @@ export function Tokens() {
 
       <Panel>
         <PanelHeader
-          title={`Tokens de ${merchant?.name ?? ''}`}
-          hint={`${rows.length} token(s) · visíveis a qualquer momento`}
+          title={t('tokens.tokensOf', { name: merchant?.name ?? '' })}
+          hint={t('tokens.tokensHint', { count: rows.length })}
         />
 
         {rows.length === 0 && !tokens.loading ? (
-          <EmptyState title="Nenhum token gerado">
-            Gere um token para chamar <span className="font-mono">/v1/api/*</span> do seu
-            backend.
+          <EmptyState title={t('tokens.emptyTitle')}>
+            {t('tokens.emptyBodyPre')} <span className="font-mono">/v1/api/*</span> {t('tokens.emptyBodyPost')}
           </EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Nome</Th>
-                <Th>Token</Th>
-                <Th>Expira</Th>
+                <Th>{t('tokens.colName')}</Th>
+                <Th>{t('tokens.colToken')}</Th>
+                <Th>{t('tokens.colExpires')}</Th>
                 <Th />
               </tr>
             </thead>
@@ -94,14 +95,14 @@ export function Tokens() {
                   <Td className="font-medium">
                     {token.name ?? '—'}
                     {token.revoked ? (
-                      <span className="eyebrow ml-2 text-halt">revogado</span>
+                      <span className="eyebrow ml-2 text-halt">{t('tokens.revoked')}</span>
                     ) : null}
                   </Td>
                   <Td className="max-w-[260px]">
                     <Copyable value={token.token} truncate={{ head: 18, tail: 8 }} label="token" />
                   </Td>
                   <Td className="text-xs whitespace-nowrap text-[var(--text-muted)]">
-                    {token.expires_at ? formatDateTime(token.expires_at) : 'nunca'}
+                    {token.expires_at ? formatDateTime(token.expires_at) : t('common.never')}
                   </Td>
                   <Td>
                     <div className="flex justify-end gap-1">
@@ -111,7 +112,7 @@ export function Tokens() {
                           variant="ghost"
                           onClick={() => void act(() => api.revokeToken(token.id))}
                         >
-                          revogar
+                          {t('tokens.revokeAction')}
                         </Button>
                       )}
                       <Button
@@ -120,7 +121,7 @@ export function Tokens() {
                         className="text-halt"
                         onClick={() => void act(() => api.deleteToken(token.id))}
                       >
-                        excluir
+                        {t('tokens.deleteAction')}
                       </Button>
                     </div>
                   </Td>
@@ -152,6 +153,7 @@ function TokenForm({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [expiresIn, setExpiresIn] = useState('');
   const [saving, setSaving] = useState(false);
@@ -168,7 +170,7 @@ function TokenForm({
       });
       await onSaved();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível gerar o token');
+      setError(err instanceof ApiError ? err.message : t('tokens.generateFailed'));
     } finally {
       setSaving(false);
     }
@@ -177,38 +179,38 @@ function TokenForm({
   return (
     <Modal
       open={open}
-      title="Gerar token de integração"
+      title={t('tokens.modalTitle')}
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancelar</Button>
+          <Button onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" disabled={saving} onClick={() => void create()}>
-            {saving ? 'Gerando…' : 'Gerar token'}
+            {saving ? t('tokens.generating') : t('tokens.generateToken')}
           </Button>
         </>
       }
     >
       {error ? <Alert>{error}</Alert> : null}
 
-      <Field label="Nome" htmlFor="token-name" hint="Só para você identificar depois.">
+      <Field label={t('selectMerchant.nameLabel')} htmlFor="token-name" hint={t('tokens.nameHint')}>
         <Input
           id="token-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="backend local"
+          placeholder={t('tokens.namePlaceholder')}
         />
       </Field>
 
       <Field
-        label="Validade"
+        label={t('tokens.validityLabel')}
         htmlFor="token-expires"
-        hint='Ex.: "24h", "7d". Vazio usa o padrão da configuração; "never" gera token sem expiração.'
+        hint={t('tokens.validityHint')}
       >
         <Input
           id="token-expires"
           value={expiresIn}
           onChange={(event) => setExpiresIn(event.target.value)}
-          placeholder="24h"
+          placeholder={t('tokens.validityPlaceholder')}
         />
       </Field>
     </Modal>

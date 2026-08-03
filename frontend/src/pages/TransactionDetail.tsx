@@ -1,6 +1,7 @@
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import QRCode from 'qrcode';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { Copyable } from '../components/Copyable';
@@ -20,10 +21,11 @@ import {
 } from '../components/ui/primitives';
 import { api, ApiError, type ChargeDetail } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { formatBRL, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
+import { formatMoney, formatDateTime, maskDocument, relativeToNow } from '../lib/utils';
 
 /** The BR Code rendered as an actual QR — not scannable by a bank app. */
 function QrPreview({ payload }: { payload: string }) {
+  const { t } = useTranslation();
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ function QrPreview({ payload }: { payload: string }) {
     return <div className={`${frame} bg-[var(--surface)]`} />;
   }
 
-  return <img src={dataUrl} alt="QR code da cobrança" className={`${frame} bg-white`} />;
+  return <img src={dataUrl} alt={t('transactionDetail.qrCodeAlt')} className={`${frame} bg-white`} />;
 }
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -62,6 +64,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function TransactionDetail() {
+  const { t } = useTranslation();
   const { id = '' } = useParams();
   const [action, setAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +80,7 @@ export function TransactionDetail() {
       await fn();
       await detail.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'A ação falhou');
+      setError(err instanceof ApiError ? err.message : t('common.actionFailed'));
     } finally {
       setAction(null);
     }
@@ -87,7 +90,7 @@ export function TransactionDetail() {
     return (
       <>
         <Link to="/transacoes" className="eyebrow mb-3 inline-flex items-center gap-1.5">
-          <ArrowLeft className="size-3" /> voltar
+          <ArrowLeft className="size-3" /> {t('common.back')}
         </Link>
         <Alert>{detail.error}</Alert>
       </>
@@ -95,7 +98,7 @@ export function TransactionDetail() {
   }
 
   if (!detail.data) {
-    return <p className="text-sm text-[var(--text-muted)]">Carregando…</p>;
+    return <p className="text-sm text-[var(--text-muted)]">{t('transactionDetail.loading')}</p>;
   }
 
   const { charge, events, refunds, deliveries } = detail.data;
@@ -105,7 +108,7 @@ export function TransactionDetail() {
   return (
     <>
       <Link to="/transacoes" className="eyebrow mb-3 inline-flex items-center gap-1.5">
-        <ArrowLeft className="size-3" /> transações
+        <ArrowLeft className="size-3" /> {t('transactionDetail.back')}
       </Link>
 
       <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
@@ -114,10 +117,13 @@ export function TransactionDetail() {
             <h1 className="tnum text-lg font-semibold">{charge.id}</h1>
             <StatusBadge status={charge.status} />
           </div>
-          <p className="tnum mt-0.5 text-2xl font-semibold">{formatBRL(charge.amount)}</p>
+          <p className="tnum mt-0.5 text-2xl font-semibold">{formatMoney(charge.amount)}</p>
           {charge.amount_refunded > 0 ? (
             <p className="text-xs text-[var(--text-muted)]">
-              {formatBRL(charge.amount_refunded)} devolvido · {formatBRL(outstanding)} em aberto
+              {t('transactionDetail.refundedOutstanding', {
+                refunded: formatMoney(charge.amount_refunded),
+                outstanding: formatMoney(outstanding),
+              })}
             </p>
           ) : null}
         </div>
@@ -130,26 +136,26 @@ export function TransactionDetail() {
                 disabled={action !== null}
                 onClick={() => run('paid', () => api.simulate(charge.id, 'paid'))}
               >
-                Confirmar pagamento
+                {t('transactionDetail.confirmPayment')}
               </Button>
               <Button
                 disabled={action !== null}
                 onClick={() => run('expired', () => api.simulate(charge.id, 'expired'))}
               >
-                Forçar expiração
+                {t('transactionDetail.forceExpire')}
               </Button>
               <Button
                 disabled={action !== null}
                 onClick={() => run('cancel', () => api.cancelCharge(charge.id))}
               >
-                Cancelar
+                {t('transactionDetail.cancelCharge')}
               </Button>
             </>
           ) : null}
 
           {canRefund ? (
             <Button variant="primary" onClick={() => setRefundOpen(true)}>
-              Devolver
+              {t('transactionDetail.refund')}
             </Button>
           ) : null}
         </div>
@@ -164,8 +170,8 @@ export function TransactionDetail() {
       {/* The signature view: the state machine as a timing trace. */}
       <Panel className="mb-4">
         <PanelHeader
-          title="Ciclo de vida"
-          hint="Cada faixa é um status; a duração é o tempo que a cobrança ficou nele."
+          title={t('transactionDetail.lifecycleTitle')}
+          hint={t('transactionDetail.lifecycleHint')}
         />
         <LifecycleTrace events={events} />
       </Panel>
@@ -178,8 +184,8 @@ export function TransactionDetail() {
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 gap-4">
           <Panel>
-            <PanelHeader title="Dados da cobrança" />
-            <Detail label="comerciante">
+            <PanelHeader title={t('transactionDetail.chargeDataTitle')} />
+            <Detail label={t('transactionDetail.merchantLabel')}>
               <Link
                 to="/comerciantes"
                 className="tnum text-trace hover:underline"
@@ -187,28 +193,32 @@ export function TransactionDetail() {
                 {charge.merchant_id}
               </Link>
             </Detail>
-            <Detail label="pagador">{maskDocument(charge.payer_document)}</Detail>
-            <Detail label="nome do pagador">{charge.payer_name ?? '—'}</Detail>
-            <Detail label="descrição">{charge.description ?? '—'}</Detail>
-            <Detail label="txid">
-              <Copyable value={charge.pix.qr_code_txid} label="txid" />
+            <Detail label={t('transactionDetail.payerLabel')}>{maskDocument(charge.payer_document)}</Detail>
+            <Detail label={t('transactionDetail.payerNameLabel')}>{charge.payer_name ?? '—'}</Detail>
+            <Detail label={t('transactionDetail.descriptionLabel')}>{charge.description ?? '—'}</Detail>
+            <Detail label={t('transactionDetail.txidLabel')}>
+              <Copyable value={charge.pix.qr_code_txid} label={t('transactionDetail.txidLabel')} />
             </Detail>
-            <Detail label="e2e id">
-              {charge.pix.e2e_id ? <Copyable value={charge.pix.e2e_id} label="e2e id" /> : '—'}
+            <Detail label={t('transactionDetail.e2eIdLabel')}>
+              {charge.pix.e2e_id ? (
+                <Copyable value={charge.pix.e2e_id} label={t('transactionDetail.e2eIdLabel')} />
+              ) : (
+                '—'
+              )}
             </Detail>
-            <Detail label="criada em">{formatDateTime(charge.created_at)}</Detail>
-            <Detail label="expira em">
+            <Detail label={t('transactionDetail.createdLabel')}>{formatDateTime(charge.created_at)}</Detail>
+            <Detail label={t('transactionDetail.expiresLabel')}>
               {formatDateTime(charge.pix.qr_code_expires_at)}
               {charge.status === 'pending' ? (
                 <span className="text-[var(--text-muted)]"> · {relativeToNow(charge.pix.qr_code_expires_at)}</span>
               ) : null}
             </Detail>
-            <Detail label="paga em">{formatDateTime(charge.paid_at)}</Detail>
+            <Detail label={t('transactionDetail.paidLabel')}>{formatDateTime(charge.paid_at)}</Detail>
           </Panel>
 
           {Object.keys(charge.metadata).length > 0 ? (
             <Panel>
-              <PanelHeader title="Metadata" hint="Enviada pelo lojista na criação da cobrança." />
+              <PanelHeader title={t('transactionDetail.metadataTitle')} hint={t('transactionDetail.metadataHint')} />
               <pre className="overflow-x-auto px-4 py-3 font-mono text-[11px] leading-relaxed">
                 {JSON.stringify(charge.metadata, null, 2)}
               </pre>
@@ -216,19 +226,22 @@ export function TransactionDetail() {
           ) : null}
 
           <Panel>
-            <PanelHeader title="Devoluções" hint={`${refunds.length} registro(s)`} />
+            <PanelHeader
+              title={t('transactionDetail.refundsTitle')}
+              hint={t('transactionDetail.refundsHint', { count: refunds.length })}
+            />
             {refunds.length === 0 ? (
               <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">
-                Nenhuma devolução.
+                {t('transactionDetail.noRefunds')}
               </p>
             ) : (
               <Table>
                 <thead>
                   <tr>
-                    <Th>Devolução</Th>
-                    <Th className="text-right">Valor</Th>
-                    <Th>Motivo</Th>
-                    <Th>Quando</Th>
+                    <Th>{t('transactionDetail.colRefund')}</Th>
+                    <Th className="text-right">{t('transactionDetail.colAmount')}</Th>
+                    <Th>{t('transactionDetail.colReason')}</Th>
+                    <Th>{t('transactionDetail.colWhen')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,7 +250,7 @@ export function TransactionDetail() {
                       <Td>
                         <Copyable value={refund.id} truncate={{ head: 12, tail: 5 }} />
                       </Td>
-                      <Td className="tnum text-right">{formatBRL(refund.amount)}</Td>
+                      <Td className="tnum text-right">{formatMoney(refund.amount)}</Td>
                       <Td className="text-xs">{refund.reason ?? '—'}</Td>
                       <Td className="text-xs whitespace-nowrap text-[var(--text-muted)]">
                         {formatDateTime(refund.created_at)}
@@ -251,21 +264,21 @@ export function TransactionDetail() {
 
           <Panel>
             <PanelHeader
-              title="Webhooks desta cobrança"
-              hint={`${deliveries.length} tentativa(s) registrada(s)`}
+              title={t('transactionDetail.webhooksTitle')}
+              hint={t('transactionDetail.webhooksHint', { count: deliveries.length })}
             />
             {deliveries.length === 0 ? (
               <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">
-                Nenhum webhook — o comerciante não tem webhook_url configurada.
+                {t('transactionDetail.noWebhooks')}
               </p>
             ) : (
               <Table>
                 <thead>
                   <tr>
-                    <Th>Evento</Th>
-                    <Th>Status</Th>
-                    <Th>Tentativas</Th>
-                    <Th>Resposta</Th>
+                    <Th>{t('transactionDetail.colEvent')}</Th>
+                    <Th>{t('transactionDetail.colStatus')}</Th>
+                    <Th>{t('transactionDetail.colAttempts')}</Th>
+                    <Th>{t('transactionDetail.colResponse')}</Th>
                     <Th />
                   </tr>
                 </thead>
@@ -293,7 +306,7 @@ export function TransactionDetail() {
                             run(`retry-${delivery.id}`, () => api.retryDelivery(delivery.id))
                           }
                         >
-                          <RotateCcw className="size-3" /> reenviar
+                          <RotateCcw className="size-3" /> {t('transactionDetail.retry')}
                         </Button>
                       </Td>
                     </tr>
@@ -306,11 +319,11 @@ export function TransactionDetail() {
 
         <div className="grid min-w-0 gap-4">
           <Panel>
-            <PanelHeader title="QR code" hint="Payload no formato BR Code." />
+            <PanelHeader title={t('transactionDetail.qrCodeTitle')} hint={t('transactionDetail.qrCodeHint')} />
             <div className="p-4">
               <QrPreview payload={charge.pix.qr_code} />
               <div className="mt-3">
-                <p className="eyebrow mb-1">pix copia e cola</p>
+                <p className="eyebrow mb-1">{t('transactionDetail.pixCopyPaste')}</p>
                 <div className="rounded-[var(--radius-panel)] border bg-[var(--surface)] p-2">
                   <Copyable
                     value={charge.pix.qr_code}
@@ -320,15 +333,14 @@ export function TransactionDetail() {
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-                  Este payload imita um PIX real, mas não é reconhecido por aplicativos de
-                  banco de verdade.
+                  {t('transactionDetail.qrDisclaimer')}
                 </p>
               </div>
             </div>
           </Panel>
 
           <Panel>
-            <PanelHeader title="Transições" />
+            <PanelHeader title={t('transactionDetail.transitionsTitle')} />
             <ol className="px-4 py-3">
               {events.map((event) => (
                 <li key={event.id} className="border-b border-[var(--hairline-soft)] py-1.5 last:border-0">
@@ -339,7 +351,7 @@ export function TransactionDetail() {
                     </span>
                   </div>
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    {describeReason(event.reason)}
+                    {describeReason(event.reason, t)}
                   </p>
                 </li>
               ))}
@@ -350,11 +362,11 @@ export function TransactionDetail() {
 
       <Modal
         open={refundOpen}
-        title="Devolver cobrança"
+        title={t('transactionDetail.refundModalTitle')}
         onClose={() => setRefundOpen(false)}
         footer={
           <>
-            <Button onClick={() => setRefundOpen(false)}>Cancelar</Button>
+            <Button onClick={() => setRefundOpen(false)}>{t('common.cancel')}</Button>
             <Button
               variant="primary"
               disabled={action !== null}
@@ -364,21 +376,21 @@ export function TransactionDetail() {
                   : null;
 
                 await run('refund', () =>
-                  api.refundCharge(charge.id, { amount: centavos, reason: 'devolvido pelo painel' }),
+                  api.refundCharge(charge.id, { amount: centavos, reason: t('transactionDetail.refundReason') }),
                 );
                 setRefundOpen(false);
                 setRefundAmount('');
               }}
             >
-              Devolver
+              {t('transactionDetail.refund')}
             </Button>
           </>
         }
       >
         <Field
-          label="Valor em reais"
+          label={t('transactionDetail.amountLabel')}
           htmlFor="refund-amount"
-          hint={`Deixe vazio para devolver tudo que está em aberto (${formatBRL(outstanding)}).`}
+          hint={t('transactionDetail.refundAmountHint', { amount: formatMoney(outstanding) })}
         >
           <Input
             id="refund-amount"

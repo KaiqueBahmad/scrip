@@ -1,3 +1,6 @@
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+
 import type { ApiChargeEvent, ChargeStatus } from '../lib/api';
 import { formatDuration, formatTime } from '../lib/utils';
 
@@ -20,32 +23,23 @@ const LANE_COLOR: Record<ChargeStatus, string> = {
   canceled: 'var(--color-muted)',
 };
 
-const LANE_LABEL: Record<ChargeStatus, string> = {
-  pending: 'pendente',
-  paid: 'pago',
-  partially_refunded: 'devolv. parcial',
-  refunded: 'devolvido',
-  expired: 'expirado',
-  canceled: 'cancelado',
-};
+const REASON_KEYS = new Set([
+  'charge_created',
+  'simulated',
+  'test_document_always_confirms',
+  'test_document_never_confirms',
+  'test_document_webhook_failure',
+  'approval_rate_hit',
+  'approval_rate_miss',
+  'qr_code_expired',
+  'expired_while_offline',
+  'canceled_by_merchant',
+  'refund_applied',
+]);
 
-const REASON_LABEL: Record<string, string> = {
-  charge_created: 'cobrança criada',
-  simulated: 'forçado via API',
-  test_document_always_confirms: 'CPF de teste: confirma sempre',
-  test_document_never_confirms: 'CPF de teste: nunca confirma',
-  test_document_webhook_failure: 'CPF de teste: webhook falha',
-  approval_rate_hit: 'sorteio: aprovado',
-  approval_rate_miss: 'sorteio: recusado',
-  qr_code_expired: 'QR code expirou',
-  expired_while_offline: 'expirou com o servidor parado',
-  canceled_by_merchant: 'cancelado pelo lojista',
-  refund_applied: 'devolução aplicada',
-};
-
-export function describeReason(reason: string | null): string {
+export function describeReason(reason: string | null, t: TFunction): string {
   if (!reason) return '—';
-  return REASON_LABEL[reason] ?? reason;
+  return REASON_KEYS.has(reason) ? t(`lifecycleTrace.reason.${reason}`) : reason;
 }
 
 const LANE_HEIGHT = 30;
@@ -56,10 +50,13 @@ const PAD_TOP = 16;
 const WIDTH = 760;
 
 export function LifecycleTrace({ events }: { events: ApiChargeEvent[] }) {
+  const { t } = useTranslation();
+  const laneLabel = (status: ChargeStatus) => t(`lifecycleTrace.laneLabel.${status}`);
+
   if (events.length === 0) {
     return (
       <p className="px-4 py-8 text-center text-xs text-[var(--text-muted)]">
-        Nenhuma transição registrada ainda.
+        {t('lifecycleTrace.empty')}
       </p>
     );
   }
@@ -126,7 +123,7 @@ export function LifecycleTrace({ events }: { events: ApiChargeEvent[] }) {
         viewBox={`0 0 ${WIDTH} ${height}`}
         className="h-auto w-full min-w-[640px]"
         role="img"
-        aria-label={`Ciclo de vida da cobrança: ${lanes.map((s) => LANE_LABEL[s]).join(' → ')}`}
+        aria-label={t('lifecycleTrace.ariaLabel', { lanes: lanes.map((s) => laneLabel(s)).join(' → ') })}
       >
         {/* Lane guides and labels */}
         {lanes.map((status) => (
@@ -138,7 +135,7 @@ export function LifecycleTrace({ events }: { events: ApiChargeEvent[] }) {
               className="fill-[var(--text-muted)] font-mono text-[10px]"
               style={{ fontSize: 10, letterSpacing: '0.08em' }}
             >
-              {LANE_LABEL[status].toUpperCase()}
+              {laneLabel(status).toUpperCase()}
             </text>
             <line
               x1={PAD_LEFT}
@@ -200,7 +197,7 @@ export function LifecycleTrace({ events }: { events: ApiChargeEvent[] }) {
                 className="font-mono"
                 style={{ fontSize: 9, fill: LANE_COLOR[segment.status] }}
               >
-                atual
+                {t('lifecycleTrace.current')}
               </text>
             ) : null}
           </g>
@@ -213,9 +210,9 @@ export function LifecycleTrace({ events }: { events: ApiChargeEvent[] }) {
           <li key={event.id} className="flex items-baseline gap-1.5 text-[11px]">
             <span className="tnum text-[var(--text-muted)]">{formatTime(event.created_at)}</span>
             <span className="font-medium" style={{ color: LANE_COLOR[event.to_status] }}>
-              {LANE_LABEL[event.to_status]}
+              {laneLabel(event.to_status)}
             </span>
-            <span className="text-[var(--text-muted)]">{describeReason(event.reason)}</span>
+            <span className="text-[var(--text-muted)]">{describeReason(event.reason, t)}</span>
           </li>
         ))}
       </ol>

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import type { ChargeStatus } from '../lib/api';
 import { cn } from '../lib/utils';
 
@@ -5,21 +7,13 @@ import { cn } from '../lib/utils';
  * Status is the most important column in the product, so it gets both a color and a
  * three-cell signal meter — readable at a glance, and still legible without color.
  */
-const CHARGE_STATUS: Record<ChargeStatus, { label: string; tone: string; filled: number }> = {
-  pending: { label: 'pendente', tone: 'text-trace border-trace/30 bg-trace-soft', filled: 1 },
-  paid: { label: 'pago', tone: 'text-settle border-settle/30 bg-settle-soft', filled: 3 },
-  partially_refunded: {
-    label: 'devolvido em parte',
-    tone: 'text-[#8a5d00] border-flag/40 bg-flag-soft',
-    filled: 2,
-  },
-  refunded: { label: 'devolvido', tone: 'text-[#8a5d00] border-flag/40 bg-flag-soft', filled: 3 },
-  expired: { label: 'expirado', tone: 'text-halt border-halt/30 bg-halt-soft', filled: 2 },
-  canceled: {
-    label: 'cancelado',
-    tone: 'text-[var(--text-muted)] border-[var(--hairline)] bg-[var(--surface)]',
-    filled: 2,
-  },
+const CHARGE_STATUS_TONE: Record<ChargeStatus, { tone: string; filled: number }> = {
+  pending: { tone: 'text-trace border-trace/30 bg-trace-soft', filled: 1 },
+  paid: { tone: 'text-settle border-settle/30 bg-settle-soft', filled: 3 },
+  partially_refunded: { tone: 'text-[#8a5d00] border-flag/40 bg-flag-soft', filled: 2 },
+  refunded: { tone: 'text-[#8a5d00] border-flag/40 bg-flag-soft', filled: 3 },
+  expired: { tone: 'text-halt border-halt/30 bg-halt-soft', filled: 2 },
+  canceled: { tone: 'text-[var(--text-muted)] border-[var(--hairline)] bg-[var(--surface)]', filled: 2 },
 };
 
 function Meter({ filled, className }: { filled: number; className?: string }) {
@@ -39,7 +33,8 @@ function Meter({ filled, className }: { filled: number; className?: string }) {
 }
 
 export function StatusBadge({ status }: { status: ChargeStatus }) {
-  const config = CHARGE_STATUS[status];
+  const { t } = useTranslation();
+  const config = CHARGE_STATUS_TONE[status];
 
   return (
     <span
@@ -50,51 +45,51 @@ export function StatusBadge({ status }: { status: ChargeStatus }) {
       )}
     >
       <Meter filled={config.filled} />
-      {config.label}
+      {t(`status.${status}`)}
     </span>
   );
 }
 
-const KYC_STATUS = {
-  pending: { label: 'em análise', tone: 'text-trace border-trace/30 bg-trace-soft' },
-  approved: { label: 'aprovado', tone: 'text-settle border-settle/30 bg-settle-soft' },
-  rejected: { label: 'recusado', tone: 'text-halt border-halt/30 bg-halt-soft' },
+const KYC_TONE = {
+  pending: 'text-trace border-trace/30 bg-trace-soft',
+  approved: 'text-settle border-settle/30 bg-settle-soft',
+  rejected: 'text-halt border-halt/30 bg-halt-soft',
 } as const;
 
 export function KycBadge({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
-  const config = KYC_STATUS[status];
+  const { t } = useTranslation();
 
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-[var(--radius-panel)] border px-1.5 py-0.5',
         'font-mono text-[11px] font-medium whitespace-nowrap',
-        config.tone,
+        KYC_TONE[status],
       )}
     >
-      {config.label}
+      {t(`kyc.${status}`)}
     </span>
   );
 }
 
-const DELIVERY_STATUS = {
-  pending: { label: 'na fila', tone: 'text-trace border-trace/30 bg-trace-soft' },
-  delivered: { label: 'entregue', tone: 'text-settle border-settle/30 bg-settle-soft' },
-  failed: { label: 'falhou', tone: 'text-halt border-halt/30 bg-halt-soft' },
+const DELIVERY_TONE = {
+  pending: 'text-trace border-trace/30 bg-trace-soft',
+  delivered: 'text-settle border-settle/30 bg-settle-soft',
+  failed: 'text-halt border-halt/30 bg-halt-soft',
 } as const;
 
 export function DeliveryBadge({ status }: { status: 'pending' | 'delivered' | 'failed' }) {
-  const config = DELIVERY_STATUS[status];
+  const { t } = useTranslation();
 
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-[var(--radius-panel)] border px-1.5 py-0.5',
         'font-mono text-[11px] font-medium whitespace-nowrap',
-        config.tone,
+        DELIVERY_TONE[status],
       )}
     >
-      {config.label}
+      {t(`delivery.${status}`)}
     </span>
   );
 }

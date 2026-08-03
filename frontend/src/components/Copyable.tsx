@@ -1,5 +1,6 @@
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { cn, truncateMiddle } from '../lib/utils';
 
@@ -21,6 +22,7 @@ export function Copyable({
   className?: string;
   label?: string;
 }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const shown =
@@ -38,7 +40,7 @@ export function Copyable({
           // Clipboard is unavailable outside a secure context; the value stays selectable.
         }
       }}
-      title={label ? `Copiar ${label}` : 'Copiar'}
+      title={label ? t('copyable.copyLabel', { label }) : t('copyable.copy')}
       className={cn(
         'group inline-flex max-w-full items-center gap-1.5 rounded-[2px] text-left',
         'hover:bg-[var(--hairline-soft)]',
@@ -56,13 +58,16 @@ export function Copyable({
           className="size-3 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100"
         />
       )}
-      <span className="sr-only">{copied ? 'Copiado' : `Copiar ${label ?? 'valor'}`}</span>
+      <span className="sr-only">
+        {copied ? t('copyable.copied') : t('copyable.copyLabel', { label: label ?? t('copyable.copy') })}
+      </span>
     </button>
   );
 }
 
 /** Reveal-on-demand for secrets that are shown in the panel by design. */
 export function Secret({ value, label }: { value: string; label: string }) {
+  const { t } = useTranslation();
   const [revealed, setRevealed] = useState(false);
 
   return (
@@ -77,7 +82,7 @@ export function Secret({ value, label }: { value: string; label: string }) {
         onClick={() => setRevealed((current) => !current)}
         className="eyebrow hover:text-[var(--text)]"
       >
-        {revealed ? 'ocultar' : 'mostrar'}
+        {revealed ? t('copyable.hide') : t('copyable.reveal')}
       </button>
     </span>
   );

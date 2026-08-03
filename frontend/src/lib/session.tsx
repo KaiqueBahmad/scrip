@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { api, setActingMerchant, type ApiMerchant } from './api';
 
@@ -28,6 +29,7 @@ interface SessionValue {
 const SessionContext = createContext<SessionValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [merchants, setMerchants] = useState<ApiMerchant[]>([]);
   const [merchant, setMerchant] = useState<ApiMerchant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,10 +42,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setError(null);
       return response.data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar as lojas');
+      setError(err instanceof Error ? err.message : t('session.loadFailed'));
       return [];
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void (async () => {

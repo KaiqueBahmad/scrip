@@ -8,23 +8,24 @@ import {
   Webhook,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { useSession } from '../lib/session';
-import { cn, formatBRL } from '../lib/utils';
+import { cn, formatMoney } from '../lib/utils';
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: string;
   icon: ComponentType<{ className?: string }>;
 }
 
 const NAV: NavItem[] = [
-  { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
-  { to: '/minha-loja', label: 'Minha loja', icon: Store },
-  { to: '/tokens', label: 'Tokens', icon: KeyRound },
-  { to: '/webhooks', label: 'Webhooks', icon: Webhook },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings2 },
+  { to: '/transacoes', labelKey: 'nav.transactions', icon: ArrowLeftRight },
+  { to: '/minha-loja', labelKey: 'nav.myStore', icon: Store },
+  { to: '/tokens', labelKey: 'nav.tokens', icon: KeyRound },
+  { to: '/webhooks', labelKey: 'nav.webhooks', icon: Webhook },
+  { to: '/configuracoes', labelKey: 'nav.settings', icon: Settings2 },
 ];
 
 /**
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
  */
 export function Layout() {
   const { merchant, signOut } = useSession();
+  const { t } = useTranslation();
 
   return (
     // minmax(0,1fr) e não 1fr: `1fr` é minmax(auto,1fr), e esse mínimo `auto` deixa a
@@ -45,7 +47,7 @@ export function Layout() {
             PSEUDO<span className="text-trace">PAY</span>
           </span>
           <p className="mt-0.5 font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
-            gateway pix simulado
+            {t('nav.subtitle')}
           </p>
         </div>
 
@@ -74,7 +76,7 @@ export function Layout() {
                       )}
                     />
                     <item.icon className="size-4 shrink-0" />
-                    {item.label}
+                    {t(item.labelKey)}
                   </>
                 )}
               </NavLink>
@@ -96,7 +98,7 @@ export function Layout() {
               className="h-4 w-[2px] rounded-full bg-transparent"
             />
             <BookOpen className="size-4 shrink-0" />
-            <span className="flex-1">Documentação</span>
+            <span className="flex-1">{t('nav.documentation')}</span>
             <ArrowUpRight className="size-3 shrink-0 opacity-60" aria-hidden />
           </NavLink>
         </div>
@@ -104,18 +106,18 @@ export function Layout() {
         {merchant ? (
           <div className="mt-2 border-t border-white/10 pt-3">
             <p className="font-mono text-[9px] tracking-[0.12em] text-white/40 uppercase">
-              loja
+              {t('nav.storeLabel')}
             </p>
             <p className="truncate text-[15px] font-medium text-white">{merchant.name}</p>
             <p className="tnum truncate text-[15px] text-settle">
-              {formatBRL(merchant.balance?.available ?? 0)}
+              {formatMoney(merchant.balance?.available ?? 0)}
             </p>
             <button
               type="button"
               onClick={signOut}
               className="mt-2 font-mono text-[10px] tracking-[0.1em] text-white/50 uppercase hover:text-white"
             >
-              trocar de loja
+              {t('nav.switchStore')}
             </button>
           </div>
         ) : null}

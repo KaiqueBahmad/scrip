@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 
 import { App } from './App';
 import './index.css';
+import './lib/i18n';
 import { SessionProvider } from './lib/session';
 
 const container = document.getElementById('root');

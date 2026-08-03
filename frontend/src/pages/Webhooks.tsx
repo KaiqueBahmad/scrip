@@ -1,5 +1,6 @@
 import { RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { Copyable } from '../components/Copyable';
@@ -31,6 +32,7 @@ const EVENTS = [
 
 /** Delivery log with the signature and payload visible — the point of the whole feature. */
 export function Webhooks() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState('');
   const [event, setEvent] = useState('');
   const [selected, setSelected] = useState<ApiDelivery | null>(null);
@@ -56,19 +58,20 @@ export function Webhooks() {
       await api.retryDelivery(delivery.id);
       await deliveries.reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível reenviar');
+      setError(err instanceof ApiError ? err.message : t('webhooks.retryFailed'));
     }
   };
 
   return (
     <>
       <PageHeader
-        eyebrow="entregas"
-        title="Webhooks"
-        description="Toda tentativa fica registrada, com assinatura e resposta do endpoint. Reenvie quantas vezes quiser."
+        eyebrow={t('webhooks.eyebrow')}
+        title={t('webhooks.title')}
+        description={t('webhooks.description')}
         actions={
           <span className="eyebrow">
-            {rows.length} tentativa(s) · {failed} falha(s)
+            {t('webhooks.attemptsCount', { count: rows.length })} ·{' '}
+            {t('webhooks.failuresCount', { count: failed })}
           </span>
         }
       />
@@ -81,16 +84,16 @@ export function Webhooks() {
 
       <Panel>
         <PanelHeader
-          title="Histórico"
+          title={t('webhooks.historyTitle')}
           actions={
             <div className="flex items-center gap-2">
               <Select
-                aria-label="Filtrar por evento"
+                aria-label={t('webhooks.filterEventLabel')}
                 className="h-7 text-xs"
                 value={event}
                 onChange={(e) => setEvent(e.target.value)}
               >
-                <option value="">Todos os eventos</option>
+                <option value="">{t('webhooks.allEvents')}</option>
                 {EVENTS.map((name) => (
                   <option key={name} value={name}>
                     {name}
@@ -98,35 +101,34 @@ export function Webhooks() {
                 ))}
               </Select>
               <Select
-                aria-label="Filtrar por status"
+                aria-label={t('webhooks.filterStatusLabel')}
                 className="h-7 text-xs"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <option value="">Todos os status</option>
-                <option value="pending">Na fila</option>
-                <option value="delivered">Entregues</option>
-                <option value="failed">Falharam</option>
+                <option value="">{t('webhooks.allStatuses')}</option>
+                <option value="pending">{t('webhooks.statusPendingFilter')}</option>
+                <option value="delivered">{t('webhooks.statusDeliveredFilter')}</option>
+                <option value="failed">{t('webhooks.statusFailedFilter')}</option>
               </Select>
             </div>
           }
         />
 
         {rows.length === 0 && !deliveries.loading ? (
-          <EmptyState title="Nenhuma entrega registrada">
-            Webhooks aparecem aqui quando uma cobrança muda de status e o comerciante tem
-            webhook_url configurada.
+          <EmptyState title={t('webhooks.emptyTitle')}>
+            {t('webhooks.emptyBody')}
           </EmptyState>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>Evento</Th>
-                <Th>Status</Th>
-                <Th>Tent.</Th>
-                <Th>Cobrança</Th>
-                <Th>Resposta</Th>
-                <Th>Quando</Th>
+                <Th>{t('webhooks.colEvent')}</Th>
+                <Th>{t('webhooks.colStatus')}</Th>
+                <Th>{t('webhooks.colAttempts')}</Th>
+                <Th>{t('webhooks.colCharge')}</Th>
+                <Th>{t('webhooks.colResponse')}</Th>
+                <Th>{t('webhooks.colWhen')}</Th>
                 <Th />
               </tr>
             </thead>
@@ -174,7 +176,7 @@ export function Webhooks() {
                         void retry(delivery);
                       }}
                     >
-                      <RotateCcw className="size-3" /> reenviar
+                      <RotateCcw className="size-3" /> {t('webhooks.retry')}
                     </Button>
                   </Td>
                 </tr>
@@ -187,47 +189,48 @@ export function Webhooks() {
       {selected ? (
         <Panel className="mt-4">
           <PanelHeader
-            title="Detalhe da entrega"
+            title={t('webhooks.detailTitle')}
             hint={selected.id}
             actions={
               <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
-                fechar
+                {t('webhooks.close')}
               </Button>
             }
           />
           <div className="grid gap-4 p-4 lg:grid-cols-2">
             <div className="grid gap-2">
               <div>
-                <p className="eyebrow mb-1">destino</p>
+                <p className="eyebrow mb-1">{t('webhooks.destinationLabel')}</p>
                 <Copyable value={selected.url} label="url" />
               </div>
               <div>
-                <p className="eyebrow mb-1">assinatura enviada</p>
+                <p className="eyebrow mb-1">{t('webhooks.signatureLabel')}</p>
                 {selected.signature ? (
                   <Copyable
                     value={selected.signature}
                     truncate={{ head: 24, tail: 10 }}
-                    label="assinatura"
+                    label={t('webhooks.signatureLabel')}
                   />
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">—</span>
                 )}
                 <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                  Header <span className="font-mono">X-PseudoPay-Signature</span>, no formato{' '}
-                  <span className="font-mono">t=&lt;unix&gt;,v1=&lt;hmac&gt;</span>. O HMAC é
-                  calculado sobre <span className="font-mono">&lt;t&gt;.&lt;corpo&gt;</span> com o
-                  segredo do comerciante.
+                  {t('webhooks.signatureHintPre')} <span className="font-mono">X-PseudoPay-Signature</span>
+                  {t('webhooks.signatureHintMid')}{' '}
+                  <span className="font-mono">t=&lt;unix&gt;,v1=&lt;hmac&gt;</span>
+                  {t('webhooks.signatureHintPost')}{' '}
+                  <span className="font-mono">&lt;t&gt;.&lt;corpo&gt;</span> {t('webhooks.signatureHintEnd')}
                 </p>
               </div>
               {selected.error ? (
                 <div>
-                  <p className="eyebrow mb-1">erro</p>
+                  <p className="eyebrow mb-1">{t('webhooks.errorLabel')}</p>
                   <p className="font-mono text-xs text-halt">{selected.error}</p>
                 </div>
               ) : null}
               {selected.response_body ? (
                 <div>
-                  <p className="eyebrow mb-1">resposta do endpoint</p>
+                  <p className="eyebrow mb-1">{t('webhooks.endpointResponseLabel')}</p>
                   <pre className="max-h-32 overflow-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-2 font-mono text-[11px]">
                     {selected.response_body}
                   </pre>
@@ -236,7 +239,7 @@ export function Webhooks() {
             </div>
 
             <div>
-              <p className="eyebrow mb-1">payload assinado</p>
+              <p className="eyebrow mb-1">{t('webhooks.payloadLabel')}</p>
               <pre className="max-h-72 overflow-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-2 font-mono text-[11px] leading-relaxed">
                 {JSON.stringify(selected.payload, null, 2)}
               </pre>

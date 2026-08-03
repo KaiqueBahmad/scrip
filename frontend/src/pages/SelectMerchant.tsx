@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { KycBadge } from '../components/StatusBadge';
 import { Alert, Button, Field, Input, Panel, PanelHeader } from '../components/ui/primitives';
 import { api, ApiError } from '../lib/api';
+import { setLanguage } from '../lib/i18n';
 import { useSession } from '../lib/session';
-import { formatBRL } from '../lib/utils';
+import { formatMoney } from '../lib/utils';
 
 /**
  * There is no login screen: you pick which store to be. When the database is
@@ -12,6 +14,7 @@ import { formatBRL } from '../lib/utils';
  * Basic auth resolves an existing merchant, so otherwise nothing could ever be created.
  */
 export function SelectMerchant() {
+  const { t, i18n } = useTranslation();
   const { merchants, selectMerchant, refreshMerchants, error } = useSession();
 
   const [name, setName] = useState('');
@@ -31,7 +34,7 @@ export function SelectMerchant() {
       await refreshMerchants();
       selectMerchant(merchant);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Não foi possível criar a loja');
+      setFormError(err instanceof ApiError ? err.message : t('selectMerchant.createFailed'));
     } finally {
       setCreating(false);
     }
@@ -40,19 +43,42 @@ export function SelectMerchant() {
   return (
     <div className="min-h-dvh bg-ink px-4 py-[10vh]">
       <div className="mx-auto max-w-lg">
-        <div className="mb-6">
-          <span className="font-mono text-sm font-semibold tracking-[0.18em] text-white">
-            PSEUDO<span className="text-trace">PAY</span>
-          </span>
-          <p className="mt-1 font-mono text-[10px] tracking-[0.14em] text-white/40 uppercase">
-            gateway pix simulado · ambiente de desenvolvimento
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <span className="font-mono text-sm font-semibold tracking-[0.18em] text-white">
+              PSEUDO<span className="text-trace">PAY</span>
+            </span>
+            <p className="mt-1 font-mono text-[10px] tracking-[0.14em] text-white/40 uppercase">
+              {t('selectMerchant.subtitle')}
+            </p>
+          </div>
+
+          <div
+            role="group"
+            aria-label={t('selectMerchant.language')}
+            className="flex shrink-0 items-center gap-0.5 rounded-[var(--radius-panel)] border border-white/15 p-0.5"
+          >
+            {(['en', 'pt'] as const).map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setLanguage(lang)}
+                className={
+                  i18n.language === lang
+                    ? 'rounded-[calc(var(--radius-panel)-2px)] bg-trace px-2 py-1 font-mono text-[10px] font-medium text-white uppercase'
+                    : 'rounded-[calc(var(--radius-panel)-2px)] px-2 py-1 font-mono text-[10px] text-white/50 uppercase hover:text-white/80'
+                }
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
         </div>
 
         <Panel className="mb-4">
           <PanelHeader
-            title="Escolha uma loja"
-            hint="O painel não tem senha. A loja escolhida é quem faz as ações."
+            title={t('selectMerchant.chooseStoreTitle')}
+            hint={t('selectMerchant.chooseStoreHint')}
           />
 
           {error ? (
@@ -63,7 +89,7 @@ export function SelectMerchant() {
 
           {merchants.length === 0 ? (
             <p className="px-4 py-6 text-[13px] text-[var(--text-muted)]">
-              Nenhuma loja cadastrada. Crie a primeira abaixo para entrar.
+              {t('selectMerchant.noStores')}
             </p>
           ) : (
             <ul>
@@ -85,7 +111,7 @@ export function SelectMerchant() {
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="tnum block text-[13px] font-medium">
-                        {formatBRL(merchant.balance?.available ?? 0)}
+                        {formatMoney(merchant.balance?.available ?? 0)}
                       </span>
                       <span className="mt-0.5 block">
                         <KycBadge status={merchant.kyc_status} />
@@ -100,25 +126,25 @@ export function SelectMerchant() {
 
         <Panel>
           <PanelHeader
-            title="Criar loja"
-            hint="É a conta de teste que representa o seu sistema. O webhook é configurado depois, em Minha loja."
+            title={t('selectMerchant.createStoreTitle')}
+            hint={t('selectMerchant.createStoreHint')}
           />
           <form className="grid gap-3 p-4" onSubmit={create}>
             {formError ? <Alert>{formError}</Alert> : null}
 
-            <Field label="Nome" htmlFor="new-merchant-name">
+            <Field label={t('selectMerchant.nameLabel')} htmlFor="new-merchant-name">
               <Input
                 id="new-merchant-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Loja de Teste"
+                placeholder={t('selectMerchant.namePlaceholder')}
                 required
               />
             </Field>
 
             <div className="flex justify-end">
               <Button type="submit" variant="primary" disabled={creating}>
-                {creating ? 'Criando…' : 'Criar e entrar'}
+                {creating ? t('selectMerchant.creating') : t('selectMerchant.createAndEnter')}
               </Button>
             </div>
           </form>

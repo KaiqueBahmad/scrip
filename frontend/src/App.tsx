@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { Layout } from './components/Layout';
 import { useSession } from './lib/session';
@@ -13,12 +14,13 @@ import { Webhooks } from './pages/Webhooks';
 
 export function App() {
   const { merchant, loading } = useSession();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <div className="grid min-h-dvh place-items-center bg-ink">
         <p className="font-mono text-[11px] tracking-[0.14em] text-white/50 uppercase">
-          carregando…
+          {t('common.loading')}
         </p>
       </div>
     );

@@ -13,10 +13,12 @@
     "@fontsource/ibm-plex-mono": "^5.1.1",
     "@fontsource/ibm-plex-sans": "^5.1.1",
     "clsx": "^2.1.1",
+    "i18next": "^26.3.6",
     "lucide-react": "^0.469.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-i18next": "^17.0.11",
     "react-router-dom": "^7.1.1",
     "tailwind-merge": "^2.6.0"
   },

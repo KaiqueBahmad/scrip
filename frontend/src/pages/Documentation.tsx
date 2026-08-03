@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { PageHeader } from '../components/Layout';
@@ -12,7 +13,7 @@ interface FieldDoc {
   name: string;
   type: string;
   required?: boolean;
-  description: string;
+  descriptionKey: string;
   /** Playground input widget for query fields. Plain text unless set. */
   input?: 'datetime';
 }
@@ -20,57 +21,57 @@ interface FieldDoc {
 /** Response object shapes, keyed by the `object` value the API returns. Shared across routes so each is documented once. */
 const MODELS = {
   charge: [
-    { name: 'id', type: 'string', description: 'Identificador da cobrança.' },
-    { name: 'object', type: '"charge"', description: 'Tipo do objeto.' },
-    { name: 'merchant_id', type: 'string', description: 'Loja dona da cobrança.' },
-    { name: 'payment_method', type: '"pix"', description: 'Método de pagamento da cobrança.' },
-    { name: 'status', type: "'pending' | 'paid' | 'expired' | 'canceled' | 'partially_refunded' | 'refunded'", description: 'Situação atual da cobrança.' },
-    { name: 'amount', type: 'integer', description: 'Valor total, em centavos.' },
-    { name: 'amount_refunded', type: 'integer', description: 'Total já reembolsado, em centavos.' },
-    { name: 'payer_document', type: 'string | null', description: 'CPF/CNPJ do pagador, se informado.' },
-    { name: 'payer_name', type: 'string | null', description: 'Nome do pagador, se informado.' },
-    { name: 'description', type: 'string | null', description: 'Descrição livre da cobrança.' },
-    { name: 'metadata', type: 'object', description: 'Dados livres definidos na criação.' },
-    { name: 'pix', type: 'object', description: 'Detalhes específicos do método PIX.' },
-    { name: 'pix.qr_code', type: 'string', description: 'Payload "copia e cola" do QR Code PIX.' },
-    { name: 'pix.qr_code_txid', type: 'string', description: 'TXID do QR Code.' },
-    { name: 'pix.qr_code_expires_at', type: 'string (ISO 8601)', description: 'Quando o QR Code expira.' },
-    { name: 'pix.e2e_id', type: 'string | null', description: 'Identificador end-to-end do PIX, presente após o pagamento.' },
-    { name: 'paid_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança foi paga.' },
-    { name: 'expired_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança expirou.' },
-    { name: 'canceled_at', type: 'string (ISO 8601) | null', description: 'Quando a cobrança foi cancelada.' },
-    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando a cobrança foi criada.' },
-    { name: 'updated_at', type: 'string (ISO 8601)', description: 'Última atualização.' },
+    { name: 'id', type: 'string', descriptionKey: 'documentation.models.charge.id' },
+    { name: 'object', type: '"charge"', descriptionKey: 'documentation.models.charge.object' },
+    { name: 'merchant_id', type: 'string', descriptionKey: 'documentation.models.charge.merchant_id' },
+    { name: 'payment_method', type: '"pix"', descriptionKey: 'documentation.models.charge.payment_method' },
+    { name: 'status', type: "'pending' | 'paid' | 'expired' | 'canceled' | 'partially_refunded' | 'refunded'", descriptionKey: 'documentation.models.charge.status' },
+    { name: 'amount', type: 'integer', descriptionKey: 'documentation.models.charge.amount' },
+    { name: 'amount_refunded', type: 'integer', descriptionKey: 'documentation.models.charge.amount_refunded' },
+    { name: 'payer_document', type: 'string | null', descriptionKey: 'documentation.models.charge.payer_document' },
+    { name: 'payer_name', type: 'string | null', descriptionKey: 'documentation.models.charge.payer_name' },
+    { name: 'description', type: 'string | null', descriptionKey: 'documentation.models.charge.description' },
+    { name: 'metadata', type: 'object', descriptionKey: 'documentation.models.charge.metadata' },
+    { name: 'pix', type: 'object', descriptionKey: 'documentation.models.charge.pix' },
+    { name: 'pix.qr_code', type: 'string', descriptionKey: 'documentation.models.charge.pixQrCode' },
+    { name: 'pix.qr_code_txid', type: 'string', descriptionKey: 'documentation.models.charge.pixQrCodeTxid' },
+    { name: 'pix.qr_code_expires_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.charge.pixQrCodeExpiresAt' },
+    { name: 'pix.e2e_id', type: 'string | null', descriptionKey: 'documentation.models.charge.pixE2eId' },
+    { name: 'paid_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.charge.paid_at' },
+    { name: 'expired_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.charge.expired_at' },
+    { name: 'canceled_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.charge.canceled_at' },
+    { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.charge.created_at' },
+    { name: 'updated_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.charge.updated_at' },
   ],
   pix_refund: [
-    { name: 'id', type: 'string', description: 'Identificador do reembolso.' },
-    { name: 'object', type: '"pix_refund"', description: 'Tipo do objeto.' },
-    { name: 'charge_id', type: 'string', description: 'Cobrança reembolsada.' },
-    { name: 'amount', type: 'integer', description: 'Valor reembolsado, em centavos.' },
-    { name: 'status', type: "'succeeded' | 'failed'", description: 'Resultado do reembolso.' },
-    { name: 'reason', type: 'string | null', description: 'Motivo informado na solicitação.' },
-    { name: 'e2e_id', type: 'string | null', description: 'Identificador end-to-end do reembolso.' },
-    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando o reembolso foi criado.' },
+    { name: 'id', type: 'string', descriptionKey: 'documentation.models.pixRefund.id' },
+    { name: 'object', type: '"pix_refund"', descriptionKey: 'documentation.models.pixRefund.object' },
+    { name: 'charge_id', type: 'string', descriptionKey: 'documentation.models.pixRefund.charge_id' },
+    { name: 'amount', type: 'integer', descriptionKey: 'documentation.models.pixRefund.amount' },
+    { name: 'status', type: "'succeeded' | 'failed'", descriptionKey: 'documentation.models.pixRefund.status' },
+    { name: 'reason', type: 'string | null', descriptionKey: 'documentation.models.pixRefund.reason' },
+    { name: 'e2e_id', type: 'string | null', descriptionKey: 'documentation.models.pixRefund.e2e_id' },
+    { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.pixRefund.created_at' },
   ],
   charge_event: [
-    { name: 'id', type: 'string', description: 'Identificador do evento.' },
-    { name: 'charge_id', type: 'string', description: 'Cobrança relacionada.' },
-    { name: 'from_status', type: 'ChargeStatus | null', description: 'Status anterior (nulo no primeiro evento).' },
-    { name: 'to_status', type: 'ChargeStatus', description: 'Novo status após a transição.' },
-    { name: 'reason', type: 'string | null', description: 'Motivo da transição, quando houver.' },
-    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando o evento ocorreu.' },
+    { name: 'id', type: 'string', descriptionKey: 'documentation.models.chargeEvent.id' },
+    { name: 'charge_id', type: 'string', descriptionKey: 'documentation.models.chargeEvent.charge_id' },
+    { name: 'from_status', type: 'ChargeStatus | null', descriptionKey: 'documentation.models.chargeEvent.from_status' },
+    { name: 'to_status', type: 'ChargeStatus', descriptionKey: 'documentation.models.chargeEvent.to_status' },
+    { name: 'reason', type: 'string | null', descriptionKey: 'documentation.models.chargeEvent.reason' },
+    { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.chargeEvent.created_at' },
   ],
   merchant: [
-    { name: 'id', type: 'string', description: 'Identificador da loja.' },
-    { name: 'object', type: '"merchant"', description: 'Tipo do objeto.' },
-    { name: 'name', type: 'string', description: 'Nome da loja.' },
-    { name: 'webhook_url', type: 'string | null', description: 'URL que recebe os webhooks.' },
-    { name: 'webhook_secret', type: 'string', description: 'Segredo usado para assinar os webhooks.' },
-    { name: 'kyc_status', type: "'pending' | 'approved' | 'rejected'", description: 'Situação da verificação KYC.' },
-    { name: 'kyc_reason', type: 'string | null', description: 'Motivo informado na revisão do KYC.' },
-    { name: 'kyc_reviewed_at', type: 'string (ISO 8601) | null', description: 'Quando o KYC foi revisado.' },
-    { name: 'created_at', type: 'string (ISO 8601)', description: 'Quando a loja foi criada.' },
-    { name: 'updated_at', type: 'string (ISO 8601)', description: 'Última atualização.' },
+    { name: 'id', type: 'string', descriptionKey: 'documentation.models.merchant.id' },
+    { name: 'object', type: '"merchant"', descriptionKey: 'documentation.models.merchant.object' },
+    { name: 'name', type: 'string', descriptionKey: 'documentation.models.merchant.name' },
+    { name: 'webhook_url', type: 'string | null', descriptionKey: 'documentation.models.merchant.webhook_url' },
+    { name: 'webhook_secret', type: 'string', descriptionKey: 'documentation.models.merchant.webhook_secret' },
+    { name: 'kyc_status', type: "'pending' | 'approved' | 'rejected'", descriptionKey: 'documentation.models.merchant.kyc_status' },
+    { name: 'kyc_reason', type: 'string | null', descriptionKey: 'documentation.models.merchant.kyc_reason' },
+    { name: 'kyc_reviewed_at', type: 'string (ISO 8601) | null', descriptionKey: 'documentation.models.merchant.kyc_reviewed_at' },
+    { name: 'created_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.merchant.created_at' },
+    { name: 'updated_at', type: 'string (ISO 8601)', descriptionKey: 'documentation.models.merchant.updated_at' },
   ],
 } satisfies Record<string, FieldDoc[]>;
 
@@ -84,18 +85,20 @@ interface RouteDoc {
   id: string;
   method: string;
   path: string;
-  description: string;
+  descriptionKey: string;
   pathParams?: FieldDoc[];
   query?: FieldDoc[];
   body?: FieldDoc[];
   response: ResponseDoc;
   exampleBody: string;
+  /** Overrides exampleBody with a translated version, for bodies that carry example prose. */
+  exampleBodyKey?: string;
   /** Prefilled values for the playground's query string inputs, keyed by field name. */
   queryDefaults?: Record<string, string>;
 }
 
 const CHARGE_ID_PARAM: FieldDoc[] = [
-  { name: 'id', type: 'string', required: true, description: 'Identificador da cobrança, na URL.' },
+  { name: 'id', type: 'string', required: true, descriptionKey: 'documentation.chargeIdParamDescription' },
 ];
 
 const INTEGRATION_ROUTES: RouteDoc[] = [
@@ -103,30 +106,31 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'create-charge',
     method: 'POST',
     path: '/payments/pix/charges',
-    description: 'Cria uma cobrança PIX.',
+    descriptionKey: 'documentation.routes.createCharge.description',
     body: [
-      { name: 'amount', type: 'integer', required: true, description: 'Valor da cobrança, em centavos.' },
-      { name: 'payer_document', type: 'string | null', description: 'CPF/CNPJ do pagador.' },
-      { name: 'payer_name', type: 'string | null', description: 'Nome do pagador.' },
-      { name: 'description', type: 'string | null', description: 'Descrição livre da cobrança.' },
-      { name: 'metadata', type: 'object | null', description: 'Dados livres, devolvidos como estão.' },
+      { name: 'amount', type: 'integer', required: true, descriptionKey: 'documentation.routes.createCharge.amount' },
+      { name: 'payer_document', type: 'string | null', descriptionKey: 'documentation.routes.createCharge.payer_document' },
+      { name: 'payer_name', type: 'string | null', descriptionKey: 'documentation.routes.createCharge.payer_name' },
+      { name: 'description', type: 'string | null', descriptionKey: 'documentation.routes.createCharge.description_field' },
+      { name: 'metadata', type: 'object | null', descriptionKey: 'documentation.routes.createCharge.metadata' },
     ],
     response: { kind: 'object', model: 'charge' },
     exampleBody: '{\n  "amount": 15000,\n  "payer_document": "11111111111",\n  "description": "Pedido de teste",\n  "metadata": { "order_id": "abc-123" }\n}',
+    exampleBodyKey: 'documentation.routes.createCharge.exampleBody',
   },
   {
     id: 'list-charges',
     method: 'GET',
     path: '/payments/charges',
-    description: 'Lista as cobranças da loja.',
+    descriptionKey: 'documentation.routes.listCharges.description',
     query: [
-      { name: 'status', type: 'ChargeStatus', description: 'Filtra por situação da cobrança.' },
-      { name: 'from', type: 'string (ISO 8601)', description: 'Data inicial do filtro por criação.', input: 'datetime' },
-      { name: 'to', type: 'string (ISO 8601)', description: 'Data final do filtro por criação.', input: 'datetime' },
-      { name: 'limit', type: 'integer', description: 'Quantidade máxima de itens.' },
-      { name: 'offset', type: 'integer', description: 'Quantidade de itens a pular, para paginação.' },
+      { name: 'status', type: 'ChargeStatus', descriptionKey: 'documentation.routes.listCharges.status' },
+      { name: 'from', type: 'string (ISO 8601)', descriptionKey: 'documentation.routes.listCharges.from', input: 'datetime' },
+      { name: 'to', type: 'string (ISO 8601)', descriptionKey: 'documentation.routes.listCharges.to', input: 'datetime' },
+      { name: 'limit', type: 'integer', descriptionKey: 'documentation.routes.listCharges.limit' },
+      { name: 'offset', type: 'integer', descriptionKey: 'documentation.routes.listCharges.offset' },
     ],
-    response: { kind: 'list', model: 'charge', extra: [{ name: 'total', type: 'integer', description: 'Total de cobranças que atendem ao filtro.' }] },
+    response: { kind: 'list', model: 'charge', extra: [{ name: 'total', type: 'integer', descriptionKey: 'documentation.routes.listCharges.total' }] },
     exampleBody: '',
     queryDefaults: { limit: '20' },
   },
@@ -134,7 +138,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'get-charge',
     method: 'GET',
     path: '/payments/charges/:id',
-    description: 'Consulta uma cobrança.',
+    descriptionKey: 'documentation.routes.getCharge.description',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'charge' },
     exampleBody: '',
@@ -143,7 +147,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'charge-events',
     method: 'GET',
     path: '/payments/charges/:id/events',
-    description: 'Lista o histórico de status.',
+    descriptionKey: 'documentation.routes.chargeEvents.description',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'charge_event' },
     exampleBody: '',
@@ -152,7 +156,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'cancel-charge',
     method: 'POST',
     path: '/payments/charges/:id/cancel',
-    description: 'Cancela uma cobrança.',
+    descriptionKey: 'documentation.routes.cancelCharge.description',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'object', model: 'charge' },
     exampleBody: '',
@@ -161,20 +165,21 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'create-refund',
     method: 'POST',
     path: '/payments/charges/:id/refunds',
-    description: 'Solicita o reembolso.',
+    descriptionKey: 'documentation.routes.createRefund.description',
     pathParams: CHARGE_ID_PARAM,
     body: [
-      { name: 'amount', type: 'integer | null', description: 'Valor a reembolsar, em centavos. Omitido reembolsa o saldo restante.' },
-      { name: 'reason', type: 'string | null', description: 'Motivo do reembolso.' },
+      { name: 'amount', type: 'integer | null', descriptionKey: 'documentation.routes.createRefund.amount' },
+      { name: 'reason', type: 'string | null', descriptionKey: 'documentation.routes.createRefund.reason' },
     ],
     response: { kind: 'object', model: 'pix_refund' },
     exampleBody: '{\n  "amount": 5000,\n  "reason": "Solicitação do cliente"\n}',
+    exampleBodyKey: 'documentation.routes.createRefund.exampleBody',
   },
   {
     id: 'list-refunds',
     method: 'GET',
     path: '/payments/charges/:id/refunds',
-    description: 'Lista os reembolsos da cobrança.',
+    descriptionKey: 'documentation.routes.listRefunds.description',
     pathParams: CHARGE_ID_PARAM,
     response: { kind: 'list', model: 'pix_refund' },
     exampleBody: '',
@@ -183,7 +188,7 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'get-merchant',
     method: 'GET',
     path: '/merchants/me',
-    description: 'Consulta os dados da loja.',
+    descriptionKey: 'documentation.routes.getMerchant.description',
     response: { kind: 'object', model: 'merchant' },
     exampleBody: '',
   },
@@ -191,11 +196,11 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
     id: 'update-merchant',
     method: 'PATCH',
     path: '/merchants/me',
-    description: 'Atualiza os dados da loja.',
+    descriptionKey: 'documentation.routes.updateMerchant.description',
     body: [
-      { name: 'name', type: 'string', description: 'Novo nome da loja.' },
-      { name: 'webhook_url', type: 'string | null', description: 'Nova URL de webhook; null remove a atual.' },
-      { name: 'rotate_webhook_secret', type: 'boolean', description: 'Quando true, gera um novo webhook_secret.' },
+      { name: 'name', type: 'string', descriptionKey: 'documentation.routes.updateMerchant.name' },
+      { name: 'webhook_url', type: 'string | null', descriptionKey: 'documentation.routes.updateMerchant.webhook_url' },
+      { name: 'rotate_webhook_secret', type: 'boolean', descriptionKey: 'documentation.routes.updateMerchant.rotate_webhook_secret' },
     ],
     response: { kind: 'object', model: 'merchant' },
     exampleBody: '{\n  "name": "Minha loja",\n  "webhook_url": "https://example.test/webhook"\n}',
@@ -210,20 +215,20 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
 interface NavGroup {
   kind: 'group';
   id: string;
-  label: string;
+  labelKey: string;
   children: NavNode[];
 }
 interface NavRoutesLeaf {
   kind: 'routes';
   id: string;
-  label: string;
-  description?: string;
+  labelKey: string;
+  descriptionKey?: string;
   routeIds: string[];
 }
 interface NavWipLeaf {
   kind: 'wip';
   id: string;
-  label: string;
+  labelKey: string;
 }
 type NavNode = NavGroup | NavRoutesLeaf | NavWipLeaf;
 
@@ -231,29 +236,29 @@ const NAV_TREE: NavNode[] = [
   {
     kind: 'group',
     id: 'payments',
-    label: 'Pagamentos',
+    labelKey: 'documentation.nav.payments',
     children: [
       {
         kind: 'group',
         id: 'payment-methods',
-        label: 'Métodos de pagamento',
+        labelKey: 'documentation.nav.paymentMethods',
         children: [
           {
             kind: 'routes',
             id: 'pix',
-            label: 'PIX',
-            description: 'Criar uma cobrança é específico do método — consulta, cancelamento e reembolso já são genéricos, em Geral.',
+            labelKey: 'documentation.nav.pix',
+            descriptionKey: 'documentation.nav.pixDescription',
             routeIds: ['create-charge'],
           },
-          { kind: 'wip', id: 'card', label: 'Cartão' },
-          { kind: 'wip', id: 'boleto', label: 'Boleto' },
+          { kind: 'wip', id: 'card', labelKey: 'documentation.nav.card' },
+          { kind: 'wip', id: 'boleto', labelKey: 'documentation.nav.boleto' },
         ],
       },
       {
         kind: 'routes',
         id: 'general',
-        label: 'Geral',
-        description: 'Funcionam para qualquer método de pagamento.',
+        labelKey: 'documentation.nav.general',
+        descriptionKey: 'documentation.nav.generalDescription',
         routeIds: ['list-charges', 'get-charge', 'charge-events', 'cancel-charge', 'create-refund', 'list-refunds'],
       },
     ],
@@ -261,7 +266,7 @@ const NAV_TREE: NavNode[] = [
   {
     kind: 'routes',
     id: 'store',
-    label: 'Loja',
+    labelKey: 'documentation.nav.store',
     routeIds: ['get-merchant', 'update-merchant'],
   },
 ];
@@ -301,6 +306,8 @@ function NavTree({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <ul className="grid gap-0.5">
       {nodes.map((node) => (
@@ -321,7 +328,7 @@ function NavTree({
                     : 'text-[var(--text-muted)] hover:bg-[var(--hairline-soft)] hover:text-[var(--text)]',
               )}
             >
-              <span>{node.label}</span>
+              <span>{t(node.labelKey)}</span>
               {node.kind === 'wip' ? (
                 <span className="rounded-[var(--radius-panel)] border px-2 py-0.5 font-mono text-[10px] tracking-wide text-[var(--text-muted)]">WIP</span>
               ) : null}
@@ -344,6 +351,7 @@ function NavGroupItem({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
 
   return (
@@ -355,7 +363,7 @@ function NavGroupItem({
         className="flex w-full items-center gap-1.5 rounded-[var(--radius-panel)] py-2 pr-2 text-left text-sm font-medium text-[var(--text)] hover:bg-[var(--hairline-soft)]"
       >
         <ChevronDown className={cn('size-4 shrink-0 text-[var(--text-muted)] transition-transform', !open && '-rotate-90')} />
-        {node.label}
+        {t(node.labelKey)}
       </button>
       {open ? <NavTree nodes={node.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} /> : null}
     </div>
@@ -363,6 +371,7 @@ function NavGroupItem({
 }
 
 export function Documentation() {
+  const { t } = useTranslation();
   const resources = useAsync(async () => {
     const tokenResponse = await api.tokens();
     return { tokens: tokenResponse.data };
@@ -386,18 +395,18 @@ export function Documentation() {
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
       <div>
         <Link to="/transacoes" className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">
-          <ArrowLeft className="size-4" /> voltar ao painel
+          <ArrowLeft className="size-4" /> {t('documentation.backToPanel')}
         </Link>
         <PageHeader
-          eyebrow="integração"
-          title="Documentação"
-          description="Navegue até a rota que você precisa. Cada uma tem sua própria área de teste — os tokens ficam disponíveis sempre que você precisar."
+          eyebrow={t('documentation.eyebrow')}
+          title={t('documentation.title')}
+          description={t('documentation.description')}
           actions={
             tokens.length ? (
               <div className="w-48">
-                <Field label="Token" htmlFor="doc-token">
+                <Field label={t('documentation.tokenLabel')} htmlFor="doc-token">
                   <Select id="doc-token" value={token?.id ?? ''} onChange={(event) => setTokenId(event.target.value)}>
-                    {tokens.map((item) => <option key={item.id} value={item.id}>{item.name || 'Token sem nome'}</option>)}
+                    {tokens.map((item) => <option key={item.id} value={item.id}>{item.name || t('documentation.tokenUnnamed')}</option>)}
                   </Select>
                 </Field>
               </div>
@@ -406,7 +415,13 @@ export function Documentation() {
         />
         {resources.error ? <div className="mb-4"><Alert>{resources.error}</Alert></div> : null}
         {!resources.loading && tokens.length === 0 ? (
-          <div className="mb-4"><Alert tone="flag">Nenhum token ativo encontrado. <Link className="underline" to="/tokens">Gerar token</Link> para usar os playgrounds.</Alert></div>
+          <div className="mb-4">
+            <Alert tone="flag">
+              {t('documentation.noActiveTokenPre')}{' '}
+              <Link className="underline" to="/tokens">{t('documentation.generateTokenLink')}</Link>{' '}
+              {t('documentation.noActiveTokenPost')}
+            </Alert>
+          </div>
         ) : null}
         <div className="flex flex-col gap-6 md:flex-row md:items-start">
           <nav className="shrink-0 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3 md:w-64">
@@ -417,13 +432,13 @@ export function Documentation() {
               <Panel>
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">
                   <span className="rounded-[var(--radius-panel)] border px-2 py-1 font-mono text-xs tracking-wide">WIP</span>
-                  <p className="mt-3">{selected.label} ainda não está implementado nesta versão.</p>
+                  <p className="mt-3">{t('documentation.wipNotImplemented', { label: t(selected.labelKey) })}</p>
                 </div>
               </Panel>
             ) : (
               <>
-                {selected?.kind === 'routes' && selected.description ? (
-                  <p className="text-sm text-[var(--text-muted)]">{selected.description}</p>
+                {selected?.kind === 'routes' && selected.descriptionKey ? (
+                  <p className="text-sm text-[var(--text-muted)]">{t(selected.descriptionKey)}</p>
                 ) : null}
                 {routes.map((route) => <RouteCard key={route.id} route={route} token={token} />)}
               </>
@@ -436,6 +451,8 @@ export function Documentation() {
 }
 
 function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
+  const { t } = useTranslation();
+
   return (
     <div className="min-w-0">
       <p className="eyebrow mb-1.5">{title}</p>
@@ -443,9 +460,9 @@ function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
         <Table>
           <thead>
             <tr>
-              <Th className="px-4 py-2">campo</Th>
-              <Th className="px-4 py-2">tipo</Th>
-              <Th className="px-4 py-2">descrição</Th>
+              <Th className="px-4 py-2">{t('documentation.fieldCol')}</Th>
+              <Th className="px-4 py-2">{t('documentation.typeCol')}</Th>
+              <Th className="px-4 py-2">{t('documentation.descriptionCol')}</Th>
             </tr>
           </thead>
           <tbody>
@@ -456,7 +473,7 @@ function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
                   {field.required ? <span className="text-trace"> *</span> : null}
                 </Td>
                 <Td className="px-4 py-2 font-mono text-sm text-[var(--text-muted)]">{field.type}</Td>
-                <Td className="px-4 py-2 text-sm text-[var(--text-muted)]">{field.description}</Td>
+                <Td className="px-4 py-2 text-sm text-[var(--text-muted)]">{t(field.descriptionKey)}</Td>
               </tr>
             ))}
           </tbody>
@@ -467,37 +484,41 @@ function FieldTable({ title, fields }: { title: string; fields: FieldDoc[] }) {
 }
 
 function ResponseTables({ response }: { response: ResponseDoc }) {
+  const { t } = useTranslation();
+
   if (response.kind === 'object') {
-    return <FieldTable title="retorno" fields={MODELS[response.model]} />;
+    return <FieldTable title={t('documentation.returnTitle')} fields={MODELS[response.model]} />;
   }
 
   const wrapper: FieldDoc[] = [
-    { name: 'object', type: '"list"', description: 'Tipo do objeto retornado.' },
-    { name: 'data', type: `${response.model}[]`, description: 'Itens encontrados — ver estrutura abaixo.' },
+    { name: 'object', type: '"list"', descriptionKey: 'documentation.listObjectDesc' },
+    { name: 'data', type: `${response.model}[]`, descriptionKey: 'documentation.listDataDesc' },
     ...(response.extra ?? []),
   ];
 
   return (
     <>
-      <FieldTable title="retorno" fields={wrapper} />
-      <FieldTable title={`objeto ${response.model}`} fields={MODELS[response.model]} />
+      <FieldTable title={t('documentation.returnTitle')} fields={wrapper} />
+      <FieldTable title={t('documentation.objectOf', { model: response.model })} fields={MODELS[response.model]} />
     </>
   );
 }
 
 function RouteCard({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
+  const { t } = useTranslation();
+
   return (
     <Panel>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-1 border-b px-5 py-4">
         <span className="rounded-[var(--radius-panel)] bg-trace-soft px-2 py-1 font-mono text-xs font-medium text-trace">{route.method}</span>
         <code className="min-w-0 break-all text-sm">/v1/api{route.path}</code>
-        <p className="w-full text-sm text-[var(--text-muted)]">{route.description}</p>
+        <p className="w-full text-sm text-[var(--text-muted)]">{t(route.descriptionKey)}</p>
       </div>
       <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_400px] xl:items-start">
         <div className="grid min-w-0 gap-4">
-          {route.pathParams ? <FieldTable title="parâmetros de rota" fields={route.pathParams} /> : null}
-          {route.query ? <FieldTable title="query string" fields={route.query} /> : null}
-          {route.body ? <FieldTable title="corpo (JSON)" fields={route.body} /> : null}
+          {route.pathParams ? <FieldTable title={t('documentation.routeParamsTitle')} fields={route.pathParams} /> : null}
+          {route.query ? <FieldTable title={t('documentation.queryStringTitle')} fields={route.query} /> : null}
+          {route.body ? <FieldTable title={t('documentation.bodyTitle')} fields={route.body} /> : null}
           <ResponseTables response={route.response} />
         </div>
         <RoutePlayground route={route} token={token} />
@@ -555,13 +576,15 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-/** 2023-01-01 is a Sunday — an arbitrary anchor so weekday 0..6 maps to short pt-BR labels (D, S, T, Q, Q, S, S). */
-const WEEKDAY_LABELS = Array.from({ length: 7 }, (_, i) =>
-  new Intl.DateTimeFormat('pt-BR', { weekday: 'narrow' }).format(new Date(2023, 0, 1 + i)),
-);
+/** 2023-01-01 is a Sunday — an arbitrary anchor so weekday 0..6 maps to short locale labels. */
+function weekdayLabels(locale: string): string[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(new Date(2023, 0, 1 + i)),
+  );
+}
 
-function monthLabel(year: number, month: number): string {
-  const label = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(year, month, 1));
+function monthLabel(year: number, month: number, locale: string): string {
+  const label = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(new Date(year, month, 1));
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
@@ -571,6 +594,8 @@ function monthLabel(year: number, month: number): string {
  * component always displays and edits "YYYY-MM-DD HH:mm", independent of locale.
  */
 function DateTimePicker({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language.startsWith('pt') ? 'pt-BR' : 'en-US';
   const parts = parseDateTimeValue(value);
   const today = new Date();
   const [open, setOpen] = useState(false);
@@ -630,21 +655,21 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
         onClick={() => (open ? setOpen(false) : openPicker())}
         className={cn(CONTROL_CLASS, 'text-left font-mono', !parts && 'text-[var(--text-muted)]')}
       >
-        {parts ? formatDateTimeValue(parts).replace('T', ' ') : 'aaaa-mm-dd hh:mm'}
+        {parts ? formatDateTimeValue(parts).replace('T', ' ') : t('documentation.dateTimePlaceholder')}
       </button>
       {open ? (
         <div className="absolute z-20 mt-1 w-72 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-3.5 text-sm">
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => changeMonth(-1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="mês anterior">
+            <button type="button" onClick={() => changeMonth(-1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label={t('documentation.prevMonthAriaLabel')}>
               <ChevronLeft className="size-4" />
             </button>
-            <span className="font-medium">{monthLabel(viewYear, viewMonth)}</span>
-            <button type="button" onClick={() => changeMonth(1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label="próximo mês">
+            <span className="font-medium">{monthLabel(viewYear, viewMonth, locale)}</span>
+            <button type="button" onClick={() => changeMonth(1)} className="rounded p-1 hover:bg-[var(--hairline-soft)]" aria-label={t('documentation.nextMonthAriaLabel')}>
               <ChevronRight className="size-4" />
             </button>
           </div>
           <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-[var(--text-muted)]">
-            {WEEKDAY_LABELS.map((label, i) => <span key={i}>{label}</span>)}
+            {weekdayLabels(locale).map((label, i) => <span key={i}>{label}</span>)}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-0.5">
             {cells.map((day, i) => {
@@ -677,7 +702,7 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
                 value={parts ? pad2(parts.hour) : '00'}
                 onChange={(event) => setTime(clamp(Number(event.target.value), 0, 23), parts?.minute ?? 0)}
                 className="h-8 w-12 rounded border bg-[var(--surface)] px-1 text-center"
-                aria-label="hora"
+                aria-label={t('documentation.hourAriaLabel')}
               />
               <span>:</span>
               <input
@@ -687,11 +712,11 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
                 value={parts ? pad2(parts.minute) : '00'}
                 onChange={(event) => setTime(parts?.hour ?? 0, clamp(Number(event.target.value), 0, 59))}
                 className="h-8 w-12 rounded border bg-[var(--surface)] px-1 text-center"
-                aria-label="minuto"
+                aria-label={t('documentation.minuteAriaLabel')}
               />
             </div>
             <button type="button" onClick={() => onChange('')} className="text-[var(--text-muted)] hover:text-[var(--text)]">
-              limpar
+              {t('documentation.clear')}
             </button>
           </div>
         </div>
@@ -701,11 +726,12 @@ function DateTimePicker({ id, value, onChange }: { id: string; value: string; on
 }
 
 function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | undefined }) {
+  const { t } = useTranslation();
   const [chargeId, setChargeId] = useState('');
   const [queryValues, setQueryValues] = useState<Record<string, string>>(() =>
     Object.fromEntries((route.query ?? []).map((field) => [field.name, route.queryDefaults?.[field.name] ?? ''])),
   );
-  const [body, setBody] = useState<string>(route.exampleBody);
+  const [body, setBody] = useState<string>(route.exampleBodyKey ? t(route.exampleBodyKey) : route.exampleBody);
   const [response, setResponse] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -713,29 +739,29 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
   const queryString = buildQueryString(route.query, queryValues);
 
   const execute = async () => {
-    if (!token) { setError('Gere ou selecione um token ativo para executar a chamada.'); return; }
+    if (!token) { setError(t('documentation.noTokenError')); return; }
     setRunning(true); setError(null); setResponse(null);
     try {
       const result = await api.apiRequest<unknown>(route.method, `${resolvedPath}${queryString}`, token.token, body.trim() ? JSON.parse(body) : undefined);
       setResponse(result);
     } catch (err) {
-      setError(err instanceof SyntaxError ? 'O payload não contém um JSON válido.' : err instanceof ApiError ? `${err.code}: ${err.message}` : 'Não foi possível executar a chamada');
+      setError(err instanceof SyntaxError ? t('documentation.invalidJsonError') : err instanceof ApiError ? `${err.code}: ${err.message}` : t('documentation.executeGenericError'));
     } finally { setRunning(false); }
   };
 
   return (
     <div className="min-w-0 rounded-[var(--radius-panel)] border bg-[var(--hairline-soft)]/30 p-5 xl:sticky xl:top-4">
-      <p className="eyebrow mb-3">testar rota</p>
+      <p className="eyebrow mb-3">{t('documentation.testRoute')}</p>
       <div className="grid gap-4">
         {route.path.includes(':id') ? (
-          <Field label="ID da cobrança" htmlFor={`${route.id}-charge-id`} hint="Cole o id de uma cobrança existente.">
+          <Field label={t('documentation.chargeIdFieldLabel')} htmlFor={`${route.id}-charge-id`} hint={t('documentation.chargeIdHint')}>
             <Input id={`${route.id}-charge-id`} value={chargeId} onChange={(event) => setChargeId(event.target.value)} placeholder="ch_example" />
           </Field>
         ) : null}
         {route.query ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {route.query.map((field) => (
-              <Field key={field.name} label={field.name} htmlFor={`${route.id}-query-${field.name}`} hint={field.description}>
+              <Field key={field.name} label={field.name} htmlFor={`${route.id}-query-${field.name}`} hint={t(field.descriptionKey)}>
                 {field.input === 'datetime' ? (
                   <DateTimePicker
                     id={`${route.id}-query-${field.name}`}
@@ -755,16 +781,16 @@ function RoutePlayground({ route, token }: { route: RouteDoc; token: ApiToken | 
           </div>
         ) : null}
         {route.method !== 'GET' && route.exampleBody ? (
-          <Field label="Payload JSON" htmlFor={`${route.id}-body`}>
+          <Field label={t('documentation.payloadJsonLabel')} htmlFor={`${route.id}-body`}>
             <Textarea id={`${route.id}-body`} value={body} onChange={(event) => setBody(event.target.value)} rows={7} />
           </Field>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <code className="min-w-0 break-all text-sm text-[var(--text-muted)]">/v1/api{resolvedPath}{queryString}</code>
-          <Button variant="primary" size="md" disabled={running || !token} onClick={() => void execute()}><Play className="size-4" />{running ? 'executando…' : 'executar'}</Button>
+          <Button variant="primary" size="md" disabled={running || !token} onClick={() => void execute()}><Play className="size-4" />{running ? t('documentation.executing') : t('documentation.execute')}</Button>
         </div>
         {error ? <Alert>{error}</Alert> : null}
-        {response !== null ? <div className="min-w-0"><p className="eyebrow mb-1.5">resposta</p><pre className="max-h-96 max-w-full overflow-y-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-3.5 font-mono text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-muted)]" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{JSON.stringify(response, null, 2)}</pre></div> : null}
+        {response !== null ? <div className="min-w-0"><p className="eyebrow mb-1.5">{t('documentation.responseTitle')}</p><pre className="max-h-96 max-w-full overflow-y-auto rounded-[var(--radius-panel)] border bg-[var(--surface)] p-3.5 font-mono text-sm leading-relaxed whitespace-pre-wrap text-[var(--text-muted)]" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{JSON.stringify(response, null, 2)}</pre></div> : null}
       </div>
     </div>
   );

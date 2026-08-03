@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Copyable, Secret } from '../components/Copyable';
 import { PageHeader } from '../components/Layout';
@@ -18,7 +19,7 @@ import {
 import { api, ApiError } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useAsync } from '../lib/useAsync';
-import { formatBRL, formatDateTime } from '../lib/utils';
+import { formatMoney, formatDateTime } from '../lib/utils';
 
 function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -52,6 +53,7 @@ function BalanceFigure({
  * per-user screens now that the merchant is the panel identity.
  */
 export function MyStore() {
+  const { t } = useTranslation();
   const { merchant, refreshSession, refreshMerchants, signOut } = useSession();
   const documents = useAsync(() => api.kycDocuments(), [], { pollMs: 5000 });
 
@@ -79,7 +81,7 @@ export function MyStore() {
       await fn();
       await Promise.all([refreshSession(), documents.reload()]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'A ação falhou');
+      setError(err instanceof ApiError ? err.message : t('common.actionFailed'));
     } finally {
       setBusy(false);
     }
@@ -98,7 +100,7 @@ export function MyStore() {
       await Promise.all([refreshSession(), refreshMerchants()]);
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível salvar');
+      setError(err instanceof ApiError ? err.message : t('myStore.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -107,9 +109,9 @@ export function MyStore() {
   return (
     <>
       <PageHeader
-        eyebrow="conta de teste"
+        eyebrow={t('myStore.eyebrow')}
         title={merchant.name}
-        description="Saldo, dados de recebimento e verificação desta loja."
+        description={t('myStore.description')}
         actions={<KycBadge status={merchant.kyc_status} />}
       />
 
@@ -120,19 +122,16 @@ export function MyStore() {
       ) : null}
 
       <Panel className="mb-4">
-        <PanelHeader
-          title="Saldo"
-          hint="Calculado a partir das cobranças: tudo que liquidou, menos o que foi devolvido."
-        />
+        <PanelHeader title={t('myStore.balanceTitle')} hint={t('myStore.balanceHint')} />
         <div className="grid divide-y divide-[var(--hairline-soft)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <BalanceFigure
-            label="disponível"
-            value={formatBRL(balance?.available ?? 0)}
-            hint={`${balance?.settled_charges ?? 0} cobrança(s) liquidada(s)`}
+            label={t('myStore.available')}
+            value={formatMoney(balance?.available ?? 0)}
+            hint={t('myStore.settledHint', { count: balance?.settled_charges ?? 0 })}
             emphasis
           />
-          <BalanceFigure label="recebido bruto" value={formatBRL(balance?.gross_received ?? 0)} />
-          <BalanceFigure label="devolvido" value={formatBRL(balance?.refunded ?? 0)} />
+          <BalanceFigure label={t('myStore.grossReceived')} value={formatMoney(balance?.gross_received ?? 0)} />
+          <BalanceFigure label={t('myStore.refundedLabel')} value={formatMoney(balance?.refunded ?? 0)} />
         </div>
       </Panel>
 
@@ -140,17 +139,17 @@ export function MyStore() {
         <div className="grid min-w-0 gap-4">
           <Panel>
             <PanelHeader
-              title="Dados da loja"
+              title={t('myStore.storeDataTitle')}
               actions={
                 <Button variant="primary" size="sm" disabled={saving} onClick={() => void save()}>
-                  {saving ? 'Salvando…' : 'Salvar'}
+                  {saving ? t('common.saving') : t('common.save')}
                 </Button>
               }
             />
             <div className="grid gap-3 p-4">
-              {saved ? <Alert tone="settle">Dados salvos.</Alert> : null}
+              {saved ? <Alert tone="settle">{t('myStore.saved')}</Alert> : null}
 
-              <Field label="Nome" htmlFor="store-name">
+              <Field label={t('myStore.nameLabel')} htmlFor="store-name">
                 <Input
                   id="store-name"
                   value={name}
@@ -159,9 +158,9 @@ export function MyStore() {
               </Field>
 
               <Field
-                label="Webhook URL"
+                label={t('myStore.webhookUrlLabel')}
                 htmlFor="store-webhook"
-                hint="Sem URL, os eventos são registrados como ignorados em vez de enviados."
+                hint={t('myStore.webhookUrlHint')}
               >
                 <Input
                   id="store-webhook"
@@ -175,25 +174,25 @@ export function MyStore() {
 
           <Panel>
             <PanelHeader
-              title="Verificação (KYC)"
-              hint="Aqui você simula a decisão da própria loja, como simula um pagamento."
+              title={t('myStore.kycTitle')}
+              hint={t('myStore.kycHint')}
             />
             <div className="grid gap-3 p-4">
               {merchant.kyc_reason ? (
                 <p className="text-xs text-[var(--text-muted)]">
-                  Motivo registrado: {merchant.kyc_reason}
+                  {t('myStore.kycReasonRegistered', { reason: merchant.kyc_reason })}
                   {merchant.kyc_reviewed_at
                     ? ` · ${formatDateTime(merchant.kyc_reviewed_at)}`
                     : ''}
                 </p>
               ) : null}
 
-              <Field label="Motivo da decisão" htmlFor="kyc-reason" hint="Vai no payload do webhook.">
+              <Field label={t('myStore.kycReasonLabel')} htmlFor="kyc-reason" hint={t('myStore.kycReasonHint')}>
                 <Input
                   id="kyc-reason"
                   value={kycReason}
                   onChange={(event) => setKycReason(event.target.value)}
-                  placeholder="documentos conferem"
+                  placeholder={t('myStore.kycReasonPlaceholder')}
                 />
               </Field>
 
@@ -203,40 +202,41 @@ export function MyStore() {
                   disabled={busy}
                   onClick={() => void act(() => api.simulateKyc('approved', kycReason.trim() || null))}
                 >
-                  Simular aprovação
+                  {t('myStore.simulateApproval')}
                 </Button>
                 <Button
                   variant="danger"
                   disabled={busy}
                   onClick={() => void act(() => api.simulateKyc('rejected', kycReason.trim() || null))}
                 >
-                  Simular recusa
+                  {t('myStore.simulateRejection')}
                 </Button>
               </div>
 
               <p className="text-[11px] text-[var(--text-muted)]">
-                A decisão dispara <span className="font-mono">kyc.approved</span> ou{' '}
-                <span className="font-mono">kyc.rejected</span>. Com{' '}
-                <span className="font-mono">requireApprovedKycForCharges</span> ligado, uma loja
-                não aprovada não consegue criar cobranças.
+                {t('myStore.kycExplainPre')} <span className="font-mono">kyc.approved</span>{' '}
+                {t('myStore.kycExplainMid')} <span className="font-mono">kyc.rejected</span>
+                {t('myStore.kycExplainCom')}{' '}
+                <span className="font-mono">requireApprovedKycForCharges</span>{' '}
+                {t('myStore.kycExplainPost')}
               </p>
             </div>
           </Panel>
 
           <Panel>
-            <PanelHeader title="Documentos" hint={`${docs.length} arquivo(s) no banco`} />
+            <PanelHeader title={t('myStore.documentsTitle')} hint={t('myStore.documentsHint', { count: docs.length })} />
             {docs.length === 0 ? (
               <p className="px-4 py-6 text-center text-xs text-[var(--text-muted)]">
-                Nenhum documento enviado.
+                {t('myStore.noDocuments')}
               </p>
             ) : (
               <Table>
                 <thead>
                   <tr>
-                    <Th>Arquivo</Th>
-                    <Th>Tipo</Th>
-                    <Th>Tamanho</Th>
-                    <Th>Status</Th>
+                    <Th>{t('myStore.colFile')}</Th>
+                    <Th>{t('myStore.colType')}</Th>
+                    <Th>{t('myStore.colSize')}</Th>
+                    <Th>{t('myStore.colStatus')}</Th>
                     <Th />
                   </tr>
                 </thead>
@@ -257,7 +257,7 @@ export function MyStore() {
                             rel="noreferrer"
                             className="eyebrow px-2 py-1 hover:text-trace"
                           >
-                            abrir
+                            {t('myStore.open')}
                           </a>
                           <Button
                             size="sm"
@@ -266,7 +266,7 @@ export function MyStore() {
                             disabled={busy}
                             onClick={() => void act(() => api.deleteKycDocument(doc.id))}
                           >
-                            excluir
+                            {t('common.delete')}
                           </Button>
                         </div>
                       </Td>
@@ -280,16 +280,16 @@ export function MyStore() {
 
         <div className="grid min-w-0 gap-4">
           <Panel>
-            <PanelHeader title="Credenciais" />
+            <PanelHeader title={t('myStore.credentialsTitle')} />
             <div className="grid gap-2 p-4">
               <div>
-                <p className="eyebrow mb-1">merchant id · usuário do painel</p>
+                <p className="eyebrow mb-1">{t('myStore.merchantIdLabel')}</p>
                 <Copyable value={merchant.id} label="merchant id" />
               </div>
               <div>
-                <p className="eyebrow mb-1">webhook secret</p>
+                <p className="eyebrow mb-1">{t('myStore.webhookSecretLabel')}</p>
                 {merchant.webhook_secret ? (
-                  <Secret value={merchant.webhook_secret} label="segredo" />
+                  <Secret value={merchant.webhook_secret} label={t('myStore.webhookSecretLabel')} />
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">—</span>
                 )}
@@ -301,18 +301,18 @@ export function MyStore() {
                   void act(() => api.updateMyMerchant({ rotate_webhook_secret: true }))
                 }
               >
-                Gerar novo segredo
+                {t('myStore.generateNewSecret')}
               </Button>
               <p className="text-[11px] text-[var(--text-muted)]">
-                Trocar o segredo invalida a assinatura de quem ainda usa o antigo.
+                {t('myStore.secretRotateHint')}
               </p>
             </div>
           </Panel>
 
           <Panel>
-            <PanelHeader title="Enviar documento" />
+            <PanelHeader title={t('myStore.uploadTitle')} />
             <div className="grid gap-3 p-4">
-              <Field label="Tipo" htmlFor="upload-type">
+              <Field label={t('myStore.typeLabel')} htmlFor="upload-type">
                 <Select
                   id="upload-type"
                   value={uploadType}
@@ -326,7 +326,7 @@ export function MyStore() {
                 </Select>
               </Field>
 
-              <Field label="Arquivo" htmlFor="upload-file">
+              <Field label={t('myStore.fileLabel')} htmlFor="upload-file">
                 <input
                   id="upload-file"
                   ref={fileInput}
@@ -346,25 +346,20 @@ export function MyStore() {
               </Field>
 
               <p className="text-[11px] text-[var(--text-muted)]">
-                O arquivo é guardado direto no SQLite, sem storage externo. O limite vem de{' '}
-                <span className="font-mono">kycMaxFileSizeMb</span>.
+                {t('myStore.uploadHintPre')} <span className="font-mono">kycMaxFileSizeMb</span>.
               </p>
             </div>
           </Panel>
 
           <Panel>
-            <PanelHeader title="Encerrar" />
+            <PanelHeader title={t('myStore.endTitle')} />
             <div className="grid gap-2 p-4">
-              <Button onClick={signOut}>Trocar de loja</Button>
+              <Button onClick={signOut}>{t('myStore.switchStore')}</Button>
               <Button
                 variant="danger"
                 disabled={busy}
                 onClick={async () => {
-                  if (
-                    !window.confirm(
-                      `Excluir ${merchant.name}? As cobranças, tokens e documentos dela vão junto.`,
-                    )
-                  ) {
+                  if (!window.confirm(t('myStore.deleteConfirm', { name: merchant.name }))) {
                     return;
                   }
                   await api.deleteMyMerchant();
@@ -372,7 +367,7 @@ export function MyStore() {
                   signOut();
                 }}
               >
-                Excluir esta loja
+                {t('myStore.deleteStore')}
               </Button>
             </div>
           </Panel>

@@ -4,6 +4,7 @@
  * variants via props — minus the Radix dependency, which nothing here needs.
  */
 import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '../../lib/utils';
 
@@ -219,6 +220,8 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   if (!open) return null;
 
   return (
@@ -239,7 +242,7 @@ export function Modal({
         <PanelHeader
           title={title}
           actions={
-            <Button size="icon" variant="ghost" onClick={onClose} aria-label="Fechar">
+            <Button size="icon" variant="ghost" onClick={onClose} aria-label={t('common.closeAriaLabel')}>
               ✕
             </Button>
           }
