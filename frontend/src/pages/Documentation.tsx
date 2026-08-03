@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -202,6 +202,166 @@ const INTEGRATION_ROUTES: RouteDoc[] = [
   },
 ];
 
+/**
+ * Left-nav structure: users browse to the routes they want instead of scrolling a flat
+ * list. Only 'routes' leaves resolve to actual RouteDoc entries; 'wip' leaves are payment
+ * methods that don't exist yet but are worth listing so people know they're planned.
+ */
+interface NavGroup {
+  kind: 'group';
+  id: string;
+  label: string;
+  children: NavNode[];
+}
+interface NavRoutesLeaf {
+  kind: 'routes';
+  id: string;
+  label: string;
+  description?: string;
+  routeIds: string[];
+}
+interface NavWipLeaf {
+  kind: 'wip';
+  id: string;
+  label: string;
+}
+type NavNode = NavGroup | NavRoutesLeaf | NavWipLeaf;
+
+const NAV_TREE: NavNode[] = [
+  {
+    kind: 'group',
+    id: 'payments',
+    label: 'Pagamentos',
+    children: [
+      {
+        kind: 'group',
+        id: 'payment-methods',
+        label: 'Métodos de pagamento',
+        children: [
+          {
+            kind: 'routes',
+            id: 'pix',
+            label: 'PIX',
+            description: 'Criar uma cobrança é específico do método — consulta, cancelamento e reembolso já são genéricos, em Geral.',
+            routeIds: ['create-charge'],
+          },
+          { kind: 'wip', id: 'card', label: 'Cartão' },
+          { kind: 'wip', id: 'boleto', label: 'Boleto' },
+        ],
+      },
+      {
+        kind: 'routes',
+        id: 'general',
+        label: 'Geral',
+        description: 'Funcionam para qualquer método de pagamento.',
+        routeIds: ['list-charges', 'get-charge', 'charge-events', 'cancel-charge', 'create-refund', 'list-refunds'],
+      },
+    ],
+  },
+  {
+    kind: 'routes',
+    id: 'store',
+    label: 'Loja',
+    routeIds: ['get-merchant', 'update-merchant'],
+  },
+];
+
+/** First 'routes' leaf in document order — what's shown before the user picks anything. */
+function firstRoutesLeaf(nodes: NavNode[]): NavRoutesLeaf | undefined {
+  for (const node of nodes) {
+    if (node.kind === 'routes') return node;
+    if (node.kind === 'group') {
+      const found = firstRoutesLeaf(node.children);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function findLeaf(nodes: NavNode[], id: string): NavRoutesLeaf | NavWipLeaf | undefined {
+  for (const node of nodes) {
+    if (node.kind !== 'group') {
+      if (node.id === id) return node;
+      continue;
+    }
+    const found = findLeaf(node.children, id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function NavTree({
+  nodes,
+  depth,
+  selectedId,
+  onSelect,
+}: {
+  nodes: NavNode[];
+  depth: number;
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <ul className="grid gap-0.5">
+      {nodes.map((node) => (
+        <li key={node.id}>
+          {node.kind === 'group' ? (
+            <NavGroupItem node={node} depth={depth} selectedId={selectedId} onSelect={onSelect} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => onSelect(node.id)}
+              style={{ paddingLeft: `${depth * 0.75 + 0.5}rem` }}
+              className={cn(
+                'flex w-full items-center justify-between gap-2 rounded-[var(--radius-panel)] py-1.5 pr-2 text-left text-[13px]',
+                selectedId === node.id
+                  ? 'bg-trace-soft font-medium text-trace'
+                  : node.kind === 'wip'
+                    ? 'text-[var(--text-muted)] opacity-60 hover:bg-[var(--hairline-soft)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--hairline-soft)] hover:text-[var(--text)]',
+              )}
+            >
+              <span>{node.label}</span>
+              {node.kind === 'wip' ? (
+                <span className="rounded-[var(--radius-panel)] border px-1.5 py-0.5 font-mono text-[9px] tracking-wide text-[var(--text-muted)]">WIP</span>
+              ) : null}
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function NavGroupItem({
+  node,
+  depth,
+  selectedId,
+  onSelect,
+}: {
+  node: NavGroup;
+  depth: number;
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        style={{ paddingLeft: `${depth * 0.75 + 0.5}rem` }}
+        className="flex w-full items-center gap-1.5 rounded-[var(--radius-panel)] py-1.5 pr-2 text-left text-[13px] font-medium text-[var(--text)] hover:bg-[var(--hairline-soft)]"
+      >
+        <ChevronDown className={cn('size-3.5 shrink-0 text-[var(--text-muted)] transition-transform', !open && '-rotate-90')} />
+        {node.label}
+      </button>
+      {open ? <NavTree nodes={node.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} /> : null}
+    </div>
+  );
+}
+
 export function Documentation() {
   const resources = useAsync(async () => {
     const tokenResponse = await api.tokens();
@@ -215,6 +375,13 @@ export function Documentation() {
 
   useEffect(() => { if (!tokenId && tokens[0]) setTokenId(tokens[0].id); }, [tokenId, tokens]);
 
+  const defaultLeaf = firstRoutesLeaf(NAV_TREE);
+  const [selectedId, setSelectedId] = useState(defaultLeaf?.id ?? '');
+  const selected = findLeaf(NAV_TREE, selectedId);
+  const routes = selected?.kind === 'routes'
+    ? selected.routeIds.map((id) => INTEGRATION_ROUTES.find((route) => route.id === id)).filter((route) => route != null)
+    : [];
+
   return (
     <div className="min-h-dvh bg-[var(--surface)] px-4 py-6 md:px-8 md:py-8">
       <div className="mx-auto max-w-5xl">
@@ -224,7 +391,7 @@ export function Documentation() {
         <PageHeader
           eyebrow="integração"
           title="Documentação"
-          description="Cada rota possui sua própria área de teste. Os tokens ficam disponíveis novamente sempre que você precisar."
+          description="Navegue até a rota que você precisa. Cada uma tem sua própria área de teste — os tokens ficam disponíveis sempre que você precisar."
           actions={
             tokens.length ? (
               <div className="w-48">
@@ -241,8 +408,27 @@ export function Documentation() {
         {!resources.loading && tokens.length === 0 ? (
           <div className="mb-4"><Alert tone="flag">Nenhum token ativo encontrado. <Link className="underline" to="/tokens">Gerar token</Link> para usar os playgrounds.</Alert></div>
         ) : null}
-        <div className="grid gap-3">
-          {INTEGRATION_ROUTES.map((route) => <RouteCard key={route.id} route={route} token={token} />)}
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+          <nav className="shrink-0 rounded-[var(--radius-panel)] border bg-[var(--surface-raised)] p-2 md:w-56">
+            <NavTree nodes={NAV_TREE} depth={0} selectedId={selectedId} onSelect={setSelectedId} />
+          </nav>
+          <div className="grid min-w-0 flex-1 gap-3">
+            {selected?.kind === 'wip' ? (
+              <Panel>
+                <div className="p-6 text-center text-sm text-[var(--text-muted)]">
+                  <span className="rounded-[var(--radius-panel)] border px-1.5 py-0.5 font-mono text-[10px] tracking-wide">WIP</span>
+                  <p className="mt-3">{selected.label} ainda não está implementado nesta versão.</p>
+                </div>
+              </Panel>
+            ) : (
+              <>
+                {selected?.kind === 'routes' && selected.description ? (
+                  <p className="text-[13px] text-[var(--text-muted)]">{selected.description}</p>
+                ) : null}
+                {routes.map((route) => <RouteCard key={route.id} route={route} token={token} />)}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
