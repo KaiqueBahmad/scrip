@@ -15,27 +15,6 @@ Reproduces a real PIX gateway — QR generation, async confirmation, expiration,
 
 Node.js + TypeScript + Fastify (NestJS) · SQLite (better-sqlite3) + Drizzle ORM · Vite + React panel + Tailwind · JWT (API) / HTTP Basic (panel) · in-process `setTimeout` for async work.
 
-## Setup
-
-```bash
-npm --prefix backend install
-npm --prefix frontend install
-
-cd backend
-npm run build       # compile
-npm start           # run
-npm run dev          # run with reload
-npm run reset        # wipe the database, keep the schema
-npm run db:generate  # regenerate migrations after changing src/db/schema.ts
-npm test
-```
-
-The database is created automatically on first run. API listens on `http://localhost:8081` by default (`backend/scrip.config.json` or `SCRIP_*` env vars). Start the panel separately:
-
-```bash
-npm --prefix frontend run dev  # http://localhost:8080
-```
-
 ## Docker
 
 Prebuilt image: [`kaiquebt/scrip`](https://hub.docker.com/r/kaiquebt/scrip) — nginx + API in one container via `supervisord`. All variables below at their default (see [`examples/docker-compose.prod.yml`](examples/docker-compose.prod.yml)); `SCRIP_HOST`, `SCRIP_PORT` and `SCRIP_DATABASE_PATH` are fixed by the image and omitted:
@@ -73,6 +52,27 @@ volumes:
 ```
 
 `docker compose up -d`. `API_BASE_URL` is injected at container start (no rebuild needed). To build from source: `docker compose up -d --build` using the repo's `docker-compose.yml`.
+
+## Setup
+
+```bash
+npm --prefix backend install
+npm --prefix frontend install
+
+cd backend
+npm run build       # compile
+npm start           # run
+npm run dev          # run with reload
+npm run reset        # wipe the database, keep the schema
+npm run db:generate  # regenerate migrations after changing src/db/schema.ts
+npm test
+```
+
+The database is created automatically on first run. API listens on `http://localhost:8081` by default (`backend/scrip.config.json` or `SCRIP_*` env vars). Start the panel separately:
+
+```bash
+npm --prefix frontend run dev  # http://localhost:8080
+```
 
 ## Quickstart
 
