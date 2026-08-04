@@ -38,7 +38,7 @@ npm --prefix frontend run dev  # http://localhost:8080
 
 ## Docker
 
-Prebuilt image: [`kaiquebt/scrip`](https://hub.docker.com/r/kaiquebt/scrip) — nginx + API in one container via `supervisord`.
+Prebuilt image: [`kaiquebt/scrip`](https://hub.docker.com/r/kaiquebt/scrip) — nginx + API in one container via `supervisord`. All variables below at their default (see [`examples/docker-compose.prod.yml`](examples/docker-compose.prod.yml)); `SCRIP_HOST`, `SCRIP_PORT` and `SCRIP_DATABASE_PATH` are fixed by the image and omitted:
 
 ```yaml
 services:
@@ -48,9 +48,21 @@ services:
       - "8080:8080"
       - "8081:8081"
     environment:
-      SCRIP_HOST: 0.0.0.0
-      SCRIP_PORT: 8081
+      SCRIP_APPROVAL_RATE: 0.85
+      SCRIP_PIX_CONFIRMATION_DELAY_MS: 4000
+      SCRIP_PIX_MIN_CONFIRMATION_DELAY_MS: 500
+      SCRIP_PIX_QR_CODE_EXPIRATION_MS: 900000
+      SCRIP_WEBHOOK_DELAY_MS: 3000
+      SCRIP_WEBHOOK_MAX_RETRIES: 3
+      SCRIP_WEBHOOK_RETRY_BACKOFF_MS: 2000
+      SCRIP_WEBHOOK_TIMEOUT_MS: 5000
       SCRIP_JWT_SIGNING_SECRET: change-me
+      SCRIP_JWT_DEFAULT_EXPIRATION: 24h
+      SCRIP_KYC_MAX_FILE_SIZE_MB: 5
+      SCRIP_REQUIRE_APPROVED_KYC_FOR_CHARGES: false
+      SCRIP_PIX_KEY: scrip@localhost
+      SCRIP_PIX_RECEIVER_NAME: SCRIP
+      SCRIP_PIX_RECEIVER_CITY: SAO PAULO
       API_BASE_URL: http://localhost:8081  # public URL as reached from the browser
     volumes:
       - scrip-data:/app/backend/data
