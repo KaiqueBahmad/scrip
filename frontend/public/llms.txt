@@ -52,11 +52,19 @@ action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not expo
 - Webhooks: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`,
   `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`, `withdrawal.confirmed`,
   `withdrawal.denied` - signed with HMAC over `<timestamp>.<body>`, sent as
-  `X-Scrip-Signature: t=<unix>,v1=<hmac>`.
+  `X-Scrip-Signature: t=<unix>,v1=<hmac>`, alongside `X-Scrip-Event`, `X-Scrip-Delivery`
+  (delivery id, stable across retries) and `X-Scrip-Attempt`.
 - Errors: every failure is `{ "error": { "code", "message", "details"? } }`, with a stable
   machine-readable `code`.
+- Test `payer_document`s: `11111111111` always confirms at the minimum delay, `22222222222`
+  never confirms (runs to expiration), `33333333333` confirms but its webhook deliveries fail
+  on purpose - useful for exercising retry handling in CI without waiting on real odds.
+  Any other document confirms per `approvalRate` (85% by default).
 - Simulated time: pending charges auto-confirm or expire on a delay driven by config, or can
-  be forced from the panel for deterministic tests.
+  be forced immediately from the panel with POST /v1/panel/charges/{id}/simulate (Body:
+  result, "paid" or "expired") for deterministic tests.
+- KYC gate: charge creation is unrestricted by default; setting `requireApprovedKycForCharges`
+  rejects it with `403 kyc_required` for any merchant whose `kyc_status` isn't `approved`.
 - Balance: `available` = settled charges - refunds - pending/confirmed withdrawals;
   `withdrawn` is the confirmed-only total, already reflected in `available`.
 
