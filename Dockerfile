@@ -49,11 +49,6 @@ COPY frontend/tsconfig.json frontend/vite.config.ts frontend/index.html ./
 COPY frontend/public ./public
 COPY frontend/src ./src
 
-# Vite only bakes VITE_* vars into the bundle at build time, so it must be a build arg,
-# not a runtime env var — the browser fetches the API directly, there's no server-side proxy.
-ARG VITE_API_BASE_URL=http://localhost:8081
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-
 RUN npm run build
 
 # ----------------------------------------------------------------------------
@@ -73,7 +68,8 @@ WORKDIR /app/backend
 ENV NODE_ENV=production \
     SCRIP_HOST=0.0.0.0 \
     SCRIP_PORT=8081 \
-    SCRIP_DATABASE_PATH=data/scrip.sqlite
+    SCRIP_DATABASE_PATH=data/scrip.sqlite \
+    API_BASE_URL=http://localhost:8081
 
 COPY --from=backend-prod-deps /app/node_modules ./node_modules
 COPY --from=backend-build /app/dist ./dist
@@ -83,6 +79,8 @@ RUN mkdir -p data && chown -R scrip:scrip /app/backend
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY supervisord.conf /etc/supervisor/conf.d/scrip.conf
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080 8081
 VOLUME ["/app/backend/data"]
@@ -90,4 +88,5 @@ VOLUME ["/app/backend/data"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD node -e "Promise.all([fetch('http://127.0.0.1:8080/'),fetch('http://127.0.0.1:'+(process.env.SCRIP_PORT||8081)+'/health')]).then(rs=>process.exit(rs.every(r=>r.ok)?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

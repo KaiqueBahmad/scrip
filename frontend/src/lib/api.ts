@@ -163,11 +163,24 @@ export class ApiError extends Error {
   }
 }
 
+declare global {
+  interface Window {
+    /** Written by docker-entrypoint.sh at container startup, from the API_BASE_URL env var. */
+    __SCRIP_CONFIG__?: { apiBaseUrl?: string };
+  }
+}
+
 /**
- * Empty by default: requests stay relative and the dev proxy (vite.config.ts) forwards
- * them. Set VITE_API_BASE_URL when the API lives on another origin.
+ * Empty by default: requests stay relative. Resolved in this order:
+ *   1. window.__SCRIP_CONFIG__.apiBaseUrl — runtime value, set by the Docker image's
+ *      entrypoint so a pulled image can point at a different API without a rebuild.
+ *   2. VITE_API_BASE_URL — build-time value, used by `npm run dev`/`vite build` outside
+ *      Docker, where nothing writes window.__SCRIP_CONFIG__.
  */
-const API_ROOT = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+const API_ROOT = (window.__SCRIP_CONFIG__?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || '').replace(
+  /\/+$/,
+  '',
+);
 
 const BASE = `${API_ROOT}/v1/panel`;
 
