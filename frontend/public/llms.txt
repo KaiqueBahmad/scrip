@@ -36,7 +36,11 @@ The API base URL defaults to `http://localhost:8081` in development and is whate
 
 A charge response has `payment_method: "pix"` at the top level and PIX-only fields (qr_code,
 qr_code_txid, qr_code_expires_at, e2e_id) nested under a `pix` object - future payment methods
-would nest their own fields the same way instead of adding to the flat charge shape.
+would nest their own fields the same way instead of adding to the flat charge shape. Full shape:
+`id`, `object: "charge"`, `merchant_id`, `payment_method`, `status`, `amount`,
+`amount_refunded`, `payer_document`, `payer_name`, `description`, `metadata`, `callback_url`,
+`pix: {...}`, `paid_at`, `expired_at`, `canceled_at`, `created_at`, `updated_at`. `status` is
+one of `pending`, `paid`, `expired`, `canceled` (one L), `partially_refunded`, `refunded`.
 
 There is no real bank behind a withdrawal, so confirming or denying one is a panel-only
 action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not exposed on
@@ -44,18 +48,36 @@ action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not expo
 
 ## Concepts
 
-- Auth: a Bearer JWT is minted from the panel (Tokens screen) and is scoped to one store -
-  there is no cross-store or per-route permission model.
+- Auth: a Bearer JWT is minted from the panel (Tokens screen), and is scoped to one store -
+  there is no cross-store or per-route permission model. This is scriptable, no browser
+  needed: `POST /v1/panel/merchants` (no auth, body: `name` optional) creates a store and
+  returns its `id`; `POST /v1/panel/tokens` (HTTP Basic, username is that `id`, password is
+  ignored - any value works, including empty; body: `name` optional label, `expires_in`
+  optional e.g. `"24h"`) mints the JWT. Both are on the `/v1/panel` Basic-auth surface, not
+  `/v1/api`.
 - Idempotency: repeating `Idempotency-Key` with the same body on charge creation replays the
   original response instead of creating a second charge; the same key with a different body
-  is rejected.
+  is rejected (`409 idempotency_key_reused`).
 - Webhooks: `pix.charge.created`, `pix.charge.paid`, `pix.charge.expired`,
   `pix.charge.refunded`, `kyc.approved`, `kyc.rejected`, `withdrawal.confirmed`,
-  `withdrawal.denied` - signed with HMAC over `<timestamp>.<body>`, sent as
-  `X-Scrip-Signature: t=<unix>,v1=<hmac>`, alongside `X-Scrip-Event`, `X-Scrip-Delivery`
-  (delivery id, stable across retries) and `X-Scrip-Attempt`.
+  `withdrawal.denied` - signed with HMAC-SHA256 over `<timestamp>.<body>`, sent as
+  `X-Scrip-Signature: t=<unix>,v1=<hex hmac>`, alongside `X-Scrip-Event`, `X-Scrip-Delivery`
+  (delivery id, stable across retries) and `X-Scrip-Attempt`. The POSTed body is
+  `{ id, event, created_at, data }`, where `data` holds the affected resource(s) keyed by
+  name: `{ charge }` for `pix.charge.*` (`pix.charge.refunded` adds `refund` alongside it),
+  `{ withdrawal }` for `withdrawal.*`, `{ merchant, reason }` for `kyc.*`. If your webhook
+  receiver runs on the host and Scrip runs in the container from the provided
+  docker-compose.yml, it can't reach `localhost:<port>` on the host - add
+  `extra_hosts: ["host.docker.internal:host-gateway"]` to the `app` service and point
+  `webhook_url` at `http://host.docker.internal:<port>/...`.
 - Errors: every failure is `{ "error": { "code", "message", "details"? } }`, with a stable
-  machine-readable `code`.
+  machine-readable `code`. Codes relevant to `/v1/api`: `api_auth_required`, `token_not_found`,
+  `token_revoked`, `token_expired`, `invalid_token`, `merchant_not_found`, `invalid_amount`,
+  `invalid_metadata`, `kyc_required`, `charge_not_found`, `invalid_state_transition`,
+  `charge_not_refundable`, `refund_exceeds_charge`, `refund_not_found`, `insufficient_balance`,
+  `invalid_withdrawal_status`, `withdrawal_not_found`, `invalid_webhook_url`, `invalid_name`,
+  `idempotency_key_reused`. Not an exhaustive list - `code` is a free-form string, not a
+  closed enum.
 - Test `payer_document`s: `11111111111` always confirms at the minimum delay, `22222222222`
   never confirms (runs to expiration), `33333333333` confirms but its webhook deliveries fail
   on purpose - useful for exercising retry handling in CI without waiting on real odds.
