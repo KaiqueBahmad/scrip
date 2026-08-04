@@ -45,7 +45,6 @@ services:
       API_BASE_URL: http://localhost:8081  # public URL as reached from the browser
     volumes:
       - scrip-data:/app/backend/data
-    restart: unless-stopped
 
 volumes:
   scrip-data:
