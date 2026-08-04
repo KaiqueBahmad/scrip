@@ -46,7 +46,7 @@ export function SelectMerchant() {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <span className="font-mono text-sm font-semibold tracking-[0.18em] text-white">
-              SCR<span className="text-trace">IP</span>
+              SCRIP
             </span>
             <p className="mt-1 font-mono text-[10px] tracking-[0.14em] text-white/40 uppercase">
               {t('selectMerchant.subtitle')}
