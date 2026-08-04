@@ -65,6 +65,7 @@ RUN groupadd --system --gid 1001 scrip \
   && useradd --system --uid 1001 --gid scrip --home /app/backend scrip
 
 WORKDIR /app/backend
+
 ENV NODE_ENV=production \
     SCRIP_HOST=0.0.0.0 \
     SCRIP_PORT=8081 \
