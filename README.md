@@ -62,6 +62,39 @@ npm --prefix frontend run dev
 
 Available at `http://localhost:8080`.
 
+## Docker
+
+A prebuilt image is published to [`kaiquebt/scrip`](https://hub.docker.com/r/kaiquebt/scrip) — nginx serves the panel and the API runs alongside it in the same container, supervised by `supervisord`.
+
+```yaml
+services:
+  app:
+    image: kaiquebt/scrip:latest
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      SCRIP_HOST: 0.0.0.0
+      SCRIP_PORT: 8081
+      SCRIP_JWT_SIGNING_SECRET: change-me
+      # Public URL of the backend as reached from the browser — update if you change the port above.
+      API_BASE_URL: http://localhost:8081
+    volumes:
+      - scrip-data:/app/backend/data
+    restart: unless-stopped
+
+volumes:
+  scrip-data:
+```
+
+```bash
+docker compose up -d
+```
+
+`API_BASE_URL` can be overridden from a `.env` file with no rebuild — it's written into the panel's runtime config by the image's entrypoint at container start, not baked in at build time.
+
+To build from source instead of pulling the image, the repo's own `docker-compose.yml` does the same thing with `build: .`; run `docker compose up -d --build`.
+
 ## Quickstart
 
 1. **Open the panel** (`http://localhost:8080`). There's no login screen — **the merchant is the panel's identity**. Pick an existing store or create one; store creation is intentionally unauthenticated, since Basic auth needs an existing merchant to resolve against — this is a dev tool, don't expose it publicly.
