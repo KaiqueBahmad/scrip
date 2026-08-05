@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { LOGGER } from '../common/injection-tokens';
 import { nowIso } from '../db/index';
 import { badRequest, conflict, notFound } from '../lib/errors';
+import { computeFee } from '../lib/fees';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { MerchantRepository, WithdrawalRepository } from '../repositories';
@@ -59,7 +60,7 @@ export class WithdrawalService {
 
     // The exit fee is locked in at request time, same as the amount itself — both hold
     // against the balance together from the moment the withdrawal is created.
-    const feeAmount = Math.round((input.amount * merchant.pix_fee_out_bps) / 10000);
+    const feeAmount = computeFee(input.amount, merchant.pix_fee_out_bps, merchant.pix_fee_out_fixed);
     const totalHeld = input.amount + feeAmount;
 
     // Re-checked here rather than trusted from the caller: the balance can move between

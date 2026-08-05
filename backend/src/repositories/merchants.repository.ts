@@ -13,6 +13,8 @@ export interface MerchantPatch {
   webhook_secret: string;
   pix_fee_in_bps: number;
   pix_fee_out_bps: number;
+  pix_fee_in_fixed: number;
+  pix_fee_out_fixed: number;
   updated_at: string;
 }
 

@@ -50,6 +50,13 @@
       "when": 1785899337943,
       "tag": "0006_add_pix_fees",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785901129320,
+      "tag": "0007_add_pix_fixed_fees",
+      "breakpoints": true
     }
   ]
 }

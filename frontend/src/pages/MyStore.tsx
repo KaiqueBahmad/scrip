@@ -39,6 +39,18 @@ function percentInputToBps(value: string): number {
   return Math.min(10000, Math.max(0, Math.round(percent * 100)));
 }
 
+/** Centavos -> the editable money string ("1.00"), as the fixed-fee inputs store it. */
+function centavosToMoneyInput(centavos: number | undefined): string {
+  return ((centavos ?? 0) / 100).toFixed(2);
+}
+
+/** The editable money string back to non-negative centavos. */
+function moneyInputToCentavos(value: string): number {
+  const reais = Number(value.replace(',', '.'));
+  if (!Number.isFinite(reais)) return 0;
+  return Math.max(0, Math.round(reais * 100));
+}
+
 /** One number, stated plainly. The balance is the first thing a store wants to see. */
 function BalanceFigure({
   label,
@@ -73,6 +85,8 @@ export function MyStore() {
   const [webhookUrl, setWebhookUrl] = useState(merchant?.webhook_url ?? '');
   const [pixFeeIn, setPixFeeIn] = useState(bpsToPercentInput(merchant?.pix_fee_in_bps));
   const [pixFeeOut, setPixFeeOut] = useState(bpsToPercentInput(merchant?.pix_fee_out_bps));
+  const [pixFeeInFixed, setPixFeeInFixed] = useState(centavosToMoneyInput(merchant?.pix_fee_in_fixed));
+  const [pixFeeOutFixed, setPixFeeOutFixed] = useState(centavosToMoneyInput(merchant?.pix_fee_out_fixed));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +126,8 @@ export function MyStore() {
         webhook_url: webhookUrl.trim() || null,
         pix_fee_in_bps: percentInputToBps(pixFeeIn),
         pix_fee_out_bps: percentInputToBps(pixFeeOut),
+        pix_fee_in_fixed: moneyInputToCentavos(pixFeeInFixed),
+        pix_fee_out_fixed: moneyInputToCentavos(pixFeeOutFixed),
       });
       await Promise.all([refreshSession(), refreshMerchants()]);
       setSaved(true);
@@ -209,6 +225,20 @@ export function MyStore() {
                 </Field>
 
                 <Field
+                  label={t('myStore.pixFeeInFixedLabel')}
+                  htmlFor="store-pix-fee-in-fixed"
+                  hint={t('myStore.pixFeeInFixedHint')}
+                >
+                  <Input
+                    id="store-pix-fee-in-fixed"
+                    inputMode="decimal"
+                    value={pixFeeInFixed}
+                    onChange={(event) => setPixFeeInFixed(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </Field>
+
+                <Field
                   label={t('myStore.pixFeeOutLabel')}
                   htmlFor="store-pix-fee-out"
                   hint={t('myStore.pixFeeOutHint')}
@@ -218,6 +248,20 @@ export function MyStore() {
                     inputMode="decimal"
                     value={pixFeeOut}
                     onChange={(event) => setPixFeeOut(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </Field>
+
+                <Field
+                  label={t('myStore.pixFeeOutFixedLabel')}
+                  htmlFor="store-pix-fee-out-fixed"
+                  hint={t('myStore.pixFeeOutFixedHint')}
+                >
+                  <Input
+                    id="store-pix-fee-out-fixed"
+                    inputMode="decimal"
+                    value={pixFeeOutFixed}
+                    onChange={(event) => setPixFeeOutFixed(event.target.value)}
                     placeholder="0.00"
                   />
                 </Field>

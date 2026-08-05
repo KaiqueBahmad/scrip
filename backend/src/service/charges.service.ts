@@ -4,6 +4,7 @@ import { LOGGER, RANDOM, SCHEDULER } from '../common/injection-tokens';
 import { ConfigStore } from '../config';
 import { nowIso } from '../db/index';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors';
+import { computeFee } from '../lib/fees';
 import { newId } from '../lib/ids';
 import type { Logger } from '../lib/logger';
 import { buildBrCode, generateE2eId, generateTxid } from '../lib/pix';
@@ -215,7 +216,11 @@ export class ChargeService implements OnApplicationBootstrap {
     // The entry fee is locked in at settlement, off the merchant's rate at that moment —
     // a later rate change never reaches back into a charge that already settled.
     const merchant = this.merchants.findById(charge.merchant_id);
-    const feeAmount = Math.round((charge.amount * (merchant?.pix_fee_in_bps ?? 0)) / 10000);
+    const feeAmount = computeFee(
+      charge.amount,
+      merchant?.pix_fee_in_bps ?? 0,
+      merchant?.pix_fee_in_fixed ?? 0,
+    );
 
     const updated = this.transition(
       charge,

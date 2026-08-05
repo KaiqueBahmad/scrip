@@ -17,9 +17,11 @@ describe('pix fee configuration', () => {
 
     assert.equal(merchant.pix_fee_in_bps, 0);
     assert.equal(merchant.pix_fee_out_bps, 0);
+    assert.equal(merchant.pix_fee_in_fixed, 0);
+    assert.equal(merchant.pix_fee_out_fixed, 0);
   });
 
-  it('lets the store configure its entry and exit fee over the panel', async () => {
+  it('lets the store configure its entry and exit fee (percentage and fixed) over the panel', async () => {
     harness = await createHarness();
     const { basic } = await seedMerchantAndToken(harness);
 
@@ -27,12 +29,42 @@ describe('pix fee configuration', () => {
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
       headers: basic,
-      payload: { pix_fee_in_bps: 250, pix_fee_out_bps: 100 },
+      payload: {
+        pix_fee_in_bps: 250,
+        pix_fee_out_bps: 100,
+        pix_fee_in_fixed: 50,
+        pix_fee_out_fixed: 25,
+      },
     });
 
     assert.equal(updated.statusCode, 200);
     assert.equal(updated.json().pix_fee_in_bps, 250);
     assert.equal(updated.json().pix_fee_out_bps, 100);
+    assert.equal(updated.json().pix_fee_in_fixed, 50);
+    assert.equal(updated.json().pix_fee_out_fixed, 25);
+  });
+
+  it('rejects a negative or fractional fixed fee', async () => {
+    harness = await createHarness();
+    const { basic } = await seedMerchantAndToken(harness);
+
+    const negative = await harness.app.inject({
+      method: 'PATCH',
+      url: '/v1/panel/merchants/me',
+      headers: basic,
+      payload: { pix_fee_in_fixed: -10 },
+    });
+    assert.equal(negative.statusCode, 400);
+    assert.equal(negative.json().error.code, 'invalid_pix_fee_in_fixed');
+
+    const fractional = await harness.app.inject({
+      method: 'PATCH',
+      url: '/v1/panel/merchants/me',
+      headers: basic,
+      payload: { pix_fee_out_fixed: 10.5 },
+    });
+    assert.equal(fractional.statusCode, 400);
+    assert.equal(fractional.json().error.code, 'invalid_pix_fee_out_fixed');
   });
 
   it('rejects a fee outside 0-10000 basis points', async () => {
@@ -95,6 +127,40 @@ describe('pix entry fee applied on settlement', () => {
     assert.equal(balance.gross_received, 20000);
     assert.equal(balance.fees_in, 500);
     assert.equal(balance.available, 19500);
+  });
+
+  it('combines the fixed fee with the percentage fee', async () => {
+    harness = await createHarness();
+    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    harness.app.services.merchants.update(merchant.id, { pixFeeInBps: 250, pixFeeInFixed: 100 }); // 2.5% + R$1,00
+
+    const { body: charge } = await createCharge(harness, bearer, { amount: 20000 });
+    const paid = await harness.app.inject({
+      method: 'POST',
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: basic,
+      payload: { result: 'paid' },
+    });
+
+    // 100 fixed + 2.5% of 20000 (500) = 600
+    assert.equal(paid.json().fee_amount, 600);
+    assert.equal(harness.app.services.merchants.balanceFor(merchant.id).available, 19400);
+  });
+
+  it('applies the fixed fee alone when there is no percentage fee', async () => {
+    harness = await createHarness();
+    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    harness.app.services.merchants.update(merchant.id, { pixFeeInFixed: 150 });
+
+    const { body: charge } = await createCharge(harness, bearer, { amount: 5000 });
+    const paid = await harness.app.inject({
+      method: 'POST',
+      url: `/v1/panel/charges/${charge.id}/simulate`,
+      headers: basic,
+      payload: { result: 'paid' },
+    });
+
+    assert.equal(paid.json().fee_amount, 150);
   });
 
   it('keeps the fee already charged even once the charge is refunded', async () => {
@@ -174,6 +240,27 @@ describe('pix exit fee applied on withdrawal', () => {
     assert.equal(
       harness.app.services.merchants.balanceFor(merchant.id).available,
       10000 - 5000 - 100,
+    );
+  });
+
+  it('combines the fixed fee with the percentage fee', async () => {
+    harness = await createHarness();
+    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 200, pixFeeOutFixed: 80 }); // 2% + R$0,80
+    await seedBalance(harness, bearer, basic, 10000);
+
+    const created = await harness.app.inject({
+      method: 'POST',
+      url: '/v1/api/withdrawals',
+      headers: bearer,
+      payload: { amount: 5000 },
+    });
+
+    // 80 fixed + 2% of 5000 (100) = 180
+    assert.equal(created.json().fee_amount, 180);
+    assert.equal(
+      harness.app.services.merchants.balanceFor(merchant.id).available,
+      10000 - 5000 - 180,
     );
   });
 

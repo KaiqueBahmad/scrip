@@ -29,6 +29,10 @@ export interface ApiMerchant {
   pix_fee_in_bps: number;
   /** Basis points (0-10000): the store's PIX exit fee, taken when a withdrawal is requested. */
   pix_fee_out_bps: number;
+  /** Flat centavos charged on top of pix_fee_in_bps for every settled charge. */
+  pix_fee_in_fixed: number;
+  /** Flat centavos charged on top of pix_fee_out_bps for every withdrawal. */
+  pix_fee_out_fixed: number;
   /** Present wherever the server had a merchant in hand to compute it. */
   balance?: ApiBalance;
   created_at: string;
@@ -308,6 +312,8 @@ export const api = {
       rotate_webhook_secret: boolean;
       pix_fee_in_bps: number;
       pix_fee_out_bps: number;
+      pix_fee_in_fixed: number;
+      pix_fee_out_fixed: number;
     }>,
   ) => request<ApiMerchant>('PATCH', '/merchants/me', { body }),
   deleteMyMerchant: () => request<void>('DELETE', '/merchants/me'),

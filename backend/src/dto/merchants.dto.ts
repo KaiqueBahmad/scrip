@@ -12,6 +12,10 @@ export interface UpdateMerchantBody {
   pix_fee_in_bps?: number;
   /** Basis points (0-10000): the store's PIX exit fee, taken when a withdrawal is requested. */
   pix_fee_out_bps?: number;
+  /** Flat centavos charged on top of pix_fee_in_bps for every settled charge. */
+  pix_fee_in_fixed?: number;
+  /** Flat centavos charged on top of pix_fee_out_bps for every withdrawal. */
+  pix_fee_out_fixed?: number;
 }
 
 /**
@@ -25,5 +29,7 @@ export function toMerchantUpdate(body: UpdateMerchantBody): UpdateMerchantInput 
     ...(body.rotate_webhook_secret ? { rotateWebhookSecret: true } : {}),
     ...(body.pix_fee_in_bps === undefined ? {} : { pixFeeInBps: body.pix_fee_in_bps }),
     ...(body.pix_fee_out_bps === undefined ? {} : { pixFeeOutBps: body.pix_fee_out_bps }),
+    ...(body.pix_fee_in_fixed === undefined ? {} : { pixFeeInFixed: body.pix_fee_in_fixed }),
+    ...(body.pix_fee_out_fixed === undefined ? {} : { pixFeeOutFixed: body.pix_fee_out_fixed }),
   };
 }

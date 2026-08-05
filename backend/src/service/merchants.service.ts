@@ -25,6 +25,10 @@ export interface UpdateMerchantInput {
   pixFeeInBps?: number;
   /** Basis points (0-10000): the cut taken from a withdrawal once it's requested. */
   pixFeeOutBps?: number;
+  /** Flat centavos charged on top of pixFeeInBps for every settled charge. */
+  pixFeeInFixed?: number;
+  /** Flat centavos charged on top of pixFeeOutBps for every withdrawal. */
+  pixFeeOutFixed?: number;
 }
 
 /** Basis points are 0-10000 (0%-100%) and must be whole — a fee finer than 0.01% has no meaning. */
@@ -33,6 +37,17 @@ function assertValidBps(field: string, value: number | undefined): void {
 
   if (!Number.isInteger(value) || value < 0 || value > 10000) {
     throw badRequest(`invalid_${field}`, `${field} must be an integer between 0 and 10000`, {
+      [field]: value,
+    });
+  }
+}
+
+/** A flat fee is centavos, so it can only ever be a non-negative integer. */
+function assertValidFixedFee(field: string, value: number | undefined): void {
+  if (value === undefined) return;
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw badRequest(`invalid_${field}`, `${field} must be a non-negative integer`, {
       [field]: value,
     });
   }
@@ -132,6 +147,8 @@ export class MerchantService {
       // New merchants start fee-free; the store configures its own rates via update.
       pix_fee_in_bps: 0,
       pix_fee_out_bps: 0,
+      pix_fee_in_fixed: 0,
+      pix_fee_out_fixed: 0,
       created_at: at,
       updated_at: at,
     };
@@ -165,6 +182,8 @@ export class MerchantService {
     if (input.webhookUrl !== undefined) assertValidWebhookUrl(input.webhookUrl);
     assertValidBps('pix_fee_in_bps', input.pixFeeInBps);
     assertValidBps('pix_fee_out_bps', input.pixFeeOutBps);
+    assertValidFixedFee('pix_fee_in_fixed', input.pixFeeInFixed);
+    assertValidFixedFee('pix_fee_out_fixed', input.pixFeeOutFixed);
 
     this.merchants.update(merchantId, {
       name: input.name?.trim() ?? current.name,
@@ -172,6 +191,8 @@ export class MerchantService {
       webhook_secret: input.rotateWebhookSecret ? newWebhookSecret() : current.webhook_secret,
       pix_fee_in_bps: input.pixFeeInBps ?? current.pix_fee_in_bps,
       pix_fee_out_bps: input.pixFeeOutBps ?? current.pix_fee_out_bps,
+      pix_fee_in_fixed: input.pixFeeInFixed ?? current.pix_fee_in_fixed,
+      pix_fee_out_fixed: input.pixFeeOutFixed ?? current.pix_fee_out_fixed,
       updated_at: nowIso(),
     });
 

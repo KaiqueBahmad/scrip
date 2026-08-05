@@ -177,11 +177,19 @@ function WithdrawalForm({
   const [error, setError] = useState<string | null>(null);
 
   const feeOutBps = merchant?.pix_fee_out_bps ?? 0;
+  const feeOutFixed = merchant?.pix_fee_out_fixed ?? 0;
+  const hasFee = feeOutBps > 0 || feeOutFixed > 0;
   const centavos = Math.round(Number(amount.replace(',', '.')) * 100);
   const feePreview =
-    feeOutBps > 0 && Number.isFinite(centavos) && centavos > 0
-      ? Math.round((centavos * feeOutBps) / 10000)
+    hasFee && Number.isFinite(centavos) && centavos > 0
+      ? feeOutFixed + Math.round((centavos * feeOutBps) / 10000)
       : 0;
+  const feeRateDescription = [
+    feeOutBps > 0 ? formatBps(feeOutBps) : null,
+    feeOutFixed > 0 ? formatMoney(feeOutFixed) : null,
+  ]
+    .filter(Boolean)
+    .join(' + ');
 
   const create = async () => {
     setSaving(true);
@@ -218,8 +226,8 @@ function WithdrawalForm({
         label={t('withdrawals.amountLabel')}
         htmlFor="withdrawal-amount"
         hint={
-          feeOutBps > 0
-            ? t('withdrawals.amountHintWithFee', { fee: formatBps(feeOutBps), amount: formatMoney(feePreview) })
+          hasFee
+            ? t('withdrawals.amountHintWithFee', { fee: feeRateDescription, amount: formatMoney(feePreview) })
             : t('withdrawals.amountHint')
         }
       >

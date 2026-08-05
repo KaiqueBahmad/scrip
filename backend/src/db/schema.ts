@@ -37,6 +37,10 @@ export const merchants = sqliteTable(
     // when it settles, so a later rate change never reaches back into old money.
     pix_fee_in_bps: integer().notNull().default(0),
     pix_fee_out_bps: integer().notNull().default(0),
+    // Flat centavos charged on top of the percentage, same "fixed + %" shape real gateways
+    // use (e.g. Stripe's 2.9% + $0.30). Also snapshotted at settlement/request time.
+    pix_fee_in_fixed: integer().notNull().default(0),
+    pix_fee_out_fixed: integer().notNull().default(0),
     created_at: text().notNull(),
     updated_at: text().notNull(),
   },
@@ -44,6 +48,8 @@ export const merchants = sqliteTable(
     check('merchants_kyc_status', sql`${table.kyc_status} IN ('pending', 'approved', 'rejected')`),
     check('merchants_pix_fee_in_bps', sql`${table.pix_fee_in_bps} BETWEEN 0 AND 10000`),
     check('merchants_pix_fee_out_bps', sql`${table.pix_fee_out_bps} BETWEEN 0 AND 10000`),
+    check('merchants_pix_fee_in_fixed', sql`${table.pix_fee_in_fixed} >= 0`),
+    check('merchants_pix_fee_out_fixed', sql`${table.pix_fee_out_fixed} >= 0`),
   ],
 );
 

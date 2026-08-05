@@ -101,6 +101,8 @@ export function serializeMerchant(
     kyc_reviewed_at: row.kyc_reviewed_at,
     pix_fee_in_bps: row.pix_fee_in_bps,
     pix_fee_out_bps: row.pix_fee_out_bps,
+    pix_fee_in_fixed: row.pix_fee_in_fixed,
+    pix_fee_out_fixed: row.pix_fee_out_fixed,
     ...(balance ? { balance } : {}),
     created_at: row.created_at,
     updated_at: row.updated_at,
