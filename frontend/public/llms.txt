@@ -25,11 +25,15 @@ The API base URL defaults to `http://localhost:8081` in development and is whate
   defaults to the full outstanding balance), reason.
 - GET /v1/api/payments/charges/{id}/refunds: Lists a charge's refunds.
 - GET /v1/api/merchants/me: Looks up the authenticated store's data (webhook_secret included).
-- PATCH /v1/api/merchants/me: Updates the store's name, webhook_url, or rotates its
-  webhook_secret.
+- PATCH /v1/api/merchants/me: Updates the store's name, webhook_url, rotates its
+  webhook_secret, or sets its PIX fees: `pix_fee_in_bps`/`pix_fee_out_bps` (integer, 0-10000
+  basis points, i.e. 0-100%) and `pix_fee_in_fixed`/`pix_fee_out_fixed` (integer cents) for
+  the entry/exit fee's percentage and flat components.
 - POST /v1/api/withdrawals: Requests a payout of the store's available balance. Body: amount
-  (required, integer cents, can't exceed available). The amount is reserved against
-  `available` immediately, before it's confirmed.
+  (required, integer cents). The store's exit fee (`pix_fee_out_fixed +
+  amount * pix_fee_out_bps`) is computed at request time and reserved together with `amount`
+  against `available` immediately, before it's confirmed - `amount + fee` can't exceed
+  `available` or the request is rejected with `insufficient_balance`.
 - GET /v1/api/withdrawals: Lists the store's withdrawals. Query: status (pending, confirmed,
   denied), limit, offset.
 - GET /v1/api/withdrawals/{id}: Looks up one withdrawal.
@@ -39,8 +43,11 @@ qr_code_txid, qr_code_expires_at, e2e_id) nested under a `pix` object - future p
 would nest their own fields the same way instead of adding to the flat charge shape. Full shape:
 `id`, `object: "charge"`, `merchant_id`, `payment_method`, `status`, `amount`,
 `amount_refunded`, `payer_document`, `payer_name`, `description`, `metadata`, `callback_url`,
-`pix: {...}`, `paid_at`, `expired_at`, `canceled_at`, `created_at`, `updated_at`. `status` is
-one of `pending`, `paid`, `expired`, `canceled` (one L), `partially_refunded`, `refunded`.
+`fee_amount`, `pix: {...}`, `paid_at`, `expired_at`, `canceled_at`, `created_at`, `updated_at`.
+`status` is one of `pending`, `paid`, `expired`, `canceled` (one L), `partially_refunded`,
+`refunded`. `fee_amount` is the store's entry fee (see Concepts > Fees) - zero until the
+charge is paid, then fixed for the charge's lifetime even across a later refund. A withdrawal
+has the same idea on the exit side: its `fee_amount` is set once, at creation.
 
 There is no real bank behind a withdrawal, so confirming or denying one is a panel-only
 action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not exposed on
@@ -87,8 +94,16 @@ action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not expo
   result, "paid" or "expired") for deterministic tests.
 - KYC gate: charge creation is unrestricted by default; setting `requireApprovedKycForCharges`
   rejects it with `403 kyc_required` for any merchant whose `kyc_status` isn't `approved`.
-- Balance: `available` = settled charges - refunds - pending/confirmed withdrawals;
-  `withdrawn` is the confirmed-only total, already reflected in `available`.
+- Fees: a store's PIX fee is "fixed + %" per direction, same shape real gateways use (e.g.
+  Stripe's 2.9% + $0.30) - see the `PATCH /v1/api/merchants/me` fields above. The entry fee is
+  computed off the store's rate at the moment a charge is marked `paid`; the exit fee at the
+  moment a withdrawal is created. Both are snapshotted onto that charge/withdrawal's
+  `fee_amount`, so a later rate change never reaches back into money that already moved - and
+  a charge's fee is kept even if it's later refunded.
+- Balance: `available` = settled charges - refunds - entry fees - pending/confirmed
+  withdrawals (payout + exit fee). `withdrawn` (confirmed-only withdrawal total, gross of the
+  exit fee) and `fees_in`/`fees_out` (entry/exit fee totals) are informational - all three are
+  already reflected in `available`.
 
 ## Optional
 
