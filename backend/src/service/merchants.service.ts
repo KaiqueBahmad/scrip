@@ -21,6 +21,21 @@ export interface UpdateMerchantInput {
   name?: string;
   webhookUrl?: string | null;
   rotateWebhookSecret?: boolean;
+  /** Basis points (0-10000): the cut taken from a charge once it settles. */
+  pixFeeInBps?: number;
+  /** Basis points (0-10000): the cut taken from a withdrawal once it's requested. */
+  pixFeeOutBps?: number;
+}
+
+/** Basis points are 0-10000 (0%-100%) and must be whole — a fee finer than 0.01% has no meaning. */
+function assertValidBps(field: string, value: number | undefined): void {
+  if (value === undefined) return;
+
+  if (!Number.isInteger(value) || value < 0 || value > 10000) {
+    throw badRequest(`invalid_${field}`, `${field} must be an integer between 0 and 10000`, {
+      [field]: value,
+    });
+  }
 }
 
 function assertValidWebhookUrl(url: string | null | undefined): void {
@@ -39,9 +54,12 @@ function assertValidWebhookUrl(url: string | null | undefined): void {
 }
 
 export interface MerchantBalance {
-  /** Liquid balance in centavos: settled, minus refunds, minus pending/confirmed withdrawals. */
+  /**
+   * Liquid balance in centavos: settled, minus refunds, minus entry fees, minus
+   * pending/confirmed withdrawals (payout + exit fee).
+   */
   available: number;
-  /** Sum of every charge that ever settled, before refunds. */
+  /** Sum of every charge that ever settled, before refunds and before the entry fee. */
   gross_received: number;
   /** Sum of every refund issued. */
   refunded: number;
@@ -49,6 +67,10 @@ export interface MerchantBalance {
   settled_charges: number;
   /** Sum of confirmed withdrawals — informational; already reflected in `available`. */
   withdrawn: number;
+  /** Entry fee taken out of settled charges — informational; already reflected in `available`. */
+  fees_in: number;
+  /** Exit fee taken out of confirmed withdrawals — informational; already reflected in `available`. */
+  fees_out: number;
 }
 
 /** Only these statuses ever moved money; a fully refunded charge contributes zero. */
@@ -81,11 +103,13 @@ export class MerchantService {
     const held = this.withdrawals.sumHeld(merchantId);
 
     return {
-      available: totals.amount - totals.refunded_amount - held,
+      available: totals.amount - totals.refunded_amount - totals.fee_amount - held,
       gross_received: totals.amount,
       refunded: totals.refunded_amount,
       settled_charges: totals.count,
       withdrawn: this.withdrawals.sumConfirmed(merchantId),
+      fees_in: totals.fee_amount,
+      fees_out: this.withdrawals.sumConfirmedFees(merchantId),
     };
   }
 
@@ -105,6 +129,9 @@ export class MerchantService {
       kyc_status: 'pending',
       kyc_reason: null,
       kyc_reviewed_at: null,
+      // New merchants start fee-free; the store configures its own rates via update.
+      pix_fee_in_bps: 0,
+      pix_fee_out_bps: 0,
       created_at: at,
       updated_at: at,
     };
@@ -136,11 +163,15 @@ export class MerchantService {
       throw badRequest('invalid_name', 'name cannot be empty');
     }
     if (input.webhookUrl !== undefined) assertValidWebhookUrl(input.webhookUrl);
+    assertValidBps('pix_fee_in_bps', input.pixFeeInBps);
+    assertValidBps('pix_fee_out_bps', input.pixFeeOutBps);
 
     this.merchants.update(merchantId, {
       name: input.name?.trim() ?? current.name,
       webhook_url: input.webhookUrl === undefined ? current.webhook_url : input.webhookUrl,
       webhook_secret: input.rotateWebhookSecret ? newWebhookSecret() : current.webhook_secret,
+      pix_fee_in_bps: input.pixFeeInBps ?? current.pix_fee_in_bps,
+      pix_fee_out_bps: input.pixFeeOutBps ?? current.pix_fee_out_bps,
       updated_at: nowIso(),
     });
 

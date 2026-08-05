@@ -8,6 +8,10 @@ export interface UpdateMerchantBody {
   name?: string;
   webhook_url?: string | null;
   rotate_webhook_secret?: boolean;
+  /** Basis points (0-10000): the store's PIX entry fee, taken when a charge settles. */
+  pix_fee_in_bps?: number;
+  /** Basis points (0-10000): the store's PIX exit fee, taken when a withdrawal is requested. */
+  pix_fee_out_bps?: number;
 }
 
 /**
@@ -19,5 +23,7 @@ export function toMerchantUpdate(body: UpdateMerchantBody): UpdateMerchantInput 
     ...(body.name === undefined ? {} : { name: body.name }),
     ...(body.webhook_url === undefined ? {} : { webhookUrl: body.webhook_url }),
     ...(body.rotate_webhook_secret ? { rotateWebhookSecret: true } : {}),
+    ...(body.pix_fee_in_bps === undefined ? {} : { pixFeeInBps: body.pix_fee_in_bps }),
+    ...(body.pix_fee_out_bps === undefined ? {} : { pixFeeOutBps: body.pix_fee_out_bps }),
   };
 }

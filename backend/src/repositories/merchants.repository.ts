@@ -11,6 +11,8 @@ export interface MerchantPatch {
   name: string;
   webhook_url: string | null;
   webhook_secret: string;
+  pix_fee_in_bps: number;
+  pix_fee_out_bps: number;
   updated_at: string;
 }
 
@@ -18,6 +20,7 @@ export interface MerchantPatch {
 export interface ChargeTotals {
   amount: number;
   refunded_amount: number;
+  fee_amount: number;
   count: number;
 }
 
@@ -66,6 +69,7 @@ export class MerchantRepository {
       .select({
         amount: sql<number>`COALESCE(SUM(${charges.amount}), 0)`,
         refunded_amount: sql<number>`COALESCE(SUM(${charges.refunded_amount}), 0)`,
+        fee_amount: sql<number>`COALESCE(SUM(${charges.fee_amount}), 0)`,
         count: sql<number>`COUNT(*)`,
       })
       .from(charges)
@@ -77,6 +81,7 @@ export class MerchantRepository {
     return {
       amount: row?.amount ?? 0,
       refunded_amount: row?.refunded_amount ?? 0,
+      fee_amount: row?.fee_amount ?? 0,
       count: row?.count ?? 0,
     };
   }

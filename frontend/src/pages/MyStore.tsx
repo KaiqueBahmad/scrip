@@ -27,6 +27,18 @@ function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+/** Basis points -> the editable percentage string ("2.50"), as the fee inputs store it. */
+function bpsToPercentInput(bps: number | undefined): string {
+  return ((bps ?? 0) / 100).toFixed(2);
+}
+
+/** The editable percentage string back to basis points, clamped to what the API accepts. */
+function percentInputToBps(value: string): number {
+  const percent = Number(value.replace(',', '.'));
+  if (!Number.isFinite(percent)) return 0;
+  return Math.min(10000, Math.max(0, Math.round(percent * 100)));
+}
+
 /** One number, stated plainly. The balance is the first thing a store wants to see. */
 function BalanceFigure({
   label,
@@ -59,6 +71,8 @@ export function MyStore() {
 
   const [name, setName] = useState(merchant?.name ?? '');
   const [webhookUrl, setWebhookUrl] = useState(merchant?.webhook_url ?? '');
+  const [pixFeeIn, setPixFeeIn] = useState(bpsToPercentInput(merchant?.pix_fee_in_bps));
+  const [pixFeeOut, setPixFeeOut] = useState(bpsToPercentInput(merchant?.pix_fee_out_bps));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +110,8 @@ export function MyStore() {
       await api.updateMyMerchant({
         name: name.trim(),
         webhook_url: webhookUrl.trim() || null,
+        pix_fee_in_bps: percentInputToBps(pixFeeIn),
+        pix_fee_out_bps: percentInputToBps(pixFeeOut),
       });
       await Promise.all([refreshSession(), refreshMerchants()]);
       setSaved(true);
@@ -134,6 +150,12 @@ export function MyStore() {
           <BalanceFigure label={t('myStore.refundedLabel')} value={formatMoney(balance?.refunded ?? 0)} />
           <BalanceFigure label={t('myStore.withdrawnLabel')} value={formatMoney(balance?.withdrawn ?? 0)} />
         </div>
+        {balance && (balance.fees_in > 0 || balance.fees_out > 0) ? (
+          <div className="grid divide-y divide-[var(--hairline-soft)] border-t border-[var(--hairline-soft)] sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <BalanceFigure label={t('myStore.feesInLabel')} value={formatMoney(balance.fees_in)} />
+            <BalanceFigure label={t('myStore.feesOutLabel')} value={formatMoney(balance.fees_out)} />
+          </div>
+        ) : null}
       </Panel>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -170,6 +192,36 @@ export function MyStore() {
                   placeholder="http://localhost:3000/webhooks/scrip"
                 />
               </Field>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label={t('myStore.pixFeeInLabel')}
+                  htmlFor="store-pix-fee-in"
+                  hint={t('myStore.pixFeeInHint')}
+                >
+                  <Input
+                    id="store-pix-fee-in"
+                    inputMode="decimal"
+                    value={pixFeeIn}
+                    onChange={(event) => setPixFeeIn(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </Field>
+
+                <Field
+                  label={t('myStore.pixFeeOutLabel')}
+                  htmlFor="store-pix-fee-out"
+                  hint={t('myStore.pixFeeOutHint')}
+                >
+                  <Input
+                    id="store-pix-fee-out"
+                    inputMode="decimal"
+                    value={pixFeeOut}
+                    onChange={(event) => setPixFeeOut(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </Field>
+              </div>
             </div>
           </Panel>
 

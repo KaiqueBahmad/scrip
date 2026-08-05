@@ -20,7 +20,7 @@ import {
 import { api, ApiError, type ApiWithdrawal } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useAsync } from '../lib/useAsync';
-import { formatDateTime, formatMoney } from '../lib/utils';
+import { formatBps, formatDateTime, formatMoney } from '../lib/utils';
 
 /** Requesting, confirming and denying your own withdrawal — a simulation control, the same idea as forcing a payment. */
 export function Withdrawals() {
@@ -94,6 +94,7 @@ export function Withdrawals() {
               <tr>
                 <Th>{t('withdrawals.colId')}</Th>
                 <Th className="text-right">{t('withdrawals.colAmount')}</Th>
+                <Th className="text-right">{t('withdrawals.colFee')}</Th>
                 <Th>{t('withdrawals.colStatus')}</Th>
                 <Th>{t('withdrawals.colCreated')}</Th>
                 <Th />
@@ -104,6 +105,9 @@ export function Withdrawals() {
                 <tr key={withdrawal.id} className="hover:bg-[var(--hairline-soft)]">
                   <Td className="tnum text-xs">{withdrawal.id}</Td>
                   <Td className="tnum text-right whitespace-nowrap">{formatMoney(withdrawal.amount)}</Td>
+                  <Td className="tnum text-right whitespace-nowrap text-[var(--text-muted)]">
+                    {formatMoney(withdrawal.fee_amount)}
+                  </Td>
                   <Td>
                     <WithdrawalBadge status={withdrawal.status} />
                     {withdrawal.status === 'denied' && withdrawal.reason ? (
@@ -167,16 +171,23 @@ function WithdrawalForm({
   onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const { merchant } = useSession();
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const feeOutBps = merchant?.pix_fee_out_bps ?? 0;
+  const centavos = Math.round(Number(amount.replace(',', '.')) * 100);
+  const feePreview =
+    feeOutBps > 0 && Number.isFinite(centavos) && centavos > 0
+      ? Math.round((centavos * feeOutBps) / 10000)
+      : 0;
 
   const create = async () => {
     setSaving(true);
     setError(null);
 
     try {
-      const centavos = Math.round(Number(amount.replace(',', '.')) * 100);
       await api.createWithdrawal({ amount: centavos });
       setAmount('');
       await onSaved();
@@ -203,7 +214,15 @@ function WithdrawalForm({
     >
       {error ? <Alert>{error}</Alert> : null}
 
-      <Field label={t('withdrawals.amountLabel')} htmlFor="withdrawal-amount" hint={t('withdrawals.amountHint')}>
+      <Field
+        label={t('withdrawals.amountLabel')}
+        htmlFor="withdrawal-amount"
+        hint={
+          feeOutBps > 0
+            ? t('withdrawals.amountHintWithFee', { fee: formatBps(feeOutBps), amount: formatMoney(feePreview) })
+            : t('withdrawals.amountHint')
+        }
+      >
         <Input
           id="withdrawal-amount"
           inputMode="decimal"

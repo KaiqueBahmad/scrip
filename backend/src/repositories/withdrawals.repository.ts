@@ -60,10 +60,15 @@ export class WithdrawalRepository {
     return row?.total ?? 0;
   }
 
-  /** Pending + confirmed: what's currently held against the merchant's available balance. */
+  /**
+   * Pending + confirmed: what's currently held against the merchant's available balance —
+   * the payout itself plus the exit fee it was requested with.
+   */
   sumHeld(merchantId: string): number {
     const row = this.db
-      .select({ total: sql<number>`COALESCE(SUM(${withdrawals.amount}), 0)` })
+      .select({
+        total: sql<number>`COALESCE(SUM(${withdrawals.amount} + ${withdrawals.fee_amount}), 0)`,
+      })
       .from(withdrawals)
       .where(
         and(
@@ -76,10 +81,21 @@ export class WithdrawalRepository {
     return row?.total ?? 0;
   }
 
-  /** Confirmed only — the informational "already withdrawn" total. */
+  /** Confirmed only — the informational "already withdrawn" total (gross of the exit fee). */
   sumConfirmed(merchantId: string): number {
     const row = this.db
       .select({ total: sql<number>`COALESCE(SUM(${withdrawals.amount}), 0)` })
+      .from(withdrawals)
+      .where(and(eq(withdrawals.merchant_id, merchantId), eq(withdrawals.status, 'confirmed')))
+      .get();
+
+    return row?.total ?? 0;
+  }
+
+  /** Confirmed only — the exit fee portion of `sumConfirmed`, broken out for transparency. */
+  sumConfirmedFees(merchantId: string): number {
+    const row = this.db
+      .select({ total: sql<number>`COALESCE(SUM(${withdrawals.fee_amount}), 0)` })
       .from(withdrawals)
       .where(and(eq(withdrawals.merchant_id, merchantId), eq(withdrawals.status, 'confirmed')))
       .get();

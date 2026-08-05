@@ -52,18 +52,24 @@ export class WithdrawalService {
       );
     }
 
-    if (!this.merchants.findById(input.merchantId)) {
+    const merchant = this.merchants.findById(input.merchantId);
+    if (!merchant) {
       throw notFound('merchant_not_found', `No merchant ${input.merchantId}`);
     }
+
+    // The exit fee is locked in at request time, same as the amount itself — both hold
+    // against the balance together from the moment the withdrawal is created.
+    const feeAmount = Math.round((input.amount * merchant.pix_fee_out_bps) / 10000);
+    const totalHeld = input.amount + feeAmount;
 
     // Re-checked here rather than trusted from the caller: the balance can move between
     // the moment a client reads it and the moment it requests a withdrawal.
     const balance = this.merchantService.balanceFor(input.merchantId);
-    if (input.amount > balance.available) {
+    if (totalHeld > balance.available) {
       throw badRequest(
         'insufficient_balance',
-        `Withdrawal of ${input.amount} exceeds the available balance of ${balance.available}`,
-        { amount: input.amount, available: balance.available },
+        `Withdrawal of ${input.amount} (+ ${feeAmount} fee) exceeds the available balance of ${balance.available}`,
+        { amount: input.amount, fee_amount: feeAmount, available: balance.available },
       );
     }
 
@@ -72,6 +78,7 @@ export class WithdrawalService {
       id: newId('withdrawal'),
       merchant_id: input.merchantId,
       amount: input.amount,
+      fee_amount: feeAmount,
       status: 'pending',
       reason: null,
       confirmed_at: null,
@@ -83,7 +90,7 @@ export class WithdrawalService {
     this.withdrawals.insert(row);
 
     this.log.info(
-      { withdrawal_id: row.id, merchant_id: input.merchantId, amount: input.amount },
+      { withdrawal_id: row.id, merchant_id: input.merchantId, amount: input.amount, fee_amount: feeAmount },
       'withdrawal requested',
     );
 

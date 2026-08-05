@@ -27,6 +27,7 @@ export function serializeCharge(row: ChargeRow) {
     description: row.description,
     metadata: parseJsonColumn<Record<string, unknown>>(row.metadata, {}),
     callback_url: row.callback_url,
+    fee_amount: row.fee_amount,
     // Only 'pix' exists today, so this is unconditional — a second method would key this
     // object by row.payment_method instead of hardcoding 'pix'.
     pix: {
@@ -62,6 +63,7 @@ export function serializeWithdrawal(row: WithdrawalRow) {
     object: 'withdrawal' as const,
     merchant_id: row.merchant_id,
     amount: row.amount,
+    fee_amount: row.fee_amount,
     status: row.status,
     reason: row.reason,
     confirmed_at: row.confirmed_at,
@@ -97,6 +99,8 @@ export function serializeMerchant(
     kyc_status: row.kyc_status,
     kyc_reason: row.kyc_reason,
     kyc_reviewed_at: row.kyc_reviewed_at,
+    pix_fee_in_bps: row.pix_fee_in_bps,
+    pix_fee_out_bps: row.pix_fee_out_bps,
     ...(balance ? { balance } : {}),
     created_at: row.created_at,
     updated_at: row.updated_at,

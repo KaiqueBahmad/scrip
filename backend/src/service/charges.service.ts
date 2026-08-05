@@ -147,6 +147,8 @@ export class ChargeService implements OnApplicationBootstrap {
       qr_code_expires_at: expiresAt,
       e2e_id: null,
       refunded_amount: 0,
+      // Set only once the charge is paid — see markPaid.
+      fee_amount: 0,
       paid_at: null,
       expired_at: null,
       canceled_at: null,
@@ -210,11 +212,15 @@ export class ChargeService implements OnApplicationBootstrap {
     const charge = this.get(chargeId);
     const at = nowIso(this.scheduler.now());
     const e2eId = generateE2eId(new Date(this.scheduler.now()));
+    // The entry fee is locked in at settlement, off the merchant's rate at that moment —
+    // a later rate change never reaches back into a charge that already settled.
+    const merchant = this.merchants.findById(charge.merchant_id);
+    const feeAmount = Math.round((charge.amount * (merchant?.pix_fee_in_bps ?? 0)) / 10000);
 
     const updated = this.transition(
       charge,
       'paid',
-      { paid_at: at, updated_at: at },
+      { paid_at: at, updated_at: at, fee_amount: feeAmount },
       reason,
       at,
       { e2e_id: e2eId },

@@ -128,6 +128,14 @@ export function TransactionDetail() {
               })}
             </p>
           ) : null}
+          {charge.fee_amount > 0 ? (
+            <p className="text-xs text-[var(--text-muted)]">
+              {t('transactionDetail.feeNet', {
+                fee: formatMoney(charge.fee_amount),
+                net: formatMoney(charge.amount - charge.fee_amount),
+              })}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

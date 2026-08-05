@@ -1,13 +1,20 @@
 /** Typed client for /v1/panel. Basic auth credentials come from the selected merchant. */
 
 export interface ApiBalance {
-  /** Liquid balance in centavos: settled, minus refunds, minus pending/confirmed withdrawals. */
+  /**
+   * Liquid balance in centavos: settled, minus refunds, minus entry fees, minus
+   * pending/confirmed withdrawals (payout + exit fee).
+   */
   available: number;
   gross_received: number;
   refunded: number;
   settled_charges: number;
   /** Sum of confirmed withdrawals — informational; already reflected in `available`. */
   withdrawn: number;
+  /** Entry fee taken out of settled charges — informational; already reflected in `available`. */
+  fees_in: number;
+  /** Exit fee taken out of confirmed withdrawals — informational; already reflected in `available`. */
+  fees_out: number;
 }
 
 export interface ApiMerchant {
@@ -18,6 +25,10 @@ export interface ApiMerchant {
   kyc_status: 'pending' | 'approved' | 'rejected';
   kyc_reason: string | null;
   kyc_reviewed_at: string | null;
+  /** Basis points (0-10000): the store's PIX entry fee, taken when a charge settles. */
+  pix_fee_in_bps: number;
+  /** Basis points (0-10000): the store's PIX exit fee, taken when a withdrawal is requested. */
+  pix_fee_out_bps: number;
   /** Present wherever the server had a merchant in hand to compute it. */
   balance?: ApiBalance;
   created_at: string;
@@ -51,6 +62,8 @@ export interface ApiCharge {
   description: string | null;
   metadata: Record<string, unknown>;
   callback_url: string | null;
+  /** The store's entry fee, snapshotted from its rate at the moment this charge settled. */
+  fee_amount: number;
   pix: ApiChargePixDetails;
   paid_at: string | null;
   expired_at: string | null;
@@ -126,6 +139,8 @@ export interface ApiWithdrawal {
   id: string;
   merchant_id: string;
   amount: number;
+  /** The store's exit fee, snapshotted from its rate at the moment this withdrawal was requested. */
+  fee_amount: number;
   status: WithdrawalStatus;
   reason: string | null;
   confirmed_at: string | null;
@@ -291,6 +306,8 @@ export const api = {
       name: string;
       webhook_url: string | null;
       rotate_webhook_secret: boolean;
+      pix_fee_in_bps: number;
+      pix_fee_out_bps: number;
     }>,
   ) => request<ApiMerchant>('PATCH', '/merchants/me', { body }),
   deleteMyMerchant: () => request<void>('DELETE', '/merchants/me'),

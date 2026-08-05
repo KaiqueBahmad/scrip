@@ -21,6 +21,13 @@ export function formatMoney(centavos: number): string {
     : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(centavos / 100);
 }
 
+/** Basis points -> "2,50%" (pt) or "2.50%" (en). 250 bps = 2.50%. */
+export function formatBps(bps: number): string {
+  return isPt()
+    ? `${(bps / 100).toFixed(2).replace('.', ',')}%`
+    : `${(bps / 100).toFixed(2)}%`;
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Intl.DateTimeFormat(isPt() ? 'pt-BR' : 'en-US', {

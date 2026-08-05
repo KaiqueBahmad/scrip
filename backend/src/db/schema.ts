@@ -33,11 +33,17 @@ export const merchants = sqliteTable(
     kyc_status: text().$type<KycStatus>().notNull().default('pending'),
     kyc_reason: text(),
     kyc_reviewed_at: text(),
+    // Basis points (1/100 of a percent): 250 = 2.50%. Snapshotted onto each charge/withdrawal
+    // when it settles, so a later rate change never reaches back into old money.
+    pix_fee_in_bps: integer().notNull().default(0),
+    pix_fee_out_bps: integer().notNull().default(0),
     created_at: text().notNull(),
     updated_at: text().notNull(),
   },
   (table) => [
     check('merchants_kyc_status', sql`${table.kyc_status} IN ('pending', 'approved', 'rejected')`),
+    check('merchants_pix_fee_in_bps', sql`${table.pix_fee_in_bps} BETWEEN 0 AND 10000`),
+    check('merchants_pix_fee_out_bps', sql`${table.pix_fee_out_bps} BETWEEN 0 AND 10000`),
   ],
 );
 
@@ -84,6 +90,9 @@ export const charges = sqliteTable(
     // merchant's own webhook_url. Null means "use the merchant's".
     callback_url: text(),
     refunded_amount: integer().notNull().default(0),
+    // The merchant's pix_fee_in_bps applied to `amount`, snapshotted once the charge is
+    // paid (zero until then). Kept even if the charge is later refunded — see markPaid.
+    fee_amount: integer().notNull().default(0),
     paid_at: text(),
     expired_at: text(),
     canceled_at: text(),
@@ -95,6 +104,7 @@ export const charges = sqliteTable(
     index('idx_charges_status').on(table.status),
     check('charges_amount', sql`${table.amount} > 0`),
     check('charges_refunded_amount', sql`${table.refunded_amount} >= 0`),
+    check('charges_fee_amount', sql`${table.fee_amount} >= 0`),
     check(
       'charges_status',
       sql`${table.status} IN ('pending', 'paid', 'expired', 'canceled', 'partially_refunded', 'refunded')`,
@@ -237,6 +247,9 @@ export const withdrawals = sqliteTable(
       .notNull()
       .references(() => merchants.id, { onDelete: 'cascade' }),
     amount: integer().notNull(),
+    // The merchant's pix_fee_out_bps applied to `amount`, snapshotted at request time —
+    // it holds against the balance alongside `amount` from the moment it's requested.
+    fee_amount: integer().notNull().default(0),
     status: text().$type<WithdrawalStatus>().notNull().default('pending'),
     reason: text(),
     confirmed_at: text(),
@@ -247,6 +260,7 @@ export const withdrawals = sqliteTable(
   (table) => [
     index('idx_withdrawals_merchant_created').on(table.merchant_id, sql`${table.created_at} DESC`),
     check('withdrawals_amount', sql`${table.amount} > 0`),
+    check('withdrawals_fee_amount', sql`${table.fee_amount} >= 0`),
     check('withdrawals_status', sql`${table.status} IN ('pending', 'confirmed', 'denied')`),
   ],
 );
