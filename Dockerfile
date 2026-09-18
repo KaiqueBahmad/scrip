@@ -56,6 +56,7 @@ RUN npm run build
 # ----------------------------------------------------------------------------
 
 FROM node:20-bookworm-slim AS app
+LABEL org.opencontainers.image.source=https://github.com/kaiqueBahmad/scrip
 
 RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor \
   && rm -rf /var/lib/apt/lists/* \

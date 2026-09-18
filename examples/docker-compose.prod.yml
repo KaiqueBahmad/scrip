@@ -1,6 +1,6 @@
 services:
   app:
-    image: kaiquebt/scrip:latest
+    image: ghcr.io/kaiquebahmad/scrip:latest
     container_name: scrip
     ports:
       - 8080:8080

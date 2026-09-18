@@ -17,12 +17,12 @@ Node.js + TypeScript + Fastify (NestJS) · SQLite (better-sqlite3) + Drizzle ORM
 
 ## Docker
 
-Prebuilt image: [`kaiquebt/scrip`](https://hub.docker.com/r/kaiquebt/scrip) — nginx + API in one container via `supervisord`. All variables below at their default (see [`examples/docker-compose.prod.yml`](examples/docker-compose.prod.yml)); `SCRIP_HOST`, `SCRIP_PORT` and `SCRIP_DATABASE_PATH` are fixed by the image and omitted:
+Prebuilt image: [`ghcr.io/kaiquebahmad/scrip`](https://github.com/kaiqueBahmad/scrip/pkgs/container/scrip) — nginx + API in one container via `supervisord`. All variables below at their default (see [`examples/docker-compose.prod.yml`](examples/docker-compose.prod.yml)); `SCRIP_HOST`, `SCRIP_PORT` and `SCRIP_DATABASE_PATH` are fixed by the image and omitted:
 
 ```yaml
 services:
   app:
-    image: kaiquebt/scrip:latest
+    image: ghcr.io/kaiquebahmad/scrip:latest
     ports:
       - "8080:8080"
       - "8081:8081"
