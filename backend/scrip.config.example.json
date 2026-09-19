@@ -18,6 +18,7 @@
 
   "kycMaxFileSizeMb": 5,
   "requireApprovedKycForCharges": false,
+  "testDocumentsEnabled": true,
 
   "pixKey": "scrip@localhost",
   "pixReceiverName": "SCRIP",

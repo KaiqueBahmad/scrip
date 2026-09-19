@@ -44,6 +44,12 @@ export interface ScripConfig {
    * to exercise the blocking path.
    */
   requireApprovedKycForCharges: boolean;
+  /**
+   * When false, the deterministic test CPFs (11111111111, 22222222222, 33333333333) behave
+   * like any other document and follow `approvalRate`. Turn it off wherever payer documents
+   * come from real people, so nobody can confirm a charge by typing a magic CPF.
+   */
+  testDocumentsEnabled: boolean;
 
   /** PIX key baked into generated BR Codes. */
   pixKey: string;
@@ -73,6 +79,7 @@ export const CONFIG_DEFAULTS: ScripConfig = {
 
   kycMaxFileSizeMb: 5,
   requireApprovedKycForCharges: false,
+  testDocumentsEnabled: true,
 
   pixKey: 'scrip@localhost',
   pixReceiverName: 'SCRIP',

@@ -21,6 +21,7 @@ const CONFIG_KEYS = [
   'jwtDefaultExpiration',
   'kycMaxFileSizeMb',
   'requireApprovedKycForCharges',
+  'testDocumentsEnabled',
   'pixKey',
   'pixReceiverName',
   'pixReceiverCity',

@@ -39,6 +39,7 @@ services:
       SCRIP_JWT_DEFAULT_EXPIRATION: 24h
       SCRIP_KYC_MAX_FILE_SIZE_MB: 5
       SCRIP_REQUIRE_APPROVED_KYC_FOR_CHARGES: false
+      SCRIP_TEST_DOCUMENTS_ENABLED: true
       SCRIP_PIX_KEY: scrip@localhost
       SCRIP_PIX_RECEIVER_NAME: SCRIP
       SCRIP_PIX_RECEIVER_CITY: SAO PAULO
@@ -100,13 +101,15 @@ npm --prefix frontend run dev  # http://localhost:8080
 | `33333333333` | Confirms, but webhook delivery fails (tests retry) |
 | Anything else | Follows configured `approvalRate` |
 
+Set `testDocumentsEnabled` to `false` (`SCRIP_TEST_DOCUMENTS_ENABLED=false`) to turn these off — every document then follows `approvalRate`. Do this on any instance where payers type their own CPF.
+
 ## Webhooks
 
 Events: `pix.charge.created/paid/expired/refunded`, `kyc.approved/rejected`, `withdrawal.confirmed/denied`. Signed HMAC-SHA256 in `X-Scrip-Signature: t=<unix>,v1=<hmac>` (over `<t>.<raw body>`), retried up to 3x on non-2xx. Also see `X-Scrip-Event`, `X-Scrip-Delivery`, `X-Scrip-Attempt` headers, and `POST /v1/api/webhooks/deliveries/{id}/retry`.
 
 ## Configuration
 
-All settings live in `backend/scrip.config.json` (overridable via `SCRIP_*` env vars), read once at boot — nothing is persisted or changed at runtime. Key options: `port`/`host`, `databasePath`, `approvalRate`, `pixConfirmationDelayMs`/`pixMinConfirmationDelayMs`, `pixQrCodeExpirationMs`, `webhookDelayMs`/`webhookMaxRetries`/`webhookRetryBackoffMs`/`webhookTimeoutMs`, `jwtSigningSecret`/`jwtDefaultExpiration`, `kycMaxFileSizeMb`, `requireApprovedKycForCharges` (default `false`), `pixKey`/`pixReceiverName`/`pixReceiverCity`.
+All settings live in `backend/scrip.config.json` (overridable via `SCRIP_*` env vars), read once at boot — nothing is persisted or changed at runtime. Key options: `port`/`host`, `databasePath`, `approvalRate`, `pixConfirmationDelayMs`/`pixMinConfirmationDelayMs`, `pixQrCodeExpirationMs`, `webhookDelayMs`/`webhookMaxRetries`/`webhookRetryBackoffMs`/`webhookTimeoutMs`, `jwtSigningSecret`/`jwtDefaultExpiration`, `kycMaxFileSizeMb`, `requireApprovedKycForCharges` (default `false`), `testDocumentsEnabled` (default `true`), `pixKey`/`pixReceiverName`/`pixReceiverCity`.
 
 ## API reference
 

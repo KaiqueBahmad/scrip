@@ -32,15 +32,15 @@ export interface ConfirmationPlan {
 }
 
 /**
- * Decides if and when a charge auto-confirms. Known test CPFs short-circuit; everything
- * else follows `approvalRate`.
+ * Decides if and when a charge auto-confirms. Known test CPFs short-circuit unless
+ * `testDocumentsEnabled` is off; everything else follows `approvalRate`.
  */
 export function planConfirmation(
   payerDocument: string | null | undefined,
   config: ScripConfig,
   random: () => number = Math.random,
 ): ConfirmationPlan {
-  const document = normalizeDocument(payerDocument);
+  const document = config.testDocumentsEnabled ? normalizeDocument(payerDocument) : '';
 
   if (document === TEST_DOCUMENTS.alwaysConfirms) {
     return {

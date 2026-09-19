@@ -206,7 +206,7 @@ export class WebhookDispatcher {
    * `33333333333` charge still fails
    */
   private shouldForceFailure(delivery: WebhookDeliveryRow): boolean {
-    if (!delivery.charge_id) return false;
+    if (!delivery.charge_id || !this.config.get('testDocumentsEnabled')) return false;
 
     return isWebhookFailingDocument(this.charges.findPayerDocument(delivery.charge_id));
   }

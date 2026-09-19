@@ -187,6 +187,40 @@ describe('deterministic test CPFs', () => {
     assert.equal(harness.app.services.charges.get(lucky.id).status, 'paid', '0.1 < 0.85 confirms');
   });
 
+  it('treats test CPFs as ordinary documents when testDocumentsEnabled is off', async () => {
+    harness = await createHarness({
+      random: () => 0.99,
+      config: { approvalRate: 0.85, testDocumentsEnabled: false, webhookMaxRetries: 3 },
+    });
+    const { bearer } = await seedMerchantAndToken(harness);
+    const { body: charge } = await createCharge(harness, bearer, { payer_document: '11111111111' });
+
+    await harness.scheduler.runAll();
+    assert.equal(
+      harness.app.services.charges.get(charge.id).status,
+      'expired',
+      'follows the 0.99 coin flip instead of always confirming',
+    );
+    await harness.close();
+
+    harness = await createHarness({
+      random: () => 0.1,
+      config: { approvalRate: 0.85, testDocumentsEnabled: false, webhookMaxRetries: 3 },
+    });
+    const seeded = await seedMerchantAndToken(harness);
+    const { body: webhookCharge } = await createCharge(harness, seeded.bearer, {
+      payer_document: '33333333333',
+    });
+
+    await harness.scheduler.runAll();
+    const deliveries = harness.app.services.webhooks.listForMerchant(webhookCharge.merchant_id, {
+      chargeId: webhookCharge.id,
+    });
+    for (const delivery of deliveries) {
+      assert.notEqual(delivery.error, 'forced_failure_test_document');
+    }
+  });
+
   it('normalizes a formatted document', async () => {
     harness = await createHarness();
     const { bearer } = await seedMerchantAndToken(harness);
