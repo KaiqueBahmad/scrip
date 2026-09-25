@@ -139,7 +139,7 @@ export async function createHarness(
 
 /**
  * Creates a merchant and one of its API tokens, returning ready-to-use headers.
- * The merchant is the panel identity now, so `basic` authenticates as the merchant itself.
+ * The merchant is the panel identity now, so `panel` selects the merchant itself.
  */
 export async function seedMerchantAndToken(
   harness: TestHarness,
@@ -172,7 +172,7 @@ export async function seedMerchantAndToken(
     merchant,
     token,
     bearer: { authorization: `Bearer ${token.token}` },
-    basic: { authorization: `Basic ${Buffer.from(`${merchant.id}:`).toString('base64')}` },
+    panel: { 'x-scrip-merchant': merchant.id },
   };
 }
 

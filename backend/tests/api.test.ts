@@ -94,7 +94,7 @@ describe('API auth', () => {
     const response = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/tokens',
-      headers: mine.basic,
+      headers: mine.panel,
       // A merchant_id in the body must not be able to mint for somebody else.
       payload: { name: 'ci', merchant_id: other.merchant.id },
     });
@@ -199,13 +199,13 @@ describe('idempotency', () => {
 describe('panel surface', () => {
   it('lists merchants with balance and without credentials, for the picker', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -233,7 +233,7 @@ describe('panel surface', () => {
       payload: { name: 'Primeira Loja' },
     });
 
-    // Basic auth resolves an existing merchant, so creation has to be open or the panel
+    // The panel header resolves an existing merchant, so creation has to be open or the panel
     // could never be entered on an empty database.
     assert.equal(created.statusCode, 201);
     assert.equal(created.json().kyc_status, 'pending');
@@ -254,14 +254,12 @@ describe('panel surface', () => {
     assert.equal(created.statusCode, 201);
     assert.equal(created.json().webhook_url, null, 'webhook_url no corpo é ignorado');
 
-    const basic = {
-      authorization: `Basic ${Buffer.from(`${created.json().id}:`).toString('base64')}`,
-    };
+    const panel = { 'x-scrip-merchant': created.json().id };
 
     const configured = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { webhook_url: 'https://merchant.test/hooks' },
     });
 
@@ -269,18 +267,20 @@ describe('panel surface', () => {
     assert.equal(configured.json().webhook_url, 'https://merchant.test/hooks');
   });
 
-  it('authenticates the merchant by id, with an empty password', async () => {
+  it('selects the merchant by id from the X-Scrip-Merchant header', async () => {
     harness = await createHarness();
     const { merchant } = await seedMerchantAndToken(harness);
 
     const anonymous = await harness.app.inject({ method: 'GET', url: '/v1/panel/merchants/me' });
     assert.equal(anonymous.statusCode, 401);
-    assert.match(String(anonymous.headers['www-authenticate']), /^Basic/);
+    assert.equal(anonymous.json().error.code, 'merchant_auth_required');
+    // No challenge, or a browser would pop a native login prompt over the panel.
+    assert.equal(anonymous.headers['www-authenticate'], undefined);
 
     const byId = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/merchants/me',
-      headers: { authorization: `Basic ${Buffer.from(`${merchant.id}:`).toString('base64')}` },
+      headers: { 'x-scrip-merchant': merchant.id },
     });
     assert.equal(byId.statusCode, 200);
     assert.equal(byId.json().id, merchant.id);
@@ -288,15 +288,37 @@ describe('panel surface', () => {
     const unknown = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/merchants/me',
-      headers: { authorization: `Basic ${Buffer.from('mch_nope:').toString('base64')}` },
+      headers: { 'x-scrip-merchant': 'mch_nope' },
     });
     assert.equal(unknown.statusCode, 401);
     assert.equal(unknown.json().error.code, 'merchant_not_found');
   });
 
+  it('ignores the Authorization header on the panel, leaving it to a proxy in front', async () => {
+    harness = await createHarness();
+    const { merchant } = await seedMerchantAndToken(harness);
+    const proxyCredentials = `Basic ${Buffer.from('apache-user:secret').toString('base64')}`;
+
+    const withoutSelection = await harness.app.inject({
+      method: 'GET',
+      url: '/v1/panel/merchants/me',
+      headers: { authorization: proxyCredentials },
+    });
+    assert.equal(withoutSelection.statusCode, 401);
+    assert.equal(withoutSelection.json().error.code, 'merchant_auth_required');
+
+    const withSelection = await harness.app.inject({
+      method: 'GET',
+      url: '/v1/panel/merchants/me',
+      headers: { authorization: proxyCredentials, 'x-scrip-merchant': merchant.id },
+    });
+    assert.equal(withSelection.statusCode, 200);
+    assert.equal(withSelection.json().id, merchant.id);
+  });
+
   it('returns the charge with its events, refunds and deliveries', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '11111111111' });
 
     await harness.scheduler.runAll();
@@ -304,7 +326,7 @@ describe('panel surface', () => {
     const response = await harness.app.inject({
       method: 'GET',
       url: `/v1/panel/charges/${charge.id}`,
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(response.statusCode, 200);
@@ -316,12 +338,12 @@ describe('panel surface', () => {
 
   it('reports the loaded config and refuses to change it', async () => {
     harness = await createHarness({ config: { approvalRate: 0.5 } });
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const read = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/settings',
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(read.statusCode, 200);
@@ -332,7 +354,7 @@ describe('panel surface', () => {
     const patched = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/settings',
-      headers: basic,
+      headers: panel,
       payload: { approvalRate: 1 },
     });
 
@@ -344,13 +366,13 @@ describe('panel surface', () => {
 describe('kyc', () => {
   it('stores a base64 upload as a BLOB and returns it byte-for-byte', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const content = Buffer.from('documento de teste com acentuação');
 
     const uploaded = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/documents',
-      headers: basic,
+      headers: panel,
       payload: {
         type: 'identity',
         filename: 'rg.txt',
@@ -366,7 +388,7 @@ describe('kyc', () => {
     const fetched = await harness.app.inject({
       method: 'GET',
       url: `/v1/panel/kyc/documents/${uploaded.json().id}/content`,
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(fetched.statusCode, 200);
@@ -376,12 +398,12 @@ describe('kyc', () => {
 
   it('enforces kycMaxFileSizeMb', async () => {
     harness = await createHarness({ config: { kycMaxFileSizeMb: 0.001 } });
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const response = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/documents',
-      headers: basic,
+      headers: panel,
       payload: {
         type: 'identity',
         filename: 'big.bin',
@@ -395,12 +417,12 @@ describe('kyc', () => {
 
   it('rejects an empty or missing document', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const missing = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/documents',
-      headers: basic,
+      headers: panel,
       payload: { type: 'identity', filename: 'x.txt' },
     });
     assert.equal(missing.statusCode, 400);
@@ -409,19 +431,19 @@ describe('kyc', () => {
 
   it('approval flips the merchant and its pending documents', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
 
     const uploaded = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/documents',
-      headers: basic,
+      headers: panel,
       payload: { type: 'identity', filename: 'rg.txt', content: Buffer.from('x').toString('base64') },
     });
 
     const approved = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/simulate',
-      headers: basic,
+      headers: panel,
       payload: { decision: 'approved', reason: 'documentos conferem' },
     });
 
@@ -477,12 +499,12 @@ describe('error envelope', () => {
 describe('merchant balance', () => {
   it('starts at zero and only counts settled charges', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
 
     const empty = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: basic,
+      headers: panel,
     });
     assert.equal(empty.json().available, 0);
     assert.equal(empty.json().settled_charges, 0);
@@ -496,21 +518,21 @@ describe('merchant balance', () => {
     let balance = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: basic,
+      headers: panel,
     });
     assert.equal(balance.json().available, 0, 'pending does not count');
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${pending.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
     balance = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: basic,
+      headers: panel,
     });
     assert.equal(balance.json().available, 15000);
     assert.equal(balance.json().gross_received, 15000);
@@ -520,7 +542,7 @@ describe('merchant balance', () => {
 
   it('subtracts refunds, and an expired charge never contributes', async () => {
     harness = await createHarness({ config: { pixQrCodeExpirationMs: 1000 } });
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
 
     const { body: paid } = await createCharge(harness, bearer, {
       amount: 20000,
@@ -529,7 +551,7 @@ describe('merchant balance', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${paid.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -546,7 +568,7 @@ describe('merchant balance', () => {
     const balance = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(balance.json().available, 12500, '20000 recebidos menos 7500 devolvidos');
@@ -557,7 +579,7 @@ describe('merchant balance', () => {
 
   it('reaches zero once everything is refunded', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
 
     const { body: charge } = await createCharge(harness, bearer, {
       amount: 15000,
@@ -566,7 +588,7 @@ describe('merchant balance', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -579,7 +601,7 @@ describe('merchant balance', () => {
     const balance = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(harness.app.services.charges.get(charge.id).status, 'refunded');
@@ -600,19 +622,19 @@ describe('merchant balance', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: first.basic,
+      headers: first.panel,
       payload: { result: 'paid' },
     });
 
     const mine = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: first.basic,
+      headers: first.panel,
     });
     const theirs = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/balance',
-      headers: second.basic,
+      headers: second.panel,
     });
 
     assert.equal(mine.json().available, 30000);
@@ -633,7 +655,7 @@ describe('panel scoping', () => {
 
     // Second store sees an empty panel.
     for (const url of ['/v1/panel/charges', '/v1/panel/tokens', '/v1/panel/webhooks/deliveries']) {
-      const response = await harness.app.inject({ method: 'GET', url, headers: second.basic });
+      const response = await harness.app.inject({ method: 'GET', url, headers: second.panel });
       assert.equal(response.statusCode, 200, url);
       const data = response.json().data as unknown[];
       const expected = url === '/v1/panel/tokens' ? 1 : 0;
@@ -644,7 +666,7 @@ describe('panel scoping', () => {
     const foreign = await harness.app.inject({
       method: 'GET',
       url: `/v1/panel/charges/${charge.id}`,
-      headers: second.basic,
+      headers: second.panel,
     });
     assert.equal(foreign.statusCode, 404);
     assert.equal(foreign.json().error.code, 'charge_not_found');
@@ -663,14 +685,14 @@ describe('panel scoping', () => {
     const retry = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/webhooks/deliveries/${delivery.id}/retry`,
-      headers: second.basic,
+      headers: second.panel,
     });
     assert.equal(retry.statusCode, 404);
 
     const revoke = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/tokens/${first.token.id}/revoke`,
-      headers: second.basic,
+      headers: second.panel,
     });
     assert.equal(revoke.statusCode, 404);
     assert.equal(
@@ -682,12 +704,12 @@ describe('panel scoping', () => {
 
   it('does not leak the signing secret through settings', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const response = await harness.app.inject({
       method: 'GET',
       url: '/v1/panel/settings',
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(response.json().values.jwtSigningSecret, '[redacted]');

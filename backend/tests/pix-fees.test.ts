@@ -23,12 +23,12 @@ describe('pix fee configuration', () => {
 
   it('lets the store configure its entry and exit fee (percentage and fixed) over the panel', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const updated = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: {
         pix_fee_in_bps: 250,
         pix_fee_out_bps: 100,
@@ -46,12 +46,12 @@ describe('pix fee configuration', () => {
 
   it('rejects a negative or fractional fixed fee', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const negative = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { pix_fee_in_fixed: -10 },
     });
     assert.equal(negative.statusCode, 400);
@@ -60,7 +60,7 @@ describe('pix fee configuration', () => {
     const fractional = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { pix_fee_out_fixed: 10.5 },
     });
     assert.equal(fractional.statusCode, 400);
@@ -69,12 +69,12 @@ describe('pix fee configuration', () => {
 
   it('rejects a fee outside 0-10000 basis points', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const tooHigh = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { pix_fee_in_bps: 10001 },
     });
     assert.equal(tooHigh.statusCode, 400);
@@ -83,7 +83,7 @@ describe('pix fee configuration', () => {
     const negative = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { pix_fee_out_bps: -1 },
     });
     assert.equal(negative.statusCode, 400);
@@ -92,12 +92,12 @@ describe('pix fee configuration', () => {
 
   it('rejects a fractional basis-point value', async () => {
     harness = await createHarness();
-    const { basic } = await seedMerchantAndToken(harness);
+    const { panel } = await seedMerchantAndToken(harness);
 
     const response = await harness.app.inject({
       method: 'PATCH',
       url: '/v1/panel/merchants/me',
-      headers: basic,
+      headers: panel,
       payload: { pix_fee_in_bps: 2.5 },
     });
     assert.equal(response.statusCode, 400);
@@ -108,14 +108,14 @@ describe('pix fee configuration', () => {
 describe('pix entry fee applied on settlement', () => {
   it('snapshots the fee onto the charge and nets it out of the available balance', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeInBps: 250 }); // 2.5%
 
     const { body: charge } = await createCharge(harness, bearer, { amount: 20000 });
     const paid = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -131,14 +131,14 @@ describe('pix entry fee applied on settlement', () => {
 
   it('combines the fixed fee with the percentage fee', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeInBps: 250, pixFeeInFixed: 100 }); // 2.5% + R$1,00
 
     const { body: charge } = await createCharge(harness, bearer, { amount: 20000 });
     const paid = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -149,14 +149,14 @@ describe('pix entry fee applied on settlement', () => {
 
   it('applies the fixed fee alone when there is no percentage fee', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeInFixed: 150 });
 
     const { body: charge } = await createCharge(harness, bearer, { amount: 5000 });
     const paid = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -165,14 +165,14 @@ describe('pix entry fee applied on settlement', () => {
 
   it('keeps the fee already charged even once the charge is refunded', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeInBps: 1000 }); // 10%
 
     const { body: charge } = await createCharge(harness, bearer, { amount: 10000 });
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -192,14 +192,14 @@ describe('pix entry fee applied on settlement', () => {
 
   it('a rate change never reaches back into a charge that already settled', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeInBps: 500 });
 
     const { body: charge } = await createCharge(harness, bearer, { amount: 10000 });
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -211,21 +211,21 @@ describe('pix entry fee applied on settlement', () => {
 });
 
 describe('pix exit fee applied on withdrawal', () => {
-  async function seedBalance(harness: TestHarness, bearer: Record<string, string>, basic: Record<string, string>, amount: number) {
+  async function seedBalance(harness: TestHarness, bearer: Record<string, string>, panel: Record<string, string>, amount: number) {
     const { body: charge } = await createCharge(harness, bearer, { amount });
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
   }
 
   it('snapshots the fee onto the withdrawal and holds amount + fee against the balance', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 200 }); // 2%
-    await seedBalance(harness, bearer, basic, 10000);
+    await seedBalance(harness, bearer, panel, 10000);
 
     const created = await harness.app.inject({
       method: 'POST',
@@ -245,9 +245,9 @@ describe('pix exit fee applied on withdrawal', () => {
 
   it('combines the fixed fee with the percentage fee', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 200, pixFeeOutFixed: 80 }); // 2% + R$0,80
-    await seedBalance(harness, bearer, basic, 10000);
+    await seedBalance(harness, bearer, panel, 10000);
 
     const created = await harness.app.inject({
       method: 'POST',
@@ -266,9 +266,9 @@ describe('pix exit fee applied on withdrawal', () => {
 
   it('rejects a withdrawal whose amount plus fee exceeds the available balance', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 1000 }); // 10%
-    await seedBalance(harness, bearer, basic, 10000);
+    await seedBalance(harness, bearer, panel, 10000);
 
     const response = await harness.app.inject({
       method: 'POST',
@@ -284,14 +284,14 @@ describe('pix exit fee applied on withdrawal', () => {
 
   it('confirming reflects the exit fee in fees_out, informationally on top of withdrawn', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 200 });
-    await seedBalance(harness, bearer, basic, 10000);
+    await seedBalance(harness, bearer, panel, 10000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 5000 },
     });
     const withdrawalId = created.json().id;
@@ -299,7 +299,7 @@ describe('pix exit fee applied on withdrawal', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/confirm`,
-      headers: basic,
+      headers: panel,
     });
 
     const balance = harness.app.services.merchants.balanceFor(merchant.id);
@@ -310,14 +310,14 @@ describe('pix exit fee applied on withdrawal', () => {
 
   it('denying releases both the amount and its fee back to available', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     harness.app.services.merchants.update(merchant.id, { pixFeeOutBps: 200 });
-    await seedBalance(harness, bearer, basic, 10000);
+    await seedBalance(harness, bearer, panel, 10000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 5000 },
     });
     const withdrawalId = created.json().id;
@@ -325,7 +325,7 @@ describe('pix exit fee applied on withdrawal', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/deny`,
-      headers: basic,
+      headers: panel,
       payload: { reason: 'test' },
     });
 

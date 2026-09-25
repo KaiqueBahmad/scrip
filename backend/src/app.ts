@@ -52,7 +52,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ScripAp
   app.enableCors({
     origin: true,
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['authorization', 'content-type'],
+    allowedHeaders: ['authorization', 'content-type', 'x-scrip-merchant'],
   });
 
   // The precise size limit is enforced in KycService against config.kycMaxFileSizeMb; this

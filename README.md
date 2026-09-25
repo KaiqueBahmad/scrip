@@ -7,13 +7,13 @@ Reproduces a real PIX gateway — QR generation, async confirmation, expiration,
 ## Scope
 
 - **PIX only** for now (architecture supports adding other methods later).
-- Two physically separate API surfaces: `/v1/api/*` (merchant backend, JWT auth) and `/v1/panel/*` (panel, HTTP Basic auth).
+- Two physically separate API surfaces: `/v1/api/*` (merchant backend, JWT auth) and `/v1/panel/*` (panel, merchant selected via the `X-Scrip-Merchant` header — `Authorization` is left free for a proxy in front, e.g. Apache htpasswd).
 - **No real queue** — async work simulated with in-process `setTimeout`.
 - **No external storage** — KYC documents stored as BLOBs in SQLite.
 
 ## Stack
 
-Node.js + TypeScript + Fastify (NestJS) · SQLite (better-sqlite3) + Drizzle ORM · Vite + React panel + Tailwind · JWT (API) / HTTP Basic (panel) · in-process `setTimeout` for async work.
+Node.js + TypeScript + Fastify (NestJS) · SQLite (better-sqlite3) + Drizzle ORM · Vite + React panel + Tailwind · JWT (API) / `X-Scrip-Merchant` header (panel) · in-process `setTimeout` for async work.
 
 ## Docker
 
@@ -137,7 +137,7 @@ No per-route permissions — every token reaches every route above, scoped to it
 backend/src/
   main.ts, app.ts, app.module.ts   bootstrap
   http/            api/ and panel/ controllers
-  auth/            Basic + Bearer guards
+  auth/            X-Scrip-Merchant + Bearer guards
   config/          scrip.config.json + SCRIP_*
   db/              schema.ts, migrations/, openDb
   service/         charges (state machine), refunds, webhooks, kyc, tokens, merchants, withdrawals

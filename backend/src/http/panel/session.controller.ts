@@ -46,7 +46,7 @@ export class SessionController {
   }
 
   /**
-   * Public on purpose: Basic auth resolves an existing merchant, so with an
+   * Public on purpose: the panel header resolves an existing merchant, so with an
    * empty database there would be no way to create the first one. No webhook_url here
    * either — wiring the webhook is a separate step through PATCH /merchants/me.
    */

@@ -1,4 +1,4 @@
-/** Typed client for /v1/panel. Basic auth credentials come from the selected merchant. */
+/** Typed client for /v1/panel. The selected merchant travels in the X-Scrip-Merchant header. */
 
 export interface ApiBalance {
   /**
@@ -203,11 +203,18 @@ const API_ROOT = (window.__SCRIP_CONFIG__?.apiBaseUrl || import.meta.env.VITE_AP
 
 const BASE = `${API_ROOT}/v1/panel`;
 
-let authHeader: string | null = null;
+let actingMerchant: string | null = null;
 
-/** Basic auth with an empty password. The merchant is the identity. */
+/**
+ * The merchant is the identity. It stays out of Authorization so a proxy in front of Scrip
+ * (e.g. Apache with htpasswd) can use that header without clobbering the selection.
+ */
 export function setActingMerchant(merchantId: string | null): void {
-  authHeader = merchantId ? `Basic ${btoa(`${merchantId}:`)}` : null;
+  actingMerchant = merchantId;
+}
+
+function merchantHeaders(): Record<string, string> {
+  return actingMerchant ? { 'x-scrip-merchant': actingMerchant } : {};
 }
 
 async function request<T>(
@@ -215,8 +222,7 @@ async function request<T>(
   path: string,
   options: { body?: unknown; raw?: boolean } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = {};
-  if (authHeader) headers.authorization = authHeader;
+  const headers = merchantHeaders();
   if (options.body !== undefined) headers['content-type'] = 'application/json';
 
   const response = await fetch(`${BASE}${path}`, {
@@ -350,7 +356,40 @@ export const api = {
   simulateKyc: (decision: 'approved' | 'rejected', reason: string | null) =>
     request<ApiMerchant>('POST', '/kyc/simulate', { body: { decision, reason } }),
   deleteKycDocument: (id: string) => request<void>('DELETE', `/kyc/documents/${id}`),
-  kycDocumentUrl: (id: string) => `${BASE}/kyc/documents/${id}/content`,
+  /**
+   * A plain link can't carry the merchant header, so the file is fetched and shown from a
+   * blob. The tab is opened up front, while the click still counts as a user gesture —
+   * opening it after the await would trip popup blockers.
+   */
+  openKycDocument: async (id: string) => {
+    const tab = window.open('', '_blank');
+
+    try {
+      const response = await fetch(`${BASE}/kyc/documents/${id}/content`, {
+        headers: merchantHeaders(),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        const parsed = text ? (JSON.parse(text) as unknown) : null;
+        const envelope = parsed as { error?: { code?: string; message?: string } };
+        throw new ApiError(
+          response.status,
+          envelope?.error?.code ?? 'request_failed',
+          envelope?.error?.message ?? 'Falha ao abrir o documento',
+        );
+      }
+
+      const url = URL.createObjectURL(await response.blob());
+      if (tab) tab.location.href = url;
+      else window.location.href = url;
+      // The tab has its own reference once it loads; free ours after that.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      tab?.close();
+      throw error;
+    }
+  },
 
   /** Multipart upload, so the browser sets the boundary itself. */
   uploadKycDocument: async (file: File, type: string) => {
@@ -360,7 +399,7 @@ export const api = {
 
     const response = await fetch(`${BASE}/kyc/documents`, {
       method: 'POST',
-      headers: authHeader ? { authorization: authHeader } : {},
+      headers: merchantHeaders(),
       body: form,
     });
 

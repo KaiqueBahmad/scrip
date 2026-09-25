@@ -348,14 +348,17 @@ export function MyStore() {
                       </Td>
                       <Td>
                         <div className="flex justify-end gap-1">
-                          <a
-                            href={api.kycDocumentUrl(doc.id)}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
                             className="eyebrow px-2 py-1 hover:text-trace"
+                            onClick={() =>
+                              api.openKycDocument(doc.id).catch((err: unknown) =>
+                                setError(err instanceof ApiError ? err.message : t('common.actionFailed')),
+                              )
+                            }
                           >
                             {t('myStore.open')}
-                          </a>
+                          </button>
                           <Button
                             size="sm"
                             variant="ghost"

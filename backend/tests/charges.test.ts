@@ -31,20 +31,20 @@ describe('state machine', () => {
 
   it('rejects an illegal transition over the API with 409', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
     const second = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'expired' },
     });
 
@@ -255,13 +255,13 @@ describe('cancel and refund', () => {
 
   it('moves through partially_refunded to refunded', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 
@@ -294,13 +294,13 @@ describe('cancel and refund', () => {
 
   it('refuses to refund more than the outstanding amount', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
 

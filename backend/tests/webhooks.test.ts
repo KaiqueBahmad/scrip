@@ -164,7 +164,7 @@ describe('webhook delivery', () => {
   it('re-sends a failed delivery on manual retry', async () => {
     let failing = true;
     harness = await createHarness({ respond: () => (failing ? 500 : 200) });
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.scheduler.advance(30_000);
@@ -175,7 +175,7 @@ describe('webhook delivery', () => {
     const retried = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/webhooks/deliveries/${failed.id}/retry`,
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(retried.statusCode, 200);
@@ -189,13 +189,13 @@ describe('webhook delivery', () => {
   it('emits the full documented event set', async () => {
     // Short expiry so pix.charge.expired lands inside the advance below.
     harness = await createHarness({ config: { pixQrCodeExpirationMs: 5000 } });
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
     const { body: charge } = await createCharge(harness, bearer, { payer_document: '22222222222' });
 
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/charges/${charge.id}/simulate`,
-      headers: basic,
+      headers: panel,
       payload: { result: 'paid' },
     });
     await harness.app.inject({
@@ -207,7 +207,7 @@ describe('webhook delivery', () => {
     await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/kyc/simulate',
-      headers: basic,
+      headers: panel,
       payload: { decision: 'approved', reason: 'ok' },
     });
 

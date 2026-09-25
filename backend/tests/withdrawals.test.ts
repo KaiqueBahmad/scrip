@@ -11,12 +11,12 @@ afterEach(async () => {
 });
 
 /** Creates a charge and marks it paid via the panel, so the merchant has a spendable balance. */
-async function seedBalance(harness: TestHarness, bearer: Record<string, string>, basic: Record<string, string>, amount = 15000) {
+async function seedBalance(harness: TestHarness, bearer: Record<string, string>, panel: Record<string, string>, amount = 15000) {
   const { body: charge } = await createCharge(harness, bearer, { amount });
   await harness.app.inject({
     method: 'POST',
     url: `/v1/panel/charges/${charge.id}/simulate`,
-    headers: basic,
+    headers: panel,
     payload: { result: 'paid' },
   });
   return charge;
@@ -25,8 +25,8 @@ async function seedBalance(harness: TestHarness, bearer: Record<string, string>,
 describe('withdrawal creation', () => {
   it('reserves the amount against available balance immediately', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await harness.app.inject({
       method: 'POST',
@@ -43,8 +43,8 @@ describe('withdrawal creation', () => {
 
   it('rejects a withdrawal that exceeds the available balance', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const response = await harness.app.inject({
       method: 'POST',
@@ -74,13 +74,13 @@ describe('withdrawal creation', () => {
 
   it('is also reachable from the panel', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 5000 },
     });
 
@@ -91,13 +91,13 @@ describe('withdrawal creation', () => {
 describe('withdrawal confirm/deny', () => {
   it('confirming keeps the amount debited and fires withdrawal.confirmed', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 10000 },
     });
     const withdrawalId = created.json().id;
@@ -105,7 +105,7 @@ describe('withdrawal confirm/deny', () => {
     const confirmed = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/confirm`,
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(confirmed.statusCode, 200);
@@ -122,13 +122,13 @@ describe('withdrawal confirm/deny', () => {
 
   it('denying releases the reserved amount back to available and fires withdrawal.denied', async () => {
     harness = await createHarness();
-    const { bearer, basic, merchant } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel, merchant } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 10000 },
     });
     const withdrawalId = created.json().id;
@@ -136,7 +136,7 @@ describe('withdrawal confirm/deny', () => {
     const denied = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/deny`,
-      headers: basic,
+      headers: panel,
       payload: { reason: 'suspicious' },
     });
 
@@ -154,13 +154,13 @@ describe('withdrawal confirm/deny', () => {
 
   it('refuses to confirm or deny a withdrawal that already left the pending state', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await harness.app.inject({
       method: 'POST',
       url: '/v1/panel/withdrawals',
-      headers: basic,
+      headers: panel,
       payload: { amount: 5000 },
     });
     const withdrawalId = created.json().id;
@@ -168,13 +168,13 @@ describe('withdrawal confirm/deny', () => {
     await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/confirm`,
-      headers: basic,
+      headers: panel,
     });
 
     const secondConfirm = await harness.app.inject({
       method: 'POST',
       url: `/v1/panel/withdrawals/${withdrawalId}/confirm`,
-      headers: basic,
+      headers: panel,
     });
 
     assert.equal(secondConfirm.statusCode, 409);
@@ -183,8 +183,8 @@ describe('withdrawal confirm/deny', () => {
 
   it('does not expose confirm/deny on the integration API', async () => {
     harness = await createHarness();
-    const { bearer, basic } = await seedMerchantAndToken(harness);
-    await seedBalance(harness, bearer, basic, 15000);
+    const { bearer, panel } = await seedMerchantAndToken(harness);
+    await seedBalance(harness, bearer, panel, 15000);
 
     const created = await createWithdrawal(harness, bearer, 5000);
 
@@ -203,7 +203,7 @@ describe('withdrawal listing and isolation', () => {
     harness = await createHarness();
     const first = await seedMerchantAndToken(harness);
     const second = await seedMerchantAndToken(harness);
-    await seedBalance(harness, first.bearer, first.basic, 15000);
+    await seedBalance(harness, first.bearer, first.panel, 15000);
 
     const created = await createWithdrawal(harness, first.bearer, 5000);
 

@@ -7,7 +7,7 @@
 Scrip reproduces the behavior of a real PIX gateway - QR code generation, asynchronous
 confirmation, expiration, refunds, signed webhooks, merchant KYC - with no external provider.
 Two physically separate route surfaces share the same underlying data: `/v1/api/*` (Bearer
-JWT, called by the merchant's own backend) and `/v1/panel/*` (HTTP Basic, the admin panel).
+JWT, called by the merchant's own backend) and `/v1/panel/*` (`X-Scrip-Merchant: <merchant id>` header, the admin panel).
 The API base URL defaults to `http://localhost:8081` in development and is whatever
 `VITE_API_BASE_URL` / the deployment's origin is otherwise.
 
@@ -50,7 +50,7 @@ charge is paid, then fixed for the charge's lifetime even across a later refund.
 has the same idea on the exit side: its `fee_amount` is set once, at creation.
 
 There is no real bank behind a withdrawal, so confirming or denying one is a panel-only
-action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not exposed on
+action (POST /v1/panel/withdrawals/{id}/confirm or /deny, `X-Scrip-Merchant` header) - not exposed on
 /v1/api. Confirming keeps the amount debited; denying releases it back to `available`.
 
 ## Concepts
@@ -58,10 +58,10 @@ action (POST /v1/panel/withdrawals/{id}/confirm or /deny, Basic auth) - not expo
 - Auth: a Bearer JWT is minted from the panel (Tokens screen), and is scoped to one store -
   there is no cross-store or per-route permission model. This is scriptable, no browser
   needed: `POST /v1/panel/merchants` (no auth, body: `name` optional) creates a store and
-  returns its `id`; `POST /v1/panel/tokens` (HTTP Basic, username is that `id`, password is
-  ignored - any value works, including empty; body: `name` optional label, `expires_in`
-  optional e.g. `"24h"`) mints the JWT. Both are on the `/v1/panel` Basic-auth surface, not
-  `/v1/api`.
+  returns its `id`; `POST /v1/panel/tokens` (header `X-Scrip-Merchant: <that id>`, no
+  password; body: `name` optional label, `expires_in` optional e.g. `"24h"`) mints the JWT.
+  Both are on the `/v1/panel` surface, not `/v1/api`. The panel never reads `Authorization`,
+  so a proxy in front of Scrip (e.g. Apache htpasswd) can use that header freely.
 - Idempotency: repeating `Idempotency-Key` with the same body on charge creation replays the
   original response instead of creating a second charge; the same key with a different body
   is rejected (`409 idempotency_key_reused`).
